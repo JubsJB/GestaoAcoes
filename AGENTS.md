@@ -6,7 +6,11 @@ O objetivo inicial do projeto é permitir o gerenciamento de uma carteira de aç
 
 A arquitetura deve permitir que, futuramente, o sistema seja expandido para outros tipos de investimentos sem exigir alterações desnecessárias nas funcionalidades já existentes.
 
-O **PRD do projeto é a principal fonte de verdade para requisitos funcionais e regras de negócio**.
+O PRD oficial do projeto está localizado em `docs/PRD.md`.
+
+O arquivo `docs/PRD.md` é a principal fonte de verdade para requisitos funcionais e regras de negócio do sistema.
+
+Antes de implementar ou alterar uma funcionalidade relacionada a requisitos do produto, consultar `docs/PRD.md`.
 
 Este `AGENTS.md` define como agentes de IA, incluindo o Codex, devem trabalhar neste repositório e registra regras críticas do projeto que não devem ser violadas durante a implementação.
 
