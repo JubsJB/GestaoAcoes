@@ -1,23 +1,26 @@
-HELP.md
+### Maven ###
 target/
-.mvn/wrapper/maven-wrapper.jar
+
 !**/src/main/**/target/
 !**/src/test/**/target/
 
-### STS ###
-.apt_generated
-.classpath
-.factorypath
-.project
-.settings
-.springBeans
-.sts4-cache
+### Spring Boot ###
+HELP.md
 
 ### IntelliJ IDEA ###
-.idea
+.idea/
 *.iws
 *.iml
 *.ipr
+
+### STS / Eclipse ###
+.apt_generated/
+.classpath
+.factorypath
+.project
+.settings/
+.springBeans
+.sts4-cache/
 
 ### NetBeans ###
 /nbproject/private/
@@ -26,11 +29,44 @@ target/
 /nbdist/
 /.nb-gradle/
 build/
+
 !**/src/main/**/build/
 !**/src/test/**/build/
 
 ### VS Code ###
 .vscode/
 
+### Angular / Node.js ###
+node_modules/
+dist/
+.angular/
+.cache/
+coverage/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+### Environment / Secrets ###
+.env
+.env.*
+!.env.example
+
+### Logs ###
+*.log
+logs/
+
+### Operating System ###
+.DS_Store
+Thumbs.db
+desktop.ini
+
 ### Graphify ###
 graphify-out/
+
+### Temporary Files ###
+*.tmp
+*.temp
+*.swp
+*.swo
+*~
