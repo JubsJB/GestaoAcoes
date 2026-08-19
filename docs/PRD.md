@@ -1,8 +1,8 @@
 # Product Requirements Document (PRD)
 
-**Produto:** Sistema de Gestão e Controle de Carteira de Investimentos
-**Versão:** 1.1
-**Status:** Planejamento inicial
+**Produto:** Sistema de Gestão e Controle de Carteira de Investimentos  
+**Versão:** 1.1  
+**Status:** Planejamento inicial  
 **Escopo inicial:** Controle de carteira de ações brasileiras e americanas
 
 ---
@@ -448,7 +448,11 @@ O sistema deverá calcular automaticamente a quantidade atual disponível de cad
 
 #### RF19 — Calcular preço médio
 
-O sistema deverá calcular automaticamente o preço médio da posição após cada operação.
+O sistema deverá calcular automaticamente o preço médio de aquisição de cada ação com base nas operações de compra registradas.
+
+Novas operações de compra deverão recalcular o preço médio utilizando o custo médio ponderado da posição.
+
+Operações de venda deverão reduzir a quantidade disponível da posição, sem alterar o preço médio unitário das ações remanescentes.
 
 #### RF20 — Calcular custo da posição
 
@@ -523,6 +527,8 @@ EUA    → Alpha Vantage
 
 O sistema deverá recalcular automaticamente a posição do ativo após cada operação de compra ou venda.
 
+O recálculo deverá atualizar a quantidade, o custo da posição e os resultados correspondentes. O preço médio unitário deverá ser recalculado somente quando ocorrer uma nova operação de compra.
+
 **RN13 — Operação de compra**
 
 Uma operação de compra deverá:
@@ -537,14 +543,17 @@ Uma operação de venda deverá:
 
 - reduzir a quantidade disponível;
 - reduzir o custo da posição;
+- manter inalterado o preço médio unitário das ações remanescentes;
 - utilizar o preço médio vigente imediatamente antes da venda para determinar o custo correspondente às unidades vendidas;
 - calcular o lucro ou prejuízo realizado.
 
 **RN15 — Preço médio após venda**
 
-A operação de venda não deverá alterar o preço médio unitário das ações remanescentes.
+A operação de venda não deverá recalcular nem alterar o preço médio unitário das ações remanescentes.
 
 O custo da posição deverá ser reduzido proporcionalmente à quantidade vendida utilizando o preço médio vigente antes da venda.
+
+Caso uma venda encerre completamente a posição do ativo, deixando sua quantidade igual a zero, a posição será considerada encerrada. Uma futura compra do mesmo ativo deverá iniciar um novo cálculo de preço médio com base nas novas operações de compra.
 
 **RN16 — Resultado realizado**
 
@@ -593,13 +602,22 @@ VENDA
 
 ## 12. Regras de Cálculo
 
-### 12.1 Compra
+### 12.1 Compra e Cálculo do Preço Médio
+
+O preço médio deverá ser calculado utilizando o custo médio ponderado das operações de compra.
 
 Para uma nova compra:
 
 ```text
+custoNovaCompra =
+quantidadeComprada × precoCompra
+```
+
+O novo custo da posição será:
+
+```text
 novoCusto =
-custoAtual + (quantidadeComprada × precoCompra)
+custoAtual + custoNovaCompra
 ```
 
 A nova quantidade será:
@@ -609,7 +627,7 @@ novaQuantidade =
 quantidadeAtual + quantidadeComprada
 ```
 
-O preço médio será:
+O novo preço médio será:
 
 ```text
 novoPrecoMedio =
@@ -627,9 +645,13 @@ novoPrecoMedio =
 (quantidadeAtual + quantidadeComprada)
 ```
 
+No escopo inicial do projeto, o cálculo do preço médio considerará a quantidade e o preço unitário das operações de compra, sem incluir taxas, emolumentos ou impostos.
+
 ---
 
 ### 12.2 Venda
+
+Operações de venda não deverão recalcular o preço médio unitário da posição.
 
 Antes da venda deverá ser identificado o preço médio vigente.
 
@@ -654,7 +676,16 @@ novoCusto =
 custoAtual - custoQuantidadeVendida
 ```
 
-O preço médio unitário da posição remanescente permanece inalterado.
+O preço médio unitário da posição remanescente permanece inalterado:
+
+```text
+novoPrecoMedio =
+precoMedioVigente
+```
+
+Caso a quantidade restante seja igual a zero, a posição será considerada encerrada.
+
+Uma futura operação de compra do mesmo ativo deverá iniciar um novo cálculo de preço médio com base nas novas aquisições.
 
 ---
 
@@ -760,12 +791,28 @@ Custo: R$ 1.800,00
 Preço médio: R$ 12,00
 ```
 
+O preço médio foi recalculado pela nova operação de compra:
+
+```text
+Preço médio =
+((100 × R$ 10,00) + (50 × R$ 16,00))
+/
+(100 + 50)
+
+Preço médio =
+R$ 1.800,00 / 150
+
+Preço médio = R$ 12,00
+```
+
 Posteriormente:
 
 ```text
 Venda:
 50 ações × R$ 15,00
 ```
+
+A operação de venda não recalcula o preço médio unitário.
 
 Custo das ações vendidas:
 
@@ -788,7 +835,7 @@ Custo: R$ 1.200,00
 Preço médio: R$ 12,00
 ```
 
-Portanto, a venda altera a quantidade e o custo total da posição, mas mantém o preço médio unitário das ações restantes.
+Portanto, a venda reduz a quantidade e o custo total da posição, mas mantém inalterado o preço médio unitário das ações restantes.
 
 ---
 
