@@ -1,0 +1,90 @@
+databaseChangeLog:
+  - changeSet:
+      id: 001-create-corretora
+      author: codex
+      changes:
+        - createTable:
+            tableName: corretora
+            columns:
+              - column:
+                  name: id
+                  type: BIGINT
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    primaryKeyName: pk_corretora
+                    nullable: false
+              - column:
+                  name: cnpj
+                  type: VARCHAR(14)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: razao_social
+                  type: VARCHAR(255)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: nome_fantasia
+                  type: VARCHAR(255)
+              - column:
+                  name: email
+                  type: VARCHAR(255)
+              - column:
+                  name: telefone
+                  type: VARCHAR(30)
+              - column:
+                  name: cep
+                  type: VARCHAR(8)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: logradouro
+                  type: VARCHAR(255)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: numero
+                  type: VARCHAR(30)
+              - column:
+                  name: complemento
+                  type: VARCHAR(255)
+              - column:
+                  name: bairro
+                  type: VARCHAR(150)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: cidade
+                  type: VARCHAR(150)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: uf
+                  type: VARCHAR(2)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: situacao_cadastral
+                  type: VARCHAR(100)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: validada_mercado_financeiro
+                  type: BOOLEAN
+                  defaultValueBoolean: false
+                  constraints:
+                    nullable: false
+              - column:
+                  name: data_cadastro
+                  type: TIMESTAMP WITH TIME ZONE
+                  constraints:
+                    nullable: false
+        - addUniqueConstraint:
+            tableName: corretora
+            columnNames: cnpj
+            constraintName: uk_corretora_cnpj
+      rollback:
+        - dropTable:
+            tableName: corretora
+            cascadeConstraints: true
