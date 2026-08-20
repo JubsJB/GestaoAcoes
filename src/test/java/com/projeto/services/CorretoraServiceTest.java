@@ -8,8 +8,10 @@ import com.projeto.integrations.cep.CepProvider;
 import com.projeto.integrations.cnpj.CnpjData;
 import com.projeto.integrations.cnpj.CnpjProvider;
 import com.projeto.mappers.CorretoraMapper;
+import com.projeto.repositories.CorretoraRepository;
 import com.projeto.services.exceptions.ApiException;
 import com.projeto.services.exceptions.ErrorCodes;
+import com.projeto.services.exceptions.ObjectNotFoundException;
 import com.projeto.validation.CepValidator;
 import com.projeto.validation.CnpjValidator;
 import org.junit.jupiter.api.BeforeEach;
@@ -18,21 +20,26 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Sort;
 
 import java.time.Clock;
 import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
+import java.util.List;
+import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -51,6 +58,9 @@ class CorretoraServiceTest {
     @Mock
     private CorretoraPersistenceService persistenceService;
 
+    @Mock
+    private CorretoraRepository repository;
+
     private CorretoraService service;
 
     @BeforeEach
@@ -61,6 +71,7 @@ class CorretoraServiceTest {
                 cnpjProvider,
                 cepProvider,
                 persistenceService,
+                repository,
                 new CorretoraMapper(),
                 Clock.fixed(NOW, ZoneOffset.UTC)
         );
@@ -209,6 +220,62 @@ class CorretoraServiceTest {
         verify(persistenceService, never()).saveUnique(any());
     }
 
+    @Test
+    void listsPersistedBrokersUsingAscendingIdSortAndMapsEveryItem() {
+        Corretora first = broker(CNPJ, "Primeira Corretora S.A.", true);
+        Corretora second = broker("04252011000110", "Segunda Corretora S.A.", false);
+        when(repository.findAll(any(Sort.class))).thenReturn(List.of(first, second));
+
+        List<CorretoraResponse> response = service.listar();
+
+        ArgumentCaptor<Sort> sortCaptor = ArgumentCaptor.forClass(Sort.class);
+        verify(repository).findAll(sortCaptor.capture());
+        Sort.Order idOrder = sortCaptor.getValue().getOrderFor("id");
+        assertEquals(Sort.Direction.ASC, idOrder.getDirection());
+        assertEquals(List.of(CNPJ, "04252011000110"),
+                response.stream().map(CorretoraResponse::cnpj).toList());
+        assertEquals("Primeira Corretora S.A.", response.get(0).razaoSocial());
+        assertNull(response.get(1).nomeFantasia());
+        verifyNoInteractions(cnpjProvider, cepProvider, persistenceService);
+    }
+
+    @Test
+    void returnsEmptyListWhenNoBrokerIsPersisted() {
+        when(repository.findAll(any(Sort.class))).thenReturn(List.of());
+
+        List<CorretoraResponse> response = service.listar();
+
+        assertTrue(response.isEmpty());
+        verifyNoInteractions(cnpjProvider, cepProvider, persistenceService);
+    }
+
+    @Test
+    void findsPersistedBrokerByIdWithoutCallingExternalProviders() {
+        Corretora corretora = broker(CNPJ, "Corretora Consultada S.A.", true);
+        when(repository.findById(7L)).thenReturn(Optional.of(corretora));
+
+        CorretoraResponse response = service.buscarPorId(7L);
+
+        assertEquals(CNPJ, response.cnpj());
+        assertEquals("Corretora Consultada S.A.", response.razaoSocial());
+        verify(repository).findById(7L);
+        verifyNoInteractions(cnpjProvider, cepProvider, persistenceService);
+    }
+
+    @Test
+    void throwsObjectNotFoundWhenBrokerIdDoesNotExistWithoutCallingExternalProviders() {
+        when(repository.findById(99L)).thenReturn(Optional.empty());
+
+        ObjectNotFoundException exception = assertThrows(
+                ObjectNotFoundException.class,
+                () -> service.buscarPorId(99L)
+        );
+
+        assertEquals("Corretora não encontrada para o id: 99", exception.getMessage());
+        verify(repository).findById(99L);
+        verifyNoInteractions(cnpjProvider, cepProvider, persistenceService);
+    }
+
     private CorretoraCreateRequest request(String cnpj, boolean confirmation) {
         CorretoraCreateRequest request = new CorretoraCreateRequest();
         request.setCnpj(cnpj);
@@ -237,5 +304,24 @@ class CorretoraServiceTest {
 
     private CepData completeCepData() {
         return new CepData("01001-000", "Praca da Se", "Se", "Sao Paulo", "SP");
+    }
+
+    private Corretora broker(String cnpj, String razaoSocial, boolean withOptionalFields) {
+        return new Corretora(
+                cnpj,
+                razaoSocial,
+                withOptionalFields ? "Nome Fantasia" : null,
+                withOptionalFields ? "contato@corretora.test" : null,
+                withOptionalFields ? "1130000000" : null,
+                CEP,
+                "Praca da Se",
+                withOptionalFields ? "100" : null,
+                withOptionalFields ? "10 andar" : null,
+                "Se",
+                "Sao Paulo",
+                "SP",
+                "ATIVA",
+                OffsetDateTime.ofInstant(NOW, ZoneOffset.UTC)
+        );
     }
 }
