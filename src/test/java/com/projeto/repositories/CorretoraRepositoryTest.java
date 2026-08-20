@@ -6,11 +6,13 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.domain.Sort;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -60,6 +62,21 @@ class CorretoraRepositoryTest {
         assertThrows(
                 DataIntegrityViolationException.class,
                 () -> repository.saveAndFlush(completeBroker("11222333000181"))
+        );
+    }
+
+    @Test
+    void findsBrokerByIdAndListsUsingAscendingIdOrder() {
+        Corretora first = repository.saveAndFlush(completeBroker("11222333000181"));
+        Corretora second = repository.saveAndFlush(completeBroker("04252011000110"));
+
+        Corretora found = repository.findById(first.getId()).orElseThrow();
+        List<Corretora> listed = repository.findAll(Sort.by(Sort.Direction.ASC, "id"));
+
+        assertEquals(first.getId(), found.getId());
+        assertEquals(
+                List.of(first.getId(), second.getId()),
+                listed.stream().map(Corretora::getId).toList()
         );
     }
 

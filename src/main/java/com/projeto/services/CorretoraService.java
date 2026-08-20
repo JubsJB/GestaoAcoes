@@ -8,16 +8,21 @@ import com.projeto.integrations.cep.CepProvider;
 import com.projeto.integrations.cnpj.CnpjData;
 import com.projeto.integrations.cnpj.CnpjProvider;
 import com.projeto.mappers.CorretoraMapper;
+import com.projeto.repositories.CorretoraRepository;
 import com.projeto.services.exceptions.ApiException;
 import com.projeto.services.exceptions.ErrorCodes;
+import com.projeto.services.exceptions.ObjectNotFoundException;
 import com.projeto.validation.CepValidator;
 import com.projeto.validation.CnpjValidator;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Clock;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
+import java.util.List;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -29,6 +34,7 @@ public class CorretoraService {
     private final CnpjProvider cnpjProvider;
     private final CepProvider cepProvider;
     private final CorretoraPersistenceService persistenceService;
+    private final CorretoraRepository repository;
     private final CorretoraMapper mapper;
     private final Clock clock;
 
@@ -38,6 +44,7 @@ public class CorretoraService {
             CnpjProvider cnpjProvider,
             CepProvider cepProvider,
             CorretoraPersistenceService persistenceService,
+            CorretoraRepository repository,
             CorretoraMapper mapper,
             Clock clock
     ) {
@@ -46,6 +53,7 @@ public class CorretoraService {
         this.cnpjProvider = cnpjProvider;
         this.cepProvider = cepProvider;
         this.persistenceService = persistenceService;
+        this.repository = repository;
         this.mapper = mapper;
         this.clock = clock;
     }
@@ -85,6 +93,24 @@ public class CorretoraService {
         );
 
         return mapper.toResponse(persistenceService.saveUnique(corretora));
+    }
+
+    @Transactional(readOnly = true)
+    public List<CorretoraResponse> listar() {
+        return repository.findAll(Sort.by(Sort.Direction.ASC, "id"))
+                .stream()
+                .map(mapper::toResponse)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public CorretoraResponse buscarPorId(Long id) {
+        Corretora corretora = repository.findById(id)
+                .orElseThrow(() -> new ObjectNotFoundException(
+                        "Corretora não encontrada para o id: " + id
+                ));
+
+        return mapper.toResponse(corretora);
     }
 
     private void validateCnpjData(CnpjData data, String requestedCnpj) {
