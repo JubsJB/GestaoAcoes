@@ -3,3 +3,5 @@ databaseChangeLog:
       file: db/changelog/changes/001-create-corretora.yaml
   - include:
       file: db/changelog/changes/002-create-acao.yaml
+  - include:
+      file: db/changelog/changes/003-create-carteira.yaml
