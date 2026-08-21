@@ -8,6 +8,7 @@ import com.projeto.entities.Moeda;
 import com.projeto.services.AcaoService;
 import com.projeto.services.exceptions.ApiException;
 import com.projeto.services.exceptions.ErrorCodes;
+import com.projeto.services.exceptions.ObjectNotFoundException;
 import org.hamcrest.Matchers;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -21,9 +22,11 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
+import java.util.List;
 import java.util.Map;
 
 import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -120,15 +123,107 @@ class AcaoResourceTest {
     }
 
     @Test
-    void doesNotExposeOutOfScopeGetEndpoints() throws Exception {
+    void listsActionsWithCompletePersistedDataInServiceOrder() throws Exception {
+        when(service.listar()).thenReturn(List.of(
+                response(
+                        1L,
+                        "PETR4",
+                        "Petróleo Brasileiro S.A.",
+                        Mercado.BRASIL,
+                        Moeda.BRL,
+                        new BigDecimal("32.123456"),
+                        OffsetDateTime.parse("2026-08-19T18:45:00Z")
+                ),
+                response(
+                        2L,
+                        "AAPL",
+                        "Apple Inc.",
+                        Mercado.EUA,
+                        Moeda.USD,
+                        new BigDecimal("224.410000"),
+                        OffsetDateTime.parse("2026-08-20T15:30:00Z")
+                )
+        ));
+
         mockMvc.perform(get("/acoes"))
-                .andExpect(status().isMethodNotAllowed());
-        mockMvc.perform(get("/acoes/1"))
-                .andExpect(status().isNotFound());
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isArray())
+                .andExpect(jsonPath("$.length()").value(2))
+                .andExpect(jsonPath("$[0].id").value(1))
+                .andExpect(jsonPath("$[0].ticker").value("PETR4"))
+                .andExpect(jsonPath("$[0].nomeEmpresa").value("Petróleo Brasileiro S.A."))
+                .andExpect(jsonPath("$[0].mercado").value("BRASIL"))
+                .andExpect(jsonPath("$[0].moeda").value("BRL"))
+                .andExpect(jsonPath("$[0].cotacaoAtual").value(32.123456))
+                .andExpect(jsonPath("$[0].dataHoraCotacao").value("2026-08-19T18:45:00Z"))
+                .andExpect(jsonPath("$[1].id").value(2))
+                .andExpect(jsonPath("$[1].ticker").value("AAPL"))
+                .andExpect(jsonPath("$[1].nomeEmpresa").value("Apple Inc."))
+                .andExpect(jsonPath("$[1].mercado").value("EUA"))
+                .andExpect(jsonPath("$[1].moeda").value("USD"))
+                .andExpect(jsonPath("$[1].cotacaoAtual").value(224.410000))
+                .andExpect(jsonPath("$[1].dataHoraCotacao").value("2026-08-20T15:30:00Z"));
+
+        verify(service).listar();
+    }
+
+    @Test
+    void returnsEmptyArrayWhenNoActionIsPersisted() throws Exception {
+        when(service.listar()).thenReturn(List.of());
+
+        mockMvc.perform(get("/acoes"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isArray())
+                .andExpect(jsonPath("$.length()").value(0));
+
+        verify(service).listar();
+    }
+
+    @Test
+    void returnsPersistedActionByIdWithCompleteResponse() throws Exception {
+        when(service.buscarPorId(7L)).thenReturn(response(
+                7L,
+                "MSFT",
+                "Microsoft Corporation",
+                Mercado.EUA,
+                Moeda.USD,
+                new BigDecimal("501.250000"),
+                OffsetDateTime.parse("2026-08-20T15:30:00Z")
+        ));
+
+        mockMvc.perform(get("/acoes/{id}", 7L))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(7))
+                .andExpect(jsonPath("$.ticker").value("MSFT"))
+                .andExpect(jsonPath("$.nomeEmpresa").value("Microsoft Corporation"))
+                .andExpect(jsonPath("$.mercado").value("EUA"))
+                .andExpect(jsonPath("$.moeda").value("USD"))
+                .andExpect(jsonPath("$.cotacaoAtual").value(501.250000))
+                .andExpect(jsonPath("$.dataHoraCotacao").value("2026-08-20T15:30:00Z"));
+
+        verify(service).buscarPorId(7L);
+    }
+
+    @Test
+    void returnsStandardNotFoundErrorForMissingActionId() throws Exception {
+        when(service.buscarPorId(999999L)).thenThrow(
+                new ObjectNotFoundException("Ação não encontrada para o id: 999999")
+        );
+
+        mockMvc.perform(get("/acoes/{id}", 999999L))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.status").value(404))
+                .andExpect(jsonPath("$.error").value("Not Found"))
+                .andExpect(jsonPath("$.message").value("Ação não encontrada para o id: 999999"))
+                .andExpect(jsonPath("$.path").value("/acoes/999999"))
+                .andExpect(jsonPath("$.code").value(Matchers.nullValue()))
+                .andExpect(jsonPath("$.details").isEmpty());
+
+        verify(service).buscarPorId(999999L);
     }
 
     private AcaoResponse response(Long id, String ticker, Mercado market, Moeda currency) {
-        return new AcaoResponse(
+        return response(
                 id,
                 ticker,
                 "Empresa",
@@ -136,6 +231,26 @@ class AcaoResourceTest {
                 currency,
                 new BigDecimal("100.123456"),
                 OffsetDateTime.parse("2026-08-20T15:30:00Z")
+        );
+    }
+
+    private AcaoResponse response(
+            Long id,
+            String ticker,
+            String companyName,
+            Mercado market,
+            Moeda currency,
+            BigDecimal quote,
+            OffsetDateTime timestamp
+    ) {
+        return new AcaoResponse(
+                id,
+                ticker,
+                companyName,
+                market,
+                currency,
+                quote,
+                timestamp
         );
     }
 }
