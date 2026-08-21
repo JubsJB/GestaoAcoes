@@ -42,8 +42,17 @@ class GestaoacoesApplicationTests {
             try (var table = connection.getMetaData().getTables(null, null, "CORRETORA", new String[]{"TABLE"})) {
                 Assertions.assertTrue(table.next(), "Liquibase deve criar a tabela CORRETORA antes do Hibernate validate");
             }
+            try (var table = connection.getMetaData().getTables(null, null, "CARTEIRA", new String[]{"TABLE"})) {
+                Assertions.assertTrue(table.next(), "Liquibase deve criar a tabela CARTEIRA antes do Hibernate validate");
+            }
             try (var changelog = connection.createStatement().executeQuery(
                     "SELECT COUNT(*) FROM DATABASECHANGELOG WHERE ID = '001-create-corretora'"
+            )) {
+                Assertions.assertTrue(changelog.next());
+                Assertions.assertEquals(1, changelog.getInt(1));
+            }
+            try (var changelog = connection.createStatement().executeQuery(
+                    "SELECT COUNT(*) FROM DATABASECHANGELOG WHERE ID = '003-create-carteira'"
             )) {
                 Assertions.assertTrue(changelog.next());
                 Assertions.assertEquals(1, changelog.getInt(1));

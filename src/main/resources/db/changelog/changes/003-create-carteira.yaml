@@ -1,0 +1,30 @@
+databaseChangeLog:
+  - changeSet:
+      id: 003-create-carteira
+      author: codex
+      changes:
+        - createTable:
+            tableName: carteira
+            columns:
+              - column:
+                  name: id
+                  type: BIGINT
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    primaryKeyName: pk_carteira
+                    nullable: false
+              - column:
+                  name: nome
+                  type: VARCHAR(255)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: data_criacao
+                  type: TIMESTAMP WITH TIME ZONE
+                  constraints:
+                    nullable: false
+      rollback:
+        - dropTable:
+            tableName: carteira
+            cascadeConstraints: true
