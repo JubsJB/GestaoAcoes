@@ -8,6 +8,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.domain.Sort;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.annotation.Transactional;
@@ -15,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -87,6 +89,35 @@ class AcaoRepositoryTest {
                 """));
     }
 
+    @Test
+    void listsActionsByAscendingIdWhenRowsWereInsertedOutOfOrder() {
+        insertAction(200L, "MSFT", "Microsoft Corporation", "EUA", "USD", "501.250000");
+        insertAction(100L, "PETR4", "Petróleo Brasileiro S.A.", "BRASIL", "BRL", "32.123456");
+
+        List<Acao> listed = repository.findAll(Sort.by(Sort.Direction.ASC, "id"));
+
+        assertEquals(List.of(100L, 200L), listed.stream().map(Acao::getId).toList());
+        assertEquals(List.of("PETR4", "MSFT"), listed.stream().map(Acao::getTicker).toList());
+    }
+
+    @Test
+    void findsActionByIdWithoutChangingPersistedQuoteOrTimestampAndReturnsEmptyForMissingId() {
+        OffsetDateTime timestamp = OffsetDateTime.parse("2026-08-20T12:30:00-03:00");
+        Acao saved = repository.saveAndFlush(action(
+                "AAPL", Mercado.EUA, Moeda.USD, new BigDecimal("224.410000"), timestamp
+        ));
+
+        Acao found = repository.findById(saved.getId()).orElseThrow();
+
+        assertEquals("AAPL", found.getTicker());
+        assertEquals("Empresa", found.getNomeEmpresa());
+        assertEquals(Mercado.EUA, found.getMercado());
+        assertEquals(Moeda.USD, found.getMoeda());
+        assertEquals(new BigDecimal("224.410000"), found.getCotacaoAtual());
+        assertEquals(timestamp.toInstant(), found.getDataHoraCotacao().toInstant());
+        assertTrue(repository.findById(Long.MAX_VALUE).isEmpty());
+    }
+
     private Acao action(
             String ticker,
             Mercado market,
@@ -99,5 +130,28 @@ class AcaoRepositoryTest {
 
     private OffsetDateTime utcNow() {
         return OffsetDateTime.of(2026, 8, 20, 15, 30, 0, 0, ZoneOffset.UTC);
+    }
+
+    private void insertAction(
+            Long id,
+            String ticker,
+            String companyName,
+            String market,
+            String currency,
+            String quote
+    ) {
+        jdbcTemplate.update("""
+                INSERT INTO acao(
+                    id, ticker, nome_empresa, mercado, moeda, cotacao_atual, data_hora_cotacao
+                ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                """,
+                id,
+                ticker,
+                companyName,
+                market,
+                currency,
+                new BigDecimal(quote),
+                utcNow()
+        );
     }
 }

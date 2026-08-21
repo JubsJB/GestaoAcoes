@@ -8,11 +8,15 @@ import com.projeto.entities.Moeda;
 import com.projeto.integrations.cotacao.CotacaoData;
 import com.projeto.integrations.cotacao.CotacaoProvider;
 import com.projeto.mappers.AcaoMapper;
+import com.projeto.repositories.AcaoRepository;
 import com.projeto.services.exceptions.ApiException;
 import com.projeto.services.exceptions.ErrorCodes;
+import com.projeto.services.exceptions.ObjectNotFoundException;
 import com.projeto.validation.TickerNormalizer;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -33,6 +37,7 @@ public class AcaoService {
     private final TickerNormalizer tickerNormalizer;
     private final Map<Mercado, CotacaoProvider> providers;
     private final AcaoPersistenceService persistenceService;
+    private final AcaoRepository repository;
     private final AcaoMapper mapper;
     private final Clock clock;
 
@@ -40,12 +45,14 @@ public class AcaoService {
             TickerNormalizer tickerNormalizer,
             List<CotacaoProvider> providers,
             AcaoPersistenceService persistenceService,
+            AcaoRepository repository,
             AcaoMapper mapper,
             Clock clock
     ) {
         this.tickerNormalizer = tickerNormalizer;
         this.providers = indexProviders(providers);
         this.persistenceService = persistenceService;
+        this.repository = repository;
         this.mapper = mapper;
         this.clock = clock;
     }
@@ -83,6 +90,24 @@ public class AcaoService {
                 quoteTime
         );
         return mapper.toResponse(persistenceService.saveUnique(acao));
+    }
+
+    @Transactional(readOnly = true)
+    public List<AcaoResponse> listar() {
+        return repository.findAll(Sort.by(Sort.Direction.ASC, "id"))
+                .stream()
+                .map(mapper::toResponse)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public AcaoResponse buscarPorId(Long id) {
+        Acao acao = repository.findById(id)
+                .orElseThrow(() -> new ObjectNotFoundException(
+                        "Ação não encontrada para o id: " + id
+                ));
+
+        return mapper.toResponse(acao);
     }
 
     private Map<Mercado, CotacaoProvider> indexProviders(List<CotacaoProvider> providerList) {

@@ -8,8 +8,10 @@ import com.projeto.entities.Moeda;
 import com.projeto.integrations.cotacao.CotacaoData;
 import com.projeto.integrations.cotacao.CotacaoProvider;
 import com.projeto.mappers.AcaoMapper;
+import com.projeto.repositories.AcaoRepository;
 import com.projeto.services.exceptions.ApiException;
 import com.projeto.services.exceptions.ErrorCodes;
+import com.projeto.services.exceptions.ObjectNotFoundException;
 import com.projeto.validation.TickerNormalizer;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -17,6 +19,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Sort;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.math.BigDecimal;
 import java.time.Clock;
@@ -24,9 +28,11 @@ import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
+import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.never;
@@ -48,6 +54,9 @@ class AcaoServiceTest {
     @Mock
     private AcaoPersistenceService persistenceService;
 
+    @Mock
+    private AcaoRepository repository;
+
     private AcaoService service;
 
     @BeforeEach
@@ -58,10 +67,11 @@ class AcaoServiceTest {
                 new TickerNormalizer(),
                 List.of(brapi, alphaVantage),
                 persistenceService,
+                repository,
                 new AcaoMapper(),
                 Clock.fixed(FALLBACK_INSTANT, ZoneOffset.UTC)
         );
-        clearInvocations(brapi, alphaVantage, persistenceService);
+        clearInvocations(brapi, alphaVantage, persistenceService, repository);
     }
 
     @Test
@@ -123,7 +133,7 @@ class AcaoServiceTest {
         );
 
         assertEquals(ErrorCodes.TICKER_INVALIDO, exception.getCode());
-        verifyNoInteractions(brapi, alphaVantage, persistenceService);
+        verifyNoInteractions(brapi, alphaVantage, persistenceService, repository);
     }
 
     @Test
@@ -200,6 +210,98 @@ class AcaoServiceTest {
         assertEquals(ErrorCodes.ACAO_DUPLICADA, canonical.getCode());
     }
 
+    @Test
+    void listsPersistedActionsUsingAscendingIdSortAndPreservesEveryField() {
+        OffsetDateTime firstTimestamp = OffsetDateTime.parse("2026-08-19T18:45:00Z");
+        OffsetDateTime secondTimestamp = OffsetDateTime.parse("2026-08-20T15:30:00Z");
+        Acao first = action(
+                1L,
+                "PETR4",
+                "Petróleo Brasileiro S.A.",
+                Mercado.BRASIL,
+                Moeda.BRL,
+                new BigDecimal("32.123456"),
+                firstTimestamp
+        );
+        Acao second = action(
+                2L,
+                "AAPL",
+                "Apple Inc.",
+                Mercado.EUA,
+                Moeda.USD,
+                new BigDecimal("224.410000"),
+                secondTimestamp
+        );
+        when(repository.findAll(any(Sort.class))).thenReturn(List.of(first, second));
+
+        List<AcaoResponse> response = service.listar();
+
+        ArgumentCaptor<Sort> sortCaptor = ArgumentCaptor.forClass(Sort.class);
+        verify(repository).findAll(sortCaptor.capture());
+        assertEquals(Sort.Direction.ASC, sortCaptor.getValue().getOrderFor("id").getDirection());
+        assertEquals(List.of(1L, 2L), response.stream().map(AcaoResponse::id).toList());
+        assertEquals("PETR4", response.get(0).ticker());
+        assertEquals("Petróleo Brasileiro S.A.", response.get(0).nomeEmpresa());
+        assertEquals(Mercado.BRASIL, response.get(0).mercado());
+        assertEquals(Moeda.BRL, response.get(0).moeda());
+        assertEquals(new BigDecimal("32.123456"), response.get(0).cotacaoAtual());
+        assertEquals(firstTimestamp, response.get(0).dataHoraCotacao());
+        assertEquals("AAPL", response.get(1).ticker());
+        assertEquals(secondTimestamp, response.get(1).dataHoraCotacao());
+        verifyNoInteractions(brapi, alphaVantage, persistenceService);
+    }
+
+    @Test
+    void returnsEmptyListWhenNoActionIsPersistedWithoutExternalCalls() {
+        when(repository.findAll(any(Sort.class))).thenReturn(List.of());
+
+        List<AcaoResponse> response = service.listar();
+
+        assertTrue(response.isEmpty());
+        verifyNoInteractions(brapi, alphaVantage, persistenceService);
+    }
+
+    @Test
+    void findsPersistedActionByIdWithoutExternalCallsOrPersistence() {
+        OffsetDateTime timestamp = OffsetDateTime.parse("2026-08-20T15:30:00Z");
+        Acao persisted = action(
+                7L,
+                "MSFT",
+                "Microsoft Corporation",
+                Mercado.EUA,
+                Moeda.USD,
+                new BigDecimal("501.250000"),
+                timestamp
+        );
+        when(repository.findById(7L)).thenReturn(Optional.of(persisted));
+
+        AcaoResponse response = service.buscarPorId(7L);
+
+        assertEquals(7L, response.id());
+        assertEquals("MSFT", response.ticker());
+        assertEquals("Microsoft Corporation", response.nomeEmpresa());
+        assertEquals(Mercado.EUA, response.mercado());
+        assertEquals(Moeda.USD, response.moeda());
+        assertEquals(new BigDecimal("501.250000"), response.cotacaoAtual());
+        assertEquals(timestamp, response.dataHoraCotacao());
+        verify(repository).findById(7L);
+        verifyNoInteractions(brapi, alphaVantage, persistenceService);
+    }
+
+    @Test
+    void throwsObjectNotFoundForMissingActionIdWithoutExternalCallsOrPersistence() {
+        when(repository.findById(99L)).thenReturn(Optional.empty());
+
+        ObjectNotFoundException exception = assertThrows(
+                ObjectNotFoundException.class,
+                () -> service.buscarPorId(99L)
+        );
+
+        assertEquals("Ação não encontrada para o id: 99", exception.getMessage());
+        verify(repository).findById(99L);
+        verifyNoInteractions(brapi, alphaVantage, persistenceService);
+    }
+
     private void assertExternalFailure(CotacaoData data, String expectedCode) {
         clearInvocations(persistenceService, brapi, alphaVantage);
         when(brapi.consultar("PETR4")).thenReturn(data);
@@ -218,5 +320,19 @@ class AcaoServiceTest {
                 new CotacaoData("PETR4", "Empresa", "BRL", quote, null, false),
                 expectedCode
         );
+    }
+
+    private Acao action(
+            Long id,
+            String ticker,
+            String companyName,
+            Mercado market,
+            Moeda currency,
+            BigDecimal quote,
+            OffsetDateTime timestamp
+    ) {
+        Acao action = new Acao(ticker, companyName, market, currency, quote, timestamp);
+        ReflectionTestUtils.setField(action, "id", id);
+        return action;
     }
 }
