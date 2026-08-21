@@ -33,6 +33,26 @@ public class ExternalApiConfig {
         return createClient(baseUrl, connectTimeout, readTimeout);
     }
 
+    @Bean
+    @Qualifier("brapiRestClient")
+    public RestClient brapiRestClient(
+            @Value("${integration.brapi.base-url}") String baseUrl,
+            @Value("${integration.brapi.connect-timeout}") Duration connectTimeout,
+            @Value("${integration.brapi.read-timeout}") Duration readTimeout
+    ) {
+        return createClient(baseUrl, connectTimeout, readTimeout);
+    }
+
+    @Bean
+    @Qualifier("alphaVantageRestClient")
+    public RestClient alphaVantageRestClient(
+            @Value("${integration.alpha-vantage.base-url}") String baseUrl,
+            @Value("${integration.alpha-vantage.connect-timeout}") Duration connectTimeout,
+            @Value("${integration.alpha-vantage.read-timeout}") Duration readTimeout
+    ) {
+        return createClient(baseUrl, connectTimeout, readTimeout);
+    }
+
     private RestClient createClient(String baseUrl, Duration connectTimeout, Duration readTimeout) {
         HttpClient httpClient = HttpClient.newBuilder()
                 .connectTimeout(connectTimeout)

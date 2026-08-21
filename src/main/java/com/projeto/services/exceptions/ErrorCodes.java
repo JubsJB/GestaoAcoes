@@ -14,6 +14,11 @@ public final class ErrorCodes {
     public static final String SERVICO_EXTERNO_INDISPONIVEL = "SERVICO_EXTERNO_INDISPONIVEL";
     public static final String SERVICO_EXTERNO_TIMEOUT = "SERVICO_EXTERNO_TIMEOUT";
     public static final String RESPOSTA_EXTERNA_INVALIDA = "RESPOSTA_EXTERNA_INVALIDA";
+    public static final String TICKER_INVALIDO = "TICKER_INVALIDO";
+    public static final String TICKER_INEXISTENTE = "TICKER_INEXISTENTE";
+    public static final String ACAO_DUPLICADA = "ACAO_DUPLICADA";
+    public static final String COTACAO_INDISPONIVEL = "COTACAO_INDISPONIVEL";
+    public static final String COTACAO_FORA_DA_PRECISAO = "COTACAO_FORA_DA_PRECISAO";
 
     private ErrorCodes() {
     }
