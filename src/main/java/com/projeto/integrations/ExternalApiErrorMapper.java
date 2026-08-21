@@ -17,6 +17,10 @@ public final class ExternalApiErrorMapper {
     }
 
     public static ApiException rateLimit(String provider, HttpClientErrorException.TooManyRequests cause) {
+        return rateLimit(provider);
+    }
+
+    public static ApiException rateLimit(String provider) {
         return new ApiException(
                 HttpStatus.TOO_MANY_REQUESTS,
                 ErrorCodes.LIMITE_REQUISICOES_EXCEDIDO,
@@ -25,6 +29,10 @@ public final class ExternalApiErrorMapper {
     }
 
     public static ApiException unavailable(String provider, HttpServerErrorException cause) {
+        return unavailable(provider);
+    }
+
+    public static ApiException unavailable(String provider) {
         return new ApiException(
                 HttpStatus.SERVICE_UNAVAILABLE,
                 ErrorCodes.SERVICO_EXTERNO_INDISPONIVEL,
@@ -49,6 +57,10 @@ public final class ExternalApiErrorMapper {
     }
 
     public static ApiException invalidResponse(String provider, RestClientException cause) {
+        return invalidResponse(provider);
+    }
+
+    public static ApiException invalidResponse(String provider) {
         return new ApiException(
                 HttpStatus.BAD_GATEWAY,
                 ErrorCodes.RESPOSTA_EXTERNA_INVALIDA,
