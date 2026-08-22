@@ -42,4 +42,8 @@ public class Carteira {
     public OffsetDateTime getDataCriacao() {
         return dataCriacao;
     }
+
+    public void atualizarNome(String nome) {
+        this.nome = nome;
+    }
 }
