@@ -2,6 +2,7 @@ package com.projeto.services;
 
 import com.projeto.dto.CarteiraCreateRequest;
 import com.projeto.dto.CarteiraResponse;
+import com.projeto.dto.CarteiraUpdateRequest;
 import com.projeto.entities.Carteira;
 import com.projeto.mappers.CarteiraMapper;
 import com.projeto.repositories.CarteiraRepository;
@@ -34,6 +35,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -184,8 +186,134 @@ class CarteiraServiceTest {
         verifyNoMoreInteractions(repository);
     }
 
+    @Test
+    void updatesNameWithTrimPreservingInternalSpacesAccentsCaseIdAndCreationDateWithoutUsingClock() {
+        OffsetDateTime creationDate = OffsetDateTime.parse("2026-08-19T09:45:00Z");
+        Carteira persisted = carteira(41L, "Carteira Original", creationDate);
+        when(repository.findById(41L)).thenReturn(Optional.of(persisted));
+        when(repository.saveAndFlush(persisted)).thenReturn(persisted);
+
+        CarteiraResponse response = readOnlyService().atualizar(
+                41L,
+                updateRequest("  Carteira  Ágil Principal  ")
+        );
+
+        assertEquals(41L, response.id());
+        assertEquals("Carteira  Ágil Principal", response.nome());
+        assertEquals(creationDate, response.dataCriacao());
+        assertEquals(41L, persisted.getId());
+        assertEquals(creationDate, persisted.getDataCriacao());
+        verify(repository).findById(41L);
+        verify(repository).saveAndFlush(persisted);
+        verifyNoMoreInteractions(repository);
+    }
+
+    @Test
+    void rejectsInvalidUpdateNamesBeforeWritingAndPreservesPortfolio() {
+        OffsetDateTime creationDate = OffsetDateTime.parse("2026-08-18T08:05:00Z");
+        Carteira persisted = carteira(42L, "Carteira Preservada", creationDate);
+        when(repository.findById(42L)).thenReturn(Optional.of(persisted));
+        List<String> invalidNames = java.util.Arrays.asList(null, "", "   ", " " + "a".repeat(256) + " ");
+
+        for (String invalidName : invalidNames) {
+            ApiException exception = assertThrows(
+                    ApiException.class,
+                    () -> readOnlyService().atualizar(42L, updateRequest(invalidName))
+            );
+            assertEquals(400, exception.getStatus().value());
+            assertEquals(ErrorCodes.REQUEST_INVALIDO, exception.getCode());
+            assertEquals(true, exception.getDetails().containsKey("nome"));
+        }
+
+        assertEquals("Carteira Preservada", persisted.getNome());
+        assertEquals(42L, persisted.getId());
+        assertEquals(creationDate, persisted.getDataCriacao());
+        verify(repository, times(invalidNames.size())).findById(42L);
+        verify(repository, never()).saveAndFlush(any(Carteira.class));
+        verifyNoMoreInteractions(repository);
+    }
+
+    @Test
+    void acceptsExactly255CharactersWhenUpdating() {
+        String name = "Á".repeat(255);
+        Carteira persisted = carteira(
+                43L,
+                "Carteira Original",
+                OffsetDateTime.parse("2026-08-17T07:45:00Z")
+        );
+        when(repository.findById(43L)).thenReturn(Optional.of(persisted));
+        when(repository.saveAndFlush(persisted)).thenReturn(persisted);
+
+        CarteiraResponse response = readOnlyService().atualizar(43L, updateRequest("  " + name + "  "));
+
+        assertEquals(name, response.nome());
+        assertEquals(255, response.nome().length());
+        verify(repository).findById(43L);
+        verify(repository).saveAndFlush(persisted);
+        verifyNoMoreInteractions(repository);
+    }
+
+    @Test
+    void allowsUpdatingToDuplicateNameWithoutAnyDuplicateLookup() {
+        Carteira persisted = carteira(
+                44L,
+                "Carteira Secundária",
+                OffsetDateTime.parse("2026-08-16T06:25:00Z")
+        );
+        when(repository.findById(44L)).thenReturn(Optional.of(persisted));
+        when(repository.saveAndFlush(persisted)).thenReturn(persisted);
+
+        CarteiraResponse response = readOnlyService().atualizar(
+                44L,
+                updateRequest("Carteira Principal")
+        );
+
+        assertEquals("Carteira Principal", response.nome());
+        verify(repository).findById(44L);
+        verify(repository).saveAndFlush(persisted);
+        verifyNoMoreInteractions(repository);
+    }
+
+    @Test
+    void treatsSameNormalizedNameAsIdempotentSuccess() {
+        OffsetDateTime creationDate = OffsetDateTime.parse("2026-08-15T05:15:00Z");
+        Carteira persisted = carteira(45L, "Carteira Principal", creationDate);
+        when(repository.findById(45L)).thenReturn(Optional.of(persisted));
+        when(repository.saveAndFlush(persisted)).thenReturn(persisted);
+
+        CarteiraResponse response = readOnlyService().atualizar(
+                45L,
+                updateRequest("  Carteira Principal  ")
+        );
+
+        assertEquals(45L, response.id());
+        assertEquals("Carteira Principal", response.nome());
+        assertEquals(creationDate, response.dataCriacao());
+        verify(repository).findById(45L);
+        verify(repository).saveAndFlush(persisted);
+        verifyNoMoreInteractions(repository);
+    }
+
+    @Test
+    void throwsObjectNotFoundWithoutWritingOrUsingClockWhenUpdatingMissingPortfolio() {
+        when(repository.findById(404L)).thenReturn(Optional.empty());
+
+        ObjectNotFoundException exception = assertThrows(
+                ObjectNotFoundException.class,
+                () -> readOnlyService().atualizar(404L, updateRequest("Novo nome"))
+        );
+
+        assertEquals("Carteira não encontrada para o id: 404", exception.getMessage());
+        verify(repository).findById(404L);
+        verifyNoMoreInteractions(repository);
+    }
+
     private CarteiraCreateRequest request(String nome) {
         return new CarteiraCreateRequest(nome);
+    }
+
+    private CarteiraUpdateRequest updateRequest(String nome) {
+        return new CarteiraUpdateRequest(nome);
     }
 
     private Carteira carteira(Long id, String nome, OffsetDateTime dataCriacao) {
@@ -208,7 +336,7 @@ class CarteiraServiceTest {
 
             @Override
             public Instant instant() {
-                throw new AssertionError("Clock não deve ser utilizado nas consultas de Carteira");
+                throw new AssertionError("Clock não deve ser utilizado nas consultas ou atualização de Carteira");
             }
         };
 

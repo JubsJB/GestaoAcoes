@@ -100,6 +100,36 @@ class CarteiraRepositoryTest {
     }
 
     @Test
+    void updatesOnlyNameAndPreservesIdAndCreationDate() {
+        OffsetDateTime creationDate = OffsetDateTime.parse("2026-08-17T07:45:00Z");
+        Carteira saved = repository.saveAndFlush(new Carteira("Carteira Original", creationDate));
+        Long originalId = saved.getId();
+
+        saved.atualizarNome("Carteira Atualizada");
+        repository.saveAndFlush(saved);
+
+        Carteira found = repository.findById(originalId).orElseThrow();
+        assertEquals(originalId, found.getId());
+        assertEquals("Carteira Atualizada", found.getNome());
+        assertEquals(creationDate, found.getDataCriacao());
+        assertEquals(1, repository.count());
+    }
+
+    @Test
+    void allowsDuplicateNamesAfterUpdate() {
+        Carteira first = repository.saveAndFlush(new Carteira("Carteira Principal", CREATION_DATE));
+        Carteira second = repository.saveAndFlush(new Carteira("Carteira Secundária", CREATION_DATE));
+
+        second.atualizarNome("Carteira Principal");
+        repository.saveAndFlush(second);
+
+        List<Carteira> found = repository.findAll(Sort.by(Sort.Direction.ASC, "id"));
+        assertEquals(List.of(first.getId(), second.getId()), found.stream().map(Carteira::getId).toList());
+        assertEquals(List.of("Carteira Principal", "Carteira Principal"),
+                found.stream().map(Carteira::getNome).toList());
+    }
+
+    @Test
     void accepts255CharactersAndRejectsLongerName() {
         Carteira accepted = repository.saveAndFlush(new Carteira("a".repeat(255), CREATION_DATE));
         assertEquals(255, accepted.getNome().length());

@@ -2,6 +2,7 @@ package com.projeto.services;
 
 import com.projeto.dto.CarteiraCreateRequest;
 import com.projeto.dto.CarteiraResponse;
+import com.projeto.dto.CarteiraUpdateRequest;
 import com.projeto.entities.Carteira;
 import com.projeto.mappers.CarteiraMapper;
 import com.projeto.repositories.CarteiraRepository;
@@ -59,6 +60,18 @@ public class CarteiraService {
                 ));
 
         return mapper.toResponse(carteira);
+    }
+
+    @Transactional
+    public CarteiraResponse atualizar(Long id, CarteiraUpdateRequest request) {
+        Carteira carteira = repository.findById(id)
+                .orElseThrow(() -> new ObjectNotFoundException(
+                        "Carteira não encontrada para o id: " + id
+                ));
+        String nome = normalizeAndValidateName(request == null ? null : request.getNome());
+        carteira.atualizarNome(nome);
+
+        return mapper.toResponse(repository.saveAndFlush(carteira));
     }
 
     private String normalizeAndValidateName(String value) {
