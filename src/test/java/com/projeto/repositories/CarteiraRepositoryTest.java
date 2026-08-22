@@ -5,6 +5,7 @@ import com.projeto.entities.Carteira;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.data.domain.Sort;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
@@ -12,10 +13,12 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @SpringBootTest(classes = GestaoacoesApplication.class)
 @ActiveProfiles("test")
@@ -62,6 +65,38 @@ class CarteiraRepositoryTest {
 
         assertNotEquals(first.getId(), second.getId());
         assertEquals(2, repository.findAll().size());
+    }
+
+    @Test
+    void findsAllPortfoliosByAscendingIdAndReturnsEmptyListWithoutRecords() {
+        Sort ascendingId = Sort.by(Sort.Direction.ASC, "id");
+        assertTrue(repository.findAll(ascendingId).isEmpty());
+
+        Carteira first = repository.saveAndFlush(new Carteira(
+                "Carteira Ágil",
+                OffsetDateTime.parse("2026-08-19T09:15:00Z")
+        ));
+        Carteira second = repository.saveAndFlush(new Carteira(
+                "carteira Principal",
+                OffsetDateTime.parse("2026-08-20T10:30:00Z")
+        ));
+
+        List<Carteira> found = repository.findAll(ascendingId);
+
+        assertEquals(List.of(first.getId(), second.getId()), found.stream().map(Carteira::getId).toList());
+    }
+
+    @Test
+    void findsPortfolioByIdAndPreservesPersistedNameAndCreationDate() {
+        String persistedName = "  Carteira Ágil sem normalização  ";
+        OffsetDateTime persistedDate = OffsetDateTime.parse("2026-08-18T08:05:00Z");
+        Carteira saved = repository.saveAndFlush(new Carteira(persistedName, persistedDate));
+
+        Carteira found = repository.findById(saved.getId()).orElseThrow();
+
+        assertEquals(persistedName, found.getNome());
+        assertEquals(persistedDate, found.getDataCriacao());
+        assertTrue(repository.findById(Long.MAX_VALUE).isEmpty());
     }
 
     @Test

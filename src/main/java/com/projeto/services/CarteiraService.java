@@ -7,6 +7,8 @@ import com.projeto.mappers.CarteiraMapper;
 import com.projeto.repositories.CarteiraRepository;
 import com.projeto.services.exceptions.ApiException;
 import com.projeto.services.exceptions.ErrorCodes;
+import com.projeto.services.exceptions.ObjectNotFoundException;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -14,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Clock;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
+import java.util.List;
 import java.util.Map;
 
 @Service
@@ -38,6 +41,24 @@ public class CarteiraService {
         Carteira carteira = new Carteira(nome, dataCriacao);
 
         return mapper.toResponse(repository.saveAndFlush(carteira));
+    }
+
+    @Transactional(readOnly = true)
+    public List<CarteiraResponse> listar() {
+        return repository.findAll(Sort.by(Sort.Direction.ASC, "id"))
+                .stream()
+                .map(mapper::toResponse)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public CarteiraResponse buscarPorId(Long id) {
+        Carteira carteira = repository.findById(id)
+                .orElseThrow(() -> new ObjectNotFoundException(
+                        "Carteira não encontrada para o id: " + id
+                ));
+
+        return mapper.toResponse(carteira);
     }
 
     private String normalizeAndValidateName(String value) {
