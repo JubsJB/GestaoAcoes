@@ -7,7 +7,6 @@ import com.projeto.entities.Carteira;
 import com.projeto.entities.Corretora;
 import com.projeto.entities.Mercado;
 import com.projeto.entities.Operacao;
-import com.projeto.entities.TipoOperacao;
 import com.projeto.mappers.OperacaoMapper;
 import com.projeto.repositories.AcaoRepository;
 import com.projeto.repositories.CarteiraRepository;
@@ -30,6 +29,7 @@ import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -61,6 +61,7 @@ public class OperacaoService {
     private final TickerNormalizer tickerNormalizer;
     private final OperacaoMapper mapper;
     private final Clock clock;
+    private final CalculadoraPosicao calculadoraPosicao;
 
     public OperacaoService(
             OperacaoRepository operacaoRepository,
@@ -69,7 +70,8 @@ public class OperacaoService {
             CorretoraRepository corretoraRepository,
             TickerNormalizer tickerNormalizer,
             OperacaoMapper mapper,
-            Clock clock
+            Clock clock,
+            CalculadoraPosicao calculadoraPosicao
     ) {
         this.operacaoRepository = operacaoRepository;
         this.carteiraRepository = carteiraRepository;
@@ -78,6 +80,7 @@ public class OperacaoService {
         this.tickerNormalizer = tickerNormalizer;
         this.mapper = mapper;
         this.clock = clock;
+        this.calculadoraPosicao = calculadoraPosicao;
     }
 
     @Transactional
@@ -277,29 +280,25 @@ public class OperacaoService {
         chronological.add(candidate);
         chronological.sort(CHRONOLOGICAL_ORDER);
 
-        BigDecimal balance = BigDecimal.ZERO;
-        for (Operacao operation : chronological) {
-            if (operation.getTipo() == TipoOperacao.COMPRA) {
-                balance = balance.add(operation.getQuantidade());
-                continue;
+        CalculadoraPosicao.ResultadoReplay resultado = calculadoraPosicao.validarQuantidade(chronological);
+        if (!resultado.valido()) {
+            CalculadoraPosicao.FalhaReplay falha = resultado.falha();
+            Map<String, Object> detalhes = new LinkedHashMap<>();
+            detalhes.put("carteiraId", candidate.getCarteira().getId());
+            detalhes.put("ticker", candidate.getAcao().getTicker());
+            detalhes.put("mercado", candidate.getAcao().getMercado());
+            if (falha.quantidadeDisponivel() != null) {
+                detalhes.put("quantidadeDisponivel", falha.quantidadeDisponivel());
             }
-
-            BigDecimal available = balance;
-            balance = balance.subtract(operation.getQuantidade());
-            if (balance.signum() < 0) {
-                throw new ApiException(
-                        HttpStatus.CONFLICT,
-                        ErrorCodes.POSICAO_INSUFICIENTE,
-                        "Posição insuficiente para a venda",
-                        Map.of(
-                                "carteiraId", candidate.getCarteira().getId(),
-                                "ticker", candidate.getAcao().getTicker(),
-                                "mercado", candidate.getAcao().getMercado(),
-                                "quantidadeDisponivel", available,
-                                "quantidadeSolicitada", operation.getQuantidade()
-                        )
-                );
+            if (falha.quantidadeSolicitada() != null) {
+                detalhes.put("quantidadeSolicitada", falha.quantidadeSolicitada());
             }
+            throw new ApiException(
+                    HttpStatus.CONFLICT,
+                    ErrorCodes.POSICAO_INSUFICIENTE,
+                    "Posição insuficiente para a venda",
+                    detalhes
+            );
         }
     }
 
