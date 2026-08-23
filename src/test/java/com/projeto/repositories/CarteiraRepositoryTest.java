@@ -9,7 +9,10 @@ import org.springframework.data.domain.Sort;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
@@ -33,6 +36,9 @@ class CarteiraRepositoryTest {
 
     @Autowired
     private JdbcTemplate jdbcTemplate;
+
+    @Autowired
+    private PlatformTransactionManager transactionManager;
 
     @Test
     void liquibaseAndHibernatePersistPortfolioWithExpectedSchemaAndUtcTimestamp() {
@@ -127,6 +133,49 @@ class CarteiraRepositoryTest {
         assertEquals(List.of(first.getId(), second.getId()), found.stream().map(Carteira::getId).toList());
         assertEquals(List.of("Carteira Principal", "Carteira Principal"),
                 found.stream().map(Carteira::getNome).toList());
+    }
+
+    @Test
+    void physicallyDeletesOnlySelectedPortfolioAndPreservesOthers() {
+        OffsetDateTime deletedDate = OffsetDateTime.parse("2026-08-16T06:25:00Z");
+        OffsetDateTime preservedDate = OffsetDateTime.parse("2026-08-15T05:15:00Z");
+        Carteira deleted = repository.saveAndFlush(new Carteira("Carteira Excluída", deletedDate));
+        Carteira preserved = repository.saveAndFlush(new Carteira("Carteira Preservada", preservedDate));
+
+        repository.delete(deleted);
+        repository.flush();
+
+        assertTrue(repository.findById(deleted.getId()).isEmpty());
+        Carteira unchanged = repository.findById(preserved.getId()).orElseThrow();
+        assertEquals("Carteira Preservada", unchanged.getNome());
+        assertEquals(preservedDate, unchanged.getDataCriacao());
+        assertEquals(1, repository.count());
+    }
+
+    @Test
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
+    void rollsBackDeletionAndPreservesAllPortfoliosWhenTransactionFails() {
+        TransactionTemplate transaction = new TransactionTemplate(transactionManager);
+        Long[] ids = transaction.execute(status -> {
+            Carteira first = repository.saveAndFlush(new Carteira("Carteira Um", CREATION_DATE));
+            Carteira second = repository.saveAndFlush(new Carteira("Carteira Dois", CREATION_DATE));
+            return new Long[]{first.getId(), second.getId()};
+        });
+
+        try {
+            assertThrows(IllegalStateException.class, () -> transaction.executeWithoutResult(status -> {
+                Carteira target = repository.findById(ids[0]).orElseThrow();
+                repository.delete(target);
+                repository.flush();
+                throw new IllegalStateException("Falha simulada antes da conclusão da transação");
+            }));
+
+            assertTrue(repository.existsById(ids[0]));
+            assertTrue(repository.existsById(ids[1]));
+            assertEquals(2, repository.count());
+        } finally {
+            repository.deleteAll();
+        }
     }
 
     @Test

@@ -74,6 +74,16 @@ public class CarteiraService {
         return mapper.toResponse(repository.saveAndFlush(carteira));
     }
 
+    @Transactional
+    public void excluir(Long id) {
+        Carteira carteira = repository.findById(id)
+                .orElseThrow(() -> new ObjectNotFoundException(
+                        "Carteira não encontrada para o id: " + id
+                ));
+
+        repository.delete(carteira);
+    }
+
     private String normalizeAndValidateName(String value) {
         if (value == null) {
             throw invalidName("Nome é obrigatório");
