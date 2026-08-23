@@ -1,0 +1,123 @@
+databaseChangeLog:
+  - changeSet:
+      id: 004-create-operacao
+      author: codex
+      changes:
+        - createTable:
+            tableName: operacao
+            columns:
+              - column:
+                  name: id
+                  type: BIGINT
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    primaryKeyName: pk_operacao
+                    nullable: false
+              - column:
+                  name: carteira_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: acao_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: corretora_id
+                  type: BIGINT
+                  constraints:
+                    nullable: true
+              - column:
+                  name: tipo
+                  type: VARCHAR(10)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: quantidade
+                  type: NUMERIC(19,6)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: preco_unitario
+                  type: NUMERIC(19,6)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: data_operacao
+                  type: DATE
+                  constraints:
+                    nullable: false
+              - column:
+                  name: ordem_no_dia
+                  type: INTEGER
+                  constraints:
+                    nullable: false
+              - column:
+                  name: valor_total
+                  type: NUMERIC(38,12)
+                  constraints:
+                    nullable: false
+        - addForeignKeyConstraint:
+            baseTableName: operacao
+            baseColumnNames: carteira_id
+            referencedTableName: carteira
+            referencedColumnNames: id
+            constraintName: fk_operacao_carteira
+        - addForeignKeyConstraint:
+            baseTableName: operacao
+            baseColumnNames: acao_id
+            referencedTableName: acao
+            referencedColumnNames: id
+            constraintName: fk_operacao_acao
+        - addForeignKeyConstraint:
+            baseTableName: operacao
+            baseColumnNames: corretora_id
+            referencedTableName: corretora
+            referencedColumnNames: id
+            constraintName: fk_operacao_corretora
+        - addUniqueConstraint:
+            tableName: operacao
+            columnNames: carteira_id, acao_id, data_operacao, ordem_no_dia
+            constraintName: uk_operacao_carteira_acao_data_ordem
+        - sql:
+            sql: ALTER TABLE operacao ADD CONSTRAINT chk_operacao_tipo CHECK (tipo IN ('COMPRA', 'VENDA'))
+        - sql:
+            sql: ALTER TABLE operacao ADD CONSTRAINT chk_operacao_quantidade_positiva CHECK (quantidade > 0)
+        - sql:
+            sql: ALTER TABLE operacao ADD CONSTRAINT chk_operacao_preco_positivo CHECK (preco_unitario > 0)
+        - sql:
+            sql: ALTER TABLE operacao ADD CONSTRAINT chk_operacao_ordem_positiva CHECK (ordem_no_dia > 0)
+        - sql:
+            sql: ALTER TABLE operacao ADD CONSTRAINT chk_operacao_valor_total_positivo CHECK (valor_total > 0)
+        - sql:
+            sql: ALTER TABLE operacao ADD CONSTRAINT chk_operacao_valor_total_exato CHECK (valor_total = quantidade * preco_unitario)
+        - createIndex:
+            tableName: operacao
+            indexName: idx_operacao_carteira_acao_cronologia
+            columns:
+              - column:
+                  name: carteira_id
+              - column:
+                  name: acao_id
+              - column:
+                  name: data_operacao
+              - column:
+                  name: ordem_no_dia
+        - createIndex:
+            tableName: operacao
+            indexName: idx_operacao_acao_id
+            columns:
+              - column:
+                  name: acao_id
+        - createIndex:
+            tableName: operacao
+            indexName: idx_operacao_corretora_id
+            columns:
+              - column:
+                  name: corretora_id
+      rollback:
+        - dropTable:
+            tableName: operacao
+            cascadeConstraints: true

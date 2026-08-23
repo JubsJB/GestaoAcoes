@@ -19,6 +19,9 @@ public final class ErrorCodes {
     public static final String ACAO_DUPLICADA = "ACAO_DUPLICADA";
     public static final String COTACAO_INDISPONIVEL = "COTACAO_INDISPONIVEL";
     public static final String COTACAO_FORA_DA_PRECISAO = "COTACAO_FORA_DA_PRECISAO";
+    public static final String ORDEM_OPERACAO_DUPLICADA = "ORDEM_OPERACAO_DUPLICADA";
+    public static final String POSICAO_INSUFICIENTE = "POSICAO_INSUFICIENTE";
+    public static final String CARTEIRA_POSSUI_OPERACOES = "CARTEIRA_POSSUI_OPERACOES";
 
     private ErrorCodes() {
     }

@@ -6,6 +6,7 @@ import com.projeto.dto.CarteiraUpdateRequest;
 import com.projeto.entities.Carteira;
 import com.projeto.mappers.CarteiraMapper;
 import com.projeto.repositories.CarteiraRepository;
+import com.projeto.repositories.OperacaoRepository;
 import com.projeto.services.exceptions.ApiException;
 import com.projeto.services.exceptions.ErrorCodes;
 import com.projeto.services.exceptions.ObjectNotFoundException;
@@ -26,11 +27,18 @@ public class CarteiraService {
     private static final int MAX_NAME_LENGTH = 255;
 
     private final CarteiraRepository repository;
+    private final OperacaoRepository operacaoRepository;
     private final CarteiraMapper mapper;
     private final Clock clock;
 
-    public CarteiraService(CarteiraRepository repository, CarteiraMapper mapper, Clock clock) {
+    public CarteiraService(
+            CarteiraRepository repository,
+            OperacaoRepository operacaoRepository,
+            CarteiraMapper mapper,
+            Clock clock
+    ) {
         this.repository = repository;
+        this.operacaoRepository = operacaoRepository;
         this.mapper = mapper;
         this.clock = clock;
     }
@@ -76,10 +84,19 @@ public class CarteiraService {
 
     @Transactional
     public void excluir(Long id) {
-        Carteira carteira = repository.findById(id)
+        Carteira carteira = repository.findByIdForUpdate(id)
                 .orElseThrow(() -> new ObjectNotFoundException(
                         "Carteira não encontrada para o id: " + id
                 ));
+
+        if (operacaoRepository.existsByCarteiraId(id)) {
+            throw new ApiException(
+                    HttpStatus.CONFLICT,
+                    ErrorCodes.CARTEIRA_POSSUI_OPERACOES,
+                    "Carteira possui operações e não pode ser excluída",
+                    Map.of("carteiraId", id)
+            );
+        }
 
         repository.delete(carteira);
     }
