@@ -18,6 +18,7 @@ import com.projeto.services.exceptions.ErrorCodes;
 import com.projeto.services.exceptions.ObjectNotFoundException;
 import com.projeto.validation.TickerNormalizer;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -43,6 +44,11 @@ public class OperacaoService {
     private static final ZoneId BRAZIL_ZONE = ZoneId.of("America/Sao_Paulo");
     private static final ZoneId USA_ZONE = ZoneId.of("America/New_York");
     private static final String ORDER_CONSTRAINT = "UK_OPERACAO_CARTEIRA_ACAO_DATA_ORDEM";
+    private static final Sort QUERY_ORDER = Sort.by(
+            Sort.Order.asc("dataOperacao"),
+            Sort.Order.asc("ordemNoDia"),
+            Sort.Order.asc("id")
+    );
 
     private static final Comparator<Operacao> CHRONOLOGICAL_ORDER = Comparator
             .comparing(Operacao::getDataOperacao)
@@ -131,6 +137,38 @@ public class OperacaoService {
             }
             throw exception;
         }
+    }
+
+    @Transactional(readOnly = true)
+    public List<OperacaoResponse> listar() {
+        return operacaoRepository.findAll(QUERY_ORDER)
+                .stream()
+                .map(mapper::toResponse)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public OperacaoResponse buscarPorId(Long id) {
+        Operacao operacao = operacaoRepository.findById(id)
+                .orElseThrow(() -> new ObjectNotFoundException(
+                        "Operação não encontrada para o id: " + id
+                ));
+
+        return mapper.toResponse(operacao);
+    }
+
+    @Transactional(readOnly = true)
+    public List<OperacaoResponse> listarPorCarteira(Long carteiraId) {
+        carteiraRepository.findById(carteiraId)
+                .orElseThrow(() -> new ObjectNotFoundException(
+                        "Carteira não encontrada para o id: " + carteiraId
+                ));
+
+        return operacaoRepository
+                .findByCarteiraIdOrderByDataOperacaoAscOrdemNoDiaAscIdAsc(carteiraId)
+                .stream()
+                .map(mapper::toResponse)
+                .toList();
     }
 
     private void validateRequiredRequest(OperacaoCreateRequest request) {

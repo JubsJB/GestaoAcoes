@@ -6,6 +6,8 @@ import com.projeto.entities.Carteira;
 import com.projeto.entities.Corretora;
 import com.projeto.entities.Mercado;
 import com.projeto.entities.Moeda;
+import com.projeto.entities.Operacao;
+import com.projeto.entities.TipoOperacao;
 import com.projeto.integrations.cep.ViaCepAdapter;
 import com.projeto.integrations.cnpj.BrasilApiAdapter;
 import com.projeto.integrations.cotacao.AlphaVantageAdapter;
@@ -26,6 +28,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.OffsetDateTime;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -231,11 +234,178 @@ class OperacaoResourceTest {
     }
 
     @Test
-    void exposesNoAdditionalOperationRoutes() throws Exception {
+    void listsAllOperationsWithApprovedOrderCompleteDtoAndNoSideEffects() throws Exception {
+        Carteira brazilianPortfolio = carteiraRepository.saveAndFlush(portfolio("Carteira BR"));
+        Carteira americanPortfolio = carteiraRepository.saveAndFlush(portfolio("Carteira EUA"));
+        Acao petr4 = acaoRepository.saveAndFlush(action("PETR4", Mercado.BRASIL, Moeda.BRL, "88.000000"));
+        Acao aapl = acaoRepository.saveAndFlush(action("AAPL", Mercado.EUA, Moeda.USD, "224.410000"));
+        Corretora broker = corretoraRepository.saveAndFlush(broker());
+
+        Operacao later = operacaoRepository.saveAndFlush(operation(
+                brazilianPortfolio, petr4, null, TipoOperacao.VENDA,
+                "10", "35", "350", LocalDate.of(2026, 8, 10), 2
+        ));
+        Operacao earlier = operacaoRepository.saveAndFlush(operation(
+                brazilianPortfolio, petr4, broker, TipoOperacao.COMPRA,
+                "100", "32.47", "3247", LocalDate.of(2026, 8, 1), 5
+        ));
+        Operacao firstTie = operacaoRepository.saveAndFlush(operation(
+                brazilianPortfolio, petr4, null, TipoOperacao.COMPRA,
+                "1", "33", "33", LocalDate.of(2026, 8, 10), 1
+        ));
+        Operacao secondTie = operacaoRepository.saveAndFlush(operation(
+                americanPortfolio, aapl, null, TipoOperacao.COMPRA,
+                "0.5", "200", "100", LocalDate.of(2026, 8, 10), 1
+        ));
+        long countBefore = operacaoRepository.count();
+
         mockMvc.perform(get("/operacoes"))
-                .andExpect(status().isMethodNotAllowed());
+                .andExpect(status().isOk())
+                .andExpect(header().doesNotExist("Location"))
+                .andExpect(jsonPath("$", Matchers.hasSize(4)))
+                .andExpect(jsonPath("$[0].id").value(earlier.getId()))
+                .andExpect(jsonPath("$[0].carteiraId").value(brazilianPortfolio.getId()))
+                .andExpect(jsonPath("$[0].ticker").value("PETR4"))
+                .andExpect(jsonPath("$[0].mercado").value("BRASIL"))
+                .andExpect(jsonPath("$[0].corretoraId").value(broker.getId()))
+                .andExpect(jsonPath("$[0].tipo").value("COMPRA"))
+                .andExpect(jsonPath("$[0].quantidade").value(100.0))
+                .andExpect(jsonPath("$[0].precoUnitario").value(32.47))
+                .andExpect(jsonPath("$[0].dataOperacao").value("2026-08-01"))
+                .andExpect(jsonPath("$[0].ordemNoDia").value(5))
+                .andExpect(jsonPath("$[0].valorTotal").value(3247.0))
+                .andExpect(jsonPath("$[0].cotacaoAtual").doesNotExist())
+                .andExpect(jsonPath("$[1].id").value(firstTie.getId()))
+                .andExpect(jsonPath("$[1].ordemNoDia").value(1))
+                .andExpect(jsonPath("$[1].corretoraId").value(Matchers.nullValue()))
+                .andExpect(jsonPath("$[2].id").value(secondTie.getId()))
+                .andExpect(jsonPath("$[2].ordemNoDia").value(1))
+                .andExpect(jsonPath("$[3].id").value(later.getId()))
+                .andExpect(jsonPath("$[3].tipo").value("VENDA"))
+                .andExpect(jsonPath("$[3].ordemNoDia").value(2));
+
+        assertEquals(countBefore, operacaoRepository.count());
+        assertEquals(new BigDecimal("35.000000"),
+                operacaoRepository.findById(later.getId()).orElseThrow().getPrecoUnitario());
+        assertEquals(new BigDecimal("350.000000000000"),
+                operacaoRepository.findById(later.getId()).orElseThrow().getValorTotal());
+        assertNoExternalCalls();
+    }
+
+    @Test
+    void returnsEmptyArrayWhenNoOperationExists() throws Exception {
+        mockMvc.perform(get("/operacoes"))
+                .andExpect(status().isOk())
+                .andExpect(header().doesNotExist("Location"))
+                .andExpect(jsonPath("$", Matchers.hasSize(0)));
+
+        assertEquals(0, operacaoRepository.count());
+        assertNoExternalCalls();
+    }
+
+    @Test
+    void findsOperationByIdWithCompletePersistedResponse() throws Exception {
+        Carteira carteira = carteiraRepository.saveAndFlush(portfolio("Carteira"));
+        Acao acao = acaoRepository.saveAndFlush(action("AAPL", Mercado.EUA, Moeda.USD, "224.410000"));
+        Operacao operation = operacaoRepository.saveAndFlush(operation(
+                carteira, acao, null, TipoOperacao.COMPRA,
+                "0.123456", "32.123456", "3.965833383936",
+                LocalDate.of(2026, 8, 10), 1
+        ));
+
+        mockMvc.perform(get("/operacoes/{id}", operation.getId()))
+                .andExpect(status().isOk())
+                .andExpect(header().doesNotExist("Location"))
+                .andExpect(jsonPath("$.id").value(operation.getId()))
+                .andExpect(jsonPath("$.carteiraId").value(carteira.getId()))
+                .andExpect(jsonPath("$.ticker").value("AAPL"))
+                .andExpect(jsonPath("$.mercado").value("EUA"))
+                .andExpect(jsonPath("$.corretoraId").value(Matchers.nullValue()))
+                .andExpect(jsonPath("$.tipo").value("COMPRA"))
+                .andExpect(jsonPath("$.quantidade").value(0.123456))
+                .andExpect(jsonPath("$.precoUnitario").value(32.123456))
+                .andExpect(jsonPath("$.dataOperacao").value("2026-08-10"))
+                .andExpect(jsonPath("$.ordemNoDia").value(1))
+                .andExpect(jsonPath("$.valorTotal").value(3.965833383936));
+
+        assertEquals(1, operacaoRepository.count());
+        assertNoExternalCalls();
+    }
+
+    @Test
+    void returnsStandardNotFoundErrorForMissingOperationId() throws Exception {
+        mockMvc.perform(get("/operacoes/{id}", Long.MAX_VALUE))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.status").value(404))
+                .andExpect(jsonPath("$.error").value("Not Found"))
+                .andExpect(jsonPath("$.message").value(
+                        "Operação não encontrada para o id: " + Long.MAX_VALUE
+                ))
+                .andExpect(jsonPath("$.path").value("/operacoes/" + Long.MAX_VALUE));
+
+        assertEquals(0, operacaoRepository.count());
+        assertNoExternalCalls();
+    }
+
+    @Test
+    void listsIsolatedPortfolioHistoryOrEmptyAndRejectsMissingPortfolio() throws Exception {
+        Carteira selected = carteiraRepository.saveAndFlush(portfolio("Carteira selecionada"));
+        Carteira other = carteiraRepository.saveAndFlush(portfolio("Outra carteira"));
+        Carteira empty = carteiraRepository.saveAndFlush(portfolio("Carteira vazia"));
+        Acao petr4 = acaoRepository.saveAndFlush(action("PETR4", Mercado.BRASIL, Moeda.BRL, "88.000000"));
+        Acao aapl = acaoRepository.saveAndFlush(action("AAPL", Mercado.EUA, Moeda.USD, "224.410000"));
+        Operacao later = operacaoRepository.saveAndFlush(operation(
+                selected, petr4, null, TipoOperacao.VENDA,
+                "10", "35", "350", LocalDate.of(2026, 8, 10), 2
+        ));
+        Operacao first = operacaoRepository.saveAndFlush(operation(
+                selected, petr4, null, TipoOperacao.COMPRA,
+                "100", "32", "3200", LocalDate.of(2026, 8, 1), 1
+        ));
+        Operacao second = operacaoRepository.saveAndFlush(operation(
+                selected, aapl, null, TipoOperacao.COMPRA,
+                "0.5", "200", "100", LocalDate.of(2026, 8, 1), 1
+        ));
+        operacaoRepository.saveAndFlush(operation(
+                other, petr4, null, TipoOperacao.COMPRA,
+                "999", "1", "999", LocalDate.of(2026, 7, 1), 1
+        ));
+        long countBefore = operacaoRepository.count();
+
+        mockMvc.perform(get("/carteiras/{carteiraId}/operacoes", selected.getId()))
+                .andExpect(status().isOk())
+                .andExpect(header().doesNotExist("Location"))
+                .andExpect(jsonPath("$", Matchers.hasSize(3)))
+                .andExpect(jsonPath("$[0].id").value(first.getId()))
+                .andExpect(jsonPath("$[0].ticker").value("PETR4"))
+                .andExpect(jsonPath("$[1].id").value(second.getId()))
+                .andExpect(jsonPath("$[1].ticker").value("AAPL"))
+                .andExpect(jsonPath("$[1].corretoraId").value(Matchers.nullValue()))
+                .andExpect(jsonPath("$[2].id").value(later.getId()))
+                .andExpect(jsonPath("$[*].carteiraId", Matchers.everyItem(Matchers.is(selected.getId().intValue()))));
+
+        mockMvc.perform(get("/carteiras/{carteiraId}/operacoes", empty.getId()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", Matchers.hasSize(0)));
+
+        mockMvc.perform(get("/carteiras/{carteiraId}/operacoes", Long.MAX_VALUE))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.status").value(404))
+                .andExpect(jsonPath("$.message").value(
+                        "Carteira não encontrada para o id: " + Long.MAX_VALUE
+                ))
+                .andExpect(jsonPath("$.path").value("/carteiras/" + Long.MAX_VALUE + "/operacoes"));
+
+        assertEquals(countBefore, operacaoRepository.count());
+        assertEquals("Carteira selecionada",
+                carteiraRepository.findById(selected.getId()).orElseThrow().getNome());
+        assertNoExternalCalls();
+    }
+
+    @Test
+    void doesNotExposeOperationDeletion() throws Exception {
         mockMvc.perform(delete("/operacoes/{id}", 1L))
-                .andExpect(status().isNotFound());
+                .andExpect(status().isMethodNotAllowed());
     }
 
     private void assertInvalidContract(String content) throws Exception {
@@ -293,6 +463,30 @@ class OperacaoResourceTest {
                 currency,
                 new BigDecimal(quote),
                 OffsetDateTime.parse("2026-08-01T10:00:00Z")
+        );
+    }
+
+    private Operacao operation(
+            Carteira carteira,
+            Acao acao,
+            Corretora corretora,
+            TipoOperacao type,
+            String quantity,
+            String price,
+            String total,
+            LocalDate date,
+            Integer order
+    ) {
+        return new Operacao(
+                carteira,
+                acao,
+                corretora,
+                type,
+                new BigDecimal(quantity).setScale(6),
+                new BigDecimal(price).setScale(6),
+                date,
+                order,
+                new BigDecimal(total).setScale(12)
         );
     }
 

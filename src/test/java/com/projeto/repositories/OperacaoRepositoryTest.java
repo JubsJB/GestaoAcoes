@@ -14,6 +14,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.domain.Sort;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.PlatformTransactionManager;
@@ -128,6 +129,84 @@ class OperacaoRepositoryTest {
         );
         assertEquals(List.of(5, 1, 2), ordered.stream().map(Operacao::getOrdemNoDia).toList());
         assertEquals(corretora.getId(), ordered.get(2).getCorretora().getId());
+    }
+
+    @Test
+    void listsAllOperationsWithApprovedSortAndTechnicalIdTieBreak() {
+        Sort approvedOrder = Sort.by(
+                Sort.Order.asc("dataOperacao"),
+                Sort.Order.asc("ordemNoDia"),
+                Sort.Order.asc("id")
+        );
+        assertTrue(operacaoRepository.findAll(approvedOrder).isEmpty());
+
+        Carteira firstPortfolio = carteiraRepository.saveAndFlush(portfolio("Carteira BR"));
+        Carteira secondPortfolio = carteiraRepository.saveAndFlush(portfolio("Carteira EUA"));
+        Acao petr4 = acaoRepository.saveAndFlush(action("PETR4", Mercado.BRASIL, Moeda.BRL));
+        Acao aapl = acaoRepository.saveAndFlush(action("AAPL", Mercado.EUA, Moeda.USD));
+
+        Operacao later = operacaoRepository.saveAndFlush(operation(
+                firstPortfolio, petr4, null, TipoOperacao.VENDA,
+                "10", "35", "350", LocalDate.of(2026, 8, 10), 2
+        ));
+        Operacao earlier = operacaoRepository.saveAndFlush(operation(
+                firstPortfolio, petr4, null, TipoOperacao.COMPRA,
+                "100", "32", "3200", LocalDate.of(2026, 8, 1), 5
+        ));
+        Operacao firstTie = operacaoRepository.saveAndFlush(operation(
+                firstPortfolio, petr4, null, TipoOperacao.COMPRA,
+                "1", "33", "33", LocalDate.of(2026, 8, 10), 1
+        ));
+        Operacao secondTie = operacaoRepository.saveAndFlush(operation(
+                secondPortfolio, aapl, null, TipoOperacao.COMPRA,
+                "0.5", "200", "100", LocalDate.of(2026, 8, 10), 1
+        ));
+
+        List<Operacao> ordered = operacaoRepository.findAll(approvedOrder);
+
+        assertEquals(
+                List.of(earlier.getId(), firstTie.getId(), secondTie.getId(), later.getId()),
+                ordered.stream().map(Operacao::getId).toList()
+        );
+    }
+
+    @Test
+    void listsOnlyPortfolioHistoryAcrossActionsWithNullableBrokerAndApprovedOrder() {
+        Carteira selected = carteiraRepository.saveAndFlush(portfolio("Carteira selecionada"));
+        Carteira other = carteiraRepository.saveAndFlush(portfolio("Outra carteira"));
+        Acao petr4 = acaoRepository.saveAndFlush(action("PETR4", Mercado.BRASIL, Moeda.BRL));
+        Acao aapl = acaoRepository.saveAndFlush(action("AAPL", Mercado.EUA, Moeda.USD));
+        Corretora corretora = corretoraRepository.saveAndFlush(broker());
+
+        operacaoRepository.saveAndFlush(operation(
+                other, petr4, null, TipoOperacao.COMPRA,
+                "999", "1", "999", LocalDate.of(2026, 7, 1), 1
+        ));
+        Operacao first = operacaoRepository.saveAndFlush(operation(
+                selected, petr4, null, TipoOperacao.COMPRA,
+                "100", "32", "3200", LocalDate.of(2026, 8, 1), 1
+        ));
+        Operacao second = operacaoRepository.saveAndFlush(operation(
+                selected, aapl, corretora, TipoOperacao.COMPRA,
+                "0.5", "200", "100", LocalDate.of(2026, 8, 1), 1
+        ));
+        Operacao third = operacaoRepository.saveAndFlush(operation(
+                selected, petr4, null, TipoOperacao.VENDA,
+                "10", "35", "350", LocalDate.of(2026, 8, 10), 2
+        ));
+
+        List<Operacao> history = operacaoRepository
+                .findByCarteiraIdOrderByDataOperacaoAscOrdemNoDiaAscIdAsc(selected.getId());
+
+        assertEquals(
+                List.of(first.getId(), second.getId(), third.getId()),
+                history.stream().map(Operacao::getId).toList()
+        );
+        assertTrue(history.stream().allMatch(item -> item.getCarteira().getId().equals(selected.getId())));
+        assertEquals(List.of(petr4.getId(), aapl.getId(), petr4.getId()),
+                history.stream().map(item -> item.getAcao().getId()).toList());
+        assertNull(history.get(0).getCorretora());
+        assertEquals(corretora.getId(), history.get(1).getCorretora().getId());
     }
 
     @Test

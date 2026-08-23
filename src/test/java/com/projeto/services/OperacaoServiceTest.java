@@ -25,6 +25,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.domain.Sort;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.math.BigDecimal;
@@ -43,6 +44,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -93,6 +95,118 @@ class OperacaoServiceTest {
             ReflectionTestUtils.setField(operation, "id", 10L);
             return operation;
         });
+    }
+
+    @Test
+    void listsPersistedOperationsWithApprovedSortAndExactMappedValues() {
+        Sort approvedOrder = Sort.by(
+                Sort.Order.asc("dataOperacao"),
+                Sort.Order.asc("ordemNoDia"),
+                Sort.Order.asc("id")
+        );
+        Operacao first = operation(TipoOperacao.COMPRA, "100", LocalDate.of(2026, 8, 1), 5);
+        Operacao second = operation(TipoOperacao.VENDA, "20", LocalDate.of(2026, 8, 10), 1);
+        ReflectionTestUtils.setField(first, "id", 11L);
+        ReflectionTestUtils.setField(second, "id", 12L);
+        when(operacaoRepository.findAll(approvedOrder)).thenReturn(List.of(first, second));
+
+        List<OperacaoResponse> responses = service.listar();
+
+        assertEquals(List.of(11L, 12L), responses.stream().map(OperacaoResponse::id).toList());
+        assertEquals(TipoOperacao.COMPRA, responses.get(0).tipo());
+        assertEquals(TipoOperacao.VENDA, responses.get(1).tipo());
+        assertEquals(new BigDecimal("100.000000"), responses.get(0).quantidade());
+        assertEquals(new BigDecimal("10.000000"), responses.get(0).precoUnitario());
+        assertEquals(new BigDecimal("1000.000000000000"), responses.get(0).valorTotal());
+        assertNull(responses.get(0).corretoraId());
+        verify(operacaoRepository).findAll(approvedOrder);
+        verify(operacaoRepository, never()).saveAndFlush(any(Operacao.class));
+        verify(operacaoRepository, never())
+                .findByCarteiraIdAndAcaoIdOrderByDataOperacaoAscOrdemNoDiaAsc(anyLong(), anyLong());
+    }
+
+    @Test
+    void findsPersistedOperationByIdAndRejectsMissingIdWithoutWrites() {
+        Operacao persisted = operation(TipoOperacao.COMPRA, "2", LocalDate.of(2026, 8, 2), 1);
+        ReflectionTestUtils.setField(persisted, "id", 10L);
+        when(operacaoRepository.findById(10L)).thenReturn(Optional.of(persisted));
+        when(operacaoRepository.findById(404L)).thenReturn(Optional.empty());
+
+        OperacaoResponse response = service.buscarPorId(10L);
+        ObjectNotFoundException exception = assertThrows(
+                ObjectNotFoundException.class,
+                () -> service.buscarPorId(404L)
+        );
+
+        assertEquals(10L, response.id());
+        assertEquals(1L, response.carteiraId());
+        assertEquals("PETR4", response.ticker());
+        assertEquals("Operação não encontrada para o id: 404", exception.getMessage());
+        verify(operacaoRepository, never()).saveAndFlush(any(Operacao.class));
+    }
+
+    @Test
+    void listsOnlyValidatedPortfolioHistoryAndReturnsEmptyOrNotFoundAsRequired() {
+        Operacao first = operation(TipoOperacao.COMPRA, "100", LocalDate.of(2026, 8, 1), 1);
+        Operacao second = operation(TipoOperacao.VENDA, "10", LocalDate.of(2026, 8, 10), 2);
+        ReflectionTestUtils.setField(first, "id", 20L);
+        ReflectionTestUtils.setField(second, "id", 21L);
+        when(carteiraRepository.findById(1L)).thenReturn(Optional.of(carteira));
+        when(operacaoRepository.findByCarteiraIdOrderByDataOperacaoAscOrdemNoDiaAscIdAsc(1L))
+                .thenReturn(List.of(first, second));
+
+        List<OperacaoResponse> history = service.listarPorCarteira(1L);
+
+        assertEquals(List.of(20L, 21L), history.stream().map(OperacaoResponse::id).toList());
+        assertTrue(history.stream().allMatch(item -> item.carteiraId().equals(1L)));
+
+        Carteira empty = portfolio(2L, "Carteira vazia");
+        when(carteiraRepository.findById(2L)).thenReturn(Optional.of(empty));
+        when(operacaoRepository.findByCarteiraIdOrderByDataOperacaoAscOrdemNoDiaAscIdAsc(2L))
+                .thenReturn(List.of());
+        assertTrue(service.listarPorCarteira(2L).isEmpty());
+
+        when(carteiraRepository.findById(404L)).thenReturn(Optional.empty());
+        ObjectNotFoundException exception = assertThrows(
+                ObjectNotFoundException.class,
+                () -> service.listarPorCarteira(404L)
+        );
+        assertEquals("Carteira não encontrada para o id: 404", exception.getMessage());
+        verify(operacaoRepository, never())
+                .findByCarteiraIdOrderByDataOperacaoAscOrdemNoDiaAscIdAsc(404L);
+        verify(carteiraRepository, never()).findByIdForUpdate(1L);
+        verify(operacaoRepository, never()).saveAndFlush(any(Operacao.class));
+    }
+
+    @Test
+    void queryMethodsDoNotUseClockReplayLocksNormalizationOrPersistence() {
+        Clock queryClock = mock(Clock.class);
+        OperacaoService queryService = service(queryClock);
+        Operacao persisted = operation(TipoOperacao.COMPRA, "1", LocalDate.of(2026, 8, 1), 1);
+        ReflectionTestUtils.setField(persisted, "id", 30L);
+        Sort approvedOrder = Sort.by(
+                Sort.Order.asc("dataOperacao"),
+                Sort.Order.asc("ordemNoDia"),
+                Sort.Order.asc("id")
+        );
+        when(operacaoRepository.findAll(approvedOrder)).thenReturn(List.of(persisted));
+        when(operacaoRepository.findById(30L)).thenReturn(Optional.of(persisted));
+        when(carteiraRepository.findById(1L)).thenReturn(Optional.of(carteira));
+        when(operacaoRepository.findByCarteiraIdOrderByDataOperacaoAscOrdemNoDiaAscIdAsc(1L))
+                .thenReturn(List.of(persisted));
+
+        queryService.listar();
+        queryService.buscarPorId(30L);
+        queryService.listarPorCarteira(1L);
+
+        verifyNoInteractions(queryClock);
+        verify(carteiraRepository, never()).findByIdForUpdate(anyLong());
+        verify(operacaoRepository, never())
+                .findByCarteiraIdAndAcaoIdOrderByDataOperacaoAscOrdemNoDiaAsc(anyLong(), anyLong());
+        verify(operacaoRepository, never()).save(any(Operacao.class));
+        verify(operacaoRepository, never()).saveAndFlush(any(Operacao.class));
+        verify(operacaoRepository, never()).delete(any(Operacao.class));
+        verifyNoInteractions(acaoRepository, corretoraRepository);
     }
 
     @Test

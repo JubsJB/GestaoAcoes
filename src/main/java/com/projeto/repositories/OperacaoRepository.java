@@ -8,6 +8,8 @@ import java.util.List;
 
 public interface OperacaoRepository extends JpaRepository<Operacao, Long> {
 
+    List<Operacao> findByCarteiraIdOrderByDataOperacaoAscOrdemNoDiaAscIdAsc(Long carteiraId);
+
     List<Operacao> findByCarteiraIdAndAcaoIdOrderByDataOperacaoAscOrdemNoDiaAsc(
             Long carteiraId,
             Long acaoId
