@@ -595,7 +595,8 @@ class OperacaoServiceTest {
                 corretoraRepository,
                 new TickerNormalizer(),
                 new OperacaoMapper(),
-                clock
+                clock,
+                new CalculadoraPosicao()
         );
     }
 
