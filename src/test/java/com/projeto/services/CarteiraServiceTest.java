@@ -6,6 +6,7 @@ import com.projeto.dto.CarteiraUpdateRequest;
 import com.projeto.entities.Carteira;
 import com.projeto.mappers.CarteiraMapper;
 import com.projeto.repositories.CarteiraRepository;
+import com.projeto.repositories.OperacaoRepository;
 import com.projeto.services.exceptions.ApiException;
 import com.projeto.services.exceptions.ErrorCodes;
 import com.projeto.services.exceptions.ObjectNotFoundException;
@@ -46,12 +47,16 @@ class CarteiraServiceTest {
     @Mock
     private CarteiraRepository repository;
 
+    @Mock
+    private OperacaoRepository operacaoRepository;
+
     private CarteiraService service;
 
     @BeforeEach
     void setUp() {
         service = new CarteiraService(
                 repository,
+                operacaoRepository,
                 new CarteiraMapper(),
                 Clock.fixed(NOW, ZoneOffset.UTC)
         );
@@ -315,18 +320,39 @@ class CarteiraServiceTest {
                 "Carteira para exclusão",
                 OffsetDateTime.parse("2026-08-14T04:05:00Z")
         );
-        when(repository.findById(46L)).thenReturn(Optional.of(persisted));
+        when(repository.findByIdForUpdate(46L)).thenReturn(Optional.of(persisted));
 
         readOnlyService().excluir(46L);
 
-        verify(repository).findById(46L);
+        verify(repository).findByIdForUpdate(46L);
+        verify(operacaoRepository).existsByCarteiraId(46L);
         verify(repository).delete(persisted);
         verifyNoMoreInteractions(repository);
     }
 
     @Test
+    void rejectsDeletionWhenPortfolioHasOperations() {
+        Carteira persisted = carteira(
+                47L,
+                "Carteira com operações",
+                OffsetDateTime.parse("2026-08-13T03:30:00Z")
+        );
+        when(repository.findByIdForUpdate(47L)).thenReturn(Optional.of(persisted));
+        when(operacaoRepository.existsByCarteiraId(47L)).thenReturn(true);
+
+        ApiException exception = assertThrows(ApiException.class, () -> readOnlyService().excluir(47L));
+
+        assertEquals(409, exception.getStatus().value());
+        assertEquals(ErrorCodes.CARTEIRA_POSSUI_OPERACOES, exception.getCode());
+        assertEquals(47L, exception.getDetails().get("carteiraId"));
+        verify(repository).findByIdForUpdate(47L);
+        verify(operacaoRepository).existsByCarteiraId(47L);
+        verify(repository, never()).delete(any(Carteira.class));
+    }
+
+    @Test
     void throwsObjectNotFoundWithoutDeletingOrUsingClockWhenDeletingMissingPortfolio() {
-        when(repository.findById(404L)).thenReturn(Optional.empty());
+        when(repository.findByIdForUpdate(404L)).thenReturn(Optional.empty());
 
         ObjectNotFoundException exception = assertThrows(
                 ObjectNotFoundException.class,
@@ -334,7 +360,8 @@ class CarteiraServiceTest {
         );
 
         assertEquals("Carteira não encontrada para o id: 404", exception.getMessage());
-        verify(repository).findById(404L);
+        verify(repository).findByIdForUpdate(404L);
+        verifyNoInteractions(operacaoRepository);
         verify(repository, never()).delete(any(Carteira.class));
         verifyNoMoreInteractions(repository);
     }
@@ -373,6 +400,6 @@ class CarteiraServiceTest {
             }
         };
 
-        return new CarteiraService(repository, new CarteiraMapper(), clockThatMustNotBeUsed);
+        return new CarteiraService(repository, operacaoRepository, new CarteiraMapper(), clockThatMustNotBeUsed);
     }
 }
