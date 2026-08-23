@@ -308,6 +308,37 @@ class CarteiraServiceTest {
         verifyNoMoreInteractions(repository);
     }
 
+    @Test
+    void deletesOnlyLocatedPortfolioWithoutUsingClockMapperOrWriteOperations() {
+        Carteira persisted = carteira(
+                46L,
+                "Carteira para exclusão",
+                OffsetDateTime.parse("2026-08-14T04:05:00Z")
+        );
+        when(repository.findById(46L)).thenReturn(Optional.of(persisted));
+
+        readOnlyService().excluir(46L);
+
+        verify(repository).findById(46L);
+        verify(repository).delete(persisted);
+        verifyNoMoreInteractions(repository);
+    }
+
+    @Test
+    void throwsObjectNotFoundWithoutDeletingOrUsingClockWhenDeletingMissingPortfolio() {
+        when(repository.findById(404L)).thenReturn(Optional.empty());
+
+        ObjectNotFoundException exception = assertThrows(
+                ObjectNotFoundException.class,
+                () -> readOnlyService().excluir(404L)
+        );
+
+        assertEquals("Carteira não encontrada para o id: 404", exception.getMessage());
+        verify(repository).findById(404L);
+        verify(repository, never()).delete(any(Carteira.class));
+        verifyNoMoreInteractions(repository);
+    }
+
     private CarteiraCreateRequest request(String nome) {
         return new CarteiraCreateRequest(nome);
     }
@@ -336,7 +367,9 @@ class CarteiraServiceTest {
 
             @Override
             public Instant instant() {
-                throw new AssertionError("Clock não deve ser utilizado nas consultas ou atualização de Carteira");
+                throw new AssertionError(
+                        "Clock não deve ser utilizado nas consultas, atualização ou exclusão de Carteira"
+                );
             }
         };
 

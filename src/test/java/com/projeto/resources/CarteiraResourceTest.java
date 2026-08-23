@@ -19,11 +19,13 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @SpringBootTest(classes = GestaoacoesApplication.class)
@@ -201,6 +203,63 @@ class CarteiraResourceTest {
                 unchangedIdentityAndDates.stream().map(Carteira::getNome).toList());
         assertEquals(firstDate, repository.findById(first.getId()).orElseThrow().getDataCriacao());
         assertEquals(secondDate, repository.findById(second.getId()).orElseThrow().getDataCriacao());
+    }
+
+    @Test
+    void deletesPortfolioWithNoContentAndPreservesOtherPortfolios() throws Exception {
+        OffsetDateTime deletedDate = OffsetDateTime.parse("2026-08-10T10:15:00Z");
+        OffsetDateTime preservedDate = OffsetDateTime.parse("2026-08-11T11:20:00Z");
+        Carteira deleted = repository.saveAndFlush(new Carteira("Carteira Excluída", deletedDate));
+        Carteira preserved = repository.saveAndFlush(new Carteira("Carteira Preservada", preservedDate));
+
+        mockMvc.perform(delete("/carteiras/{id}", deleted.getId()))
+                .andExpect(status().isNoContent())
+                .andExpect(content().string(""))
+                .andExpect(header().doesNotExist("Location"));
+
+        assertEquals(false, repository.existsById(deleted.getId()));
+        Carteira unchanged = repository.findById(preserved.getId()).orElseThrow();
+        assertEquals("Carteira Preservada", unchanged.getNome());
+        assertEquals(preservedDate, unchanged.getDataCriacao());
+        assertEquals(1, repository.count());
+    }
+
+    @Test
+    void returnsStandardNotFoundErrorWhenDeletingMissingPortfolio() throws Exception {
+        mockMvc.perform(delete("/carteiras/{id}", Long.MAX_VALUE))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.status").value(404))
+                .andExpect(jsonPath("$.error").value("Not Found"))
+                .andExpect(jsonPath("$.message").value(
+                        "Carteira não encontrada para o id: " + Long.MAX_VALUE
+                ))
+                .andExpect(jsonPath("$.path").value("/carteiras/" + Long.MAX_VALUE));
+
+        assertEquals(0, repository.count());
+    }
+
+    @Test
+    void returnsNotFoundOnSecondSequentialDeletionWithoutRecreatingState() throws Exception {
+        Carteira persisted = repository.saveAndFlush(new Carteira(
+                "Carteira para exclusão sequencial",
+                OffsetDateTime.parse("2026-08-09T09:10:00Z")
+        ));
+
+        mockMvc.perform(delete("/carteiras/{id}", persisted.getId()))
+                .andExpect(status().isNoContent())
+                .andExpect(content().string(""));
+
+        mockMvc.perform(delete("/carteiras/{id}", persisted.getId()))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.status").value(404))
+                .andExpect(jsonPath("$.error").value("Not Found"))
+                .andExpect(jsonPath("$.message").value(
+                        "Carteira não encontrada para o id: " + persisted.getId()
+                ))
+                .andExpect(jsonPath("$.path").value("/carteiras/" + persisted.getId()));
+
+        assertEquals(false, repository.existsById(persisted.getId()));
+        assertEquals(0, repository.count());
     }
 
     @Test
