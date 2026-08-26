@@ -4,6 +4,7 @@ import com.projeto.entities.Mercado;
 import com.projeto.entities.Moeda;
 
 import java.math.BigDecimal;
+import java.time.OffsetDateTime;
 
 public record PosicaoResponse(
         Long acaoId,
@@ -13,6 +14,9 @@ public record PosicaoResponse(
         Moeda moeda,
         BigDecimal quantidadeAtual,
         BigDecimal precoMedio,
-        BigDecimal custoPosicao
+        BigDecimal custoPosicao,
+        BigDecimal cotacaoAtual,
+        OffsetDateTime dataHoraCotacao,
+        BigDecimal valorAtualPosicao
 ) {
 }

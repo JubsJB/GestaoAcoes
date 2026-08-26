@@ -3,9 +3,14 @@ package com.projeto.resources;
 import com.projeto.dto.AcaoCreateRequest;
 import com.projeto.dto.AcaoResponse;
 import com.projeto.services.AcaoService;
+import com.projeto.services.exceptions.ApiException;
+import com.projeto.services.exceptions.ErrorCodes;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -13,6 +18,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
+import java.io.IOException;
 import java.net.URI;
 import java.util.List;
 
@@ -44,5 +50,33 @@ public class AcaoResource {
     @GetMapping("/{id}")
     public ResponseEntity<AcaoResponse> buscarPorId(@PathVariable Long id) {
         return ResponseEntity.ok(service.buscarPorId(id));
+    }
+
+    @PatchMapping("/{id}/cotacao")
+    public ResponseEntity<AcaoResponse> atualizarCotacao(
+            @PathVariable Long id,
+            HttpServletRequest request
+    ) {
+        if (hasBody(request)) {
+            throw invalidBody();
+        }
+
+        return ResponseEntity.ok(service.atualizarCotacao(id));
+    }
+
+    private boolean hasBody(HttpServletRequest request) {
+        try {
+            return request.getInputStream().read() != -1;
+        } catch (IOException exception) {
+            throw invalidBody();
+        }
+    }
+
+    private ApiException invalidBody() {
+        return new ApiException(
+                HttpStatus.BAD_REQUEST,
+                ErrorCodes.REQUEST_INVALIDO,
+                "A atualização de cotação não aceita corpo de requisição"
+        );
     }
 }

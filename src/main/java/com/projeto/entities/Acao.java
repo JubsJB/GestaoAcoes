@@ -12,6 +12,7 @@ import jakarta.persistence.UniqueConstraint;
 
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 
 @Entity
 @Table(
@@ -92,5 +93,22 @@ public class Acao {
 
     public OffsetDateTime getDataHoraCotacao() {
         return dataHoraCotacao;
+    }
+
+    public void atualizarCotacao(BigDecimal novaCotacao, OffsetDateTime novaDataHoraCotacao) {
+        if (novaCotacao == null || novaCotacao.signum() <= 0) {
+            throw new IllegalArgumentException("A cotação deve ser maior que zero");
+        }
+        if (novaDataHoraCotacao == null) {
+            throw new IllegalArgumentException("A data/hora da cotação deve ser informada");
+        }
+
+        OffsetDateTime timestampUtc = novaDataHoraCotacao.withOffsetSameInstant(ZoneOffset.UTC);
+        if (dataHoraCotacao != null && !timestampUtc.isAfter(dataHoraCotacao)) {
+            throw new IllegalArgumentException("A data/hora da nova cotação deve ser posterior à atual");
+        }
+
+        cotacaoAtual = novaCotacao;
+        dataHoraCotacao = timestampUtc;
     }
 }

@@ -24,6 +24,7 @@ import java.time.Clock;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.EnumMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -37,6 +38,7 @@ public class AcaoService {
     private final TickerNormalizer tickerNormalizer;
     private final Map<Mercado, CotacaoProvider> providers;
     private final AcaoPersistenceService persistenceService;
+    private final AcaoCotacaoPersistenceService cotacaoPersistenceService;
     private final AcaoRepository repository;
     private final AcaoMapper mapper;
     private final Clock clock;
@@ -45,6 +47,7 @@ public class AcaoService {
             TickerNormalizer tickerNormalizer,
             List<CotacaoProvider> providers,
             AcaoPersistenceService persistenceService,
+            AcaoCotacaoPersistenceService cotacaoPersistenceService,
             AcaoRepository repository,
             AcaoMapper mapper,
             Clock clock
@@ -52,6 +55,7 @@ public class AcaoService {
         this.tickerNormalizer = tickerNormalizer;
         this.providers = indexProviders(providers);
         this.persistenceService = persistenceService;
+        this.cotacaoPersistenceService = cotacaoPersistenceService;
         this.repository = repository;
         this.mapper = mapper;
         this.clock = clock;
@@ -66,14 +70,7 @@ public class AcaoService {
         Mercado mercado = request.getMercado();
         persistenceService.ensureAvailable(requestedTicker, mercado);
 
-        CotacaoProvider provider = providers.get(mercado);
-        if (provider == null) {
-            throw new ApiException(
-                    HttpStatus.SERVICE_UNAVAILABLE,
-                    ErrorCodes.SERVICO_EXTERNO_INDISPONIVEL,
-                    "Serviço externo indisponível para o mercado informado"
-            );
-        }
+        CotacaoProvider provider = providerFor(mercado);
 
         CotacaoData externalData = provider.consultar(requestedTicker);
         ValidatedQuote validated = validateExternalData(externalData, requestedTicker, mercado);
@@ -110,6 +107,31 @@ public class AcaoService {
         return mapper.toResponse(acao);
     }
 
+    public AcaoResponse atualizarCotacao(Long id) {
+        Acao acao = repository.findById(id)
+                .orElseThrow(() -> new ObjectNotFoundException(
+                        "Ação não encontrada para o id: " + id
+                ));
+
+        try {
+            CotacaoProvider provider = providerFor(acao.getMercado());
+            CotacaoData externalData = provider.consultar(acao.getTicker());
+            ValidatedQuote validated = validateUpdateExternalData(externalData, acao);
+            OffsetDateTime quoteTime = externalData.dataHoraCotacao() == null
+                    ? OffsetDateTime.now(clock).withOffsetSameInstant(ZoneOffset.UTC)
+                    : externalData.dataHoraCotacao().withOffsetSameInstant(ZoneOffset.UTC);
+
+            Acao persisted = cotacaoPersistenceService.atualizarSePosterior(
+                    acao.getId(),
+                    validated.quote(),
+                    quoteTime
+            );
+            return mapper.toResponse(persisted);
+        } catch (ApiException exception) {
+            throw withPreservedQuote(exception, acao);
+        }
+    }
+
     private Map<Mercado, CotacaoProvider> indexProviders(List<CotacaoProvider> providerList) {
         Map<Mercado, CotacaoProvider> indexed = new EnumMap<>(Mercado.class);
         for (CotacaoProvider provider : providerList) {
@@ -119,6 +141,38 @@ public class AcaoService {
             }
         }
         return Map.copyOf(indexed);
+    }
+
+    private CotacaoProvider providerFor(Mercado mercado) {
+        CotacaoProvider provider = providers.get(mercado);
+        if (provider == null) {
+            throw new ApiException(
+                    HttpStatus.SERVICE_UNAVAILABLE,
+                    ErrorCodes.SERVICO_EXTERNO_INDISPONIVEL,
+                    "Serviço externo indisponível para o mercado informado"
+            );
+        }
+        return provider;
+    }
+
+    private ValidatedQuote validateUpdateExternalData(CotacaoData data, Acao acao) {
+        if (data != null && !isBlank(data.ticker()) && data.tickerAlteradoExplicitamente()) {
+            String returnedTicker = data.ticker().trim().toUpperCase(Locale.ROOT);
+            if (returnedTicker.length() <= MAX_TICKER_LENGTH
+                    && !acao.getTicker().equals(returnedTicker)) {
+                Map<String, Object> details = new LinkedHashMap<>();
+                details.put("tickerPersistido", acao.getTicker());
+                details.put("tickerCanonicoRetornado", returnedTicker);
+                throw new ApiException(
+                        HttpStatus.CONFLICT,
+                        ErrorCodes.TICKER_CANONICO_DIVERGENTE,
+                        "O provider informou um ticker canônico diferente do persistido",
+                        details
+                );
+            }
+        }
+
+        return validateExternalData(data, acao.getTicker(), acao.getMercado());
     }
 
     private ValidatedQuote validateExternalData(
@@ -208,6 +262,20 @@ public class AcaoService {
                 HttpStatus.UNPROCESSABLE_CONTENT,
                 ErrorCodes.COTACAO_FORA_DA_PRECISAO,
                 "Cotação fora da precisão suportada"
+        );
+    }
+
+    private ApiException withPreservedQuote(ApiException exception, Acao acao) {
+        Map<String, Object> details = new LinkedHashMap<>(exception.getDetails());
+        details.put("acaoId", acao.getId());
+        details.put("cotacaoPreservada", true);
+        details.put("ultimaCotacaoValida", acao.getCotacaoAtual());
+        details.put("dataHoraUltimaCotacao", acao.getDataHoraCotacao());
+        return new ApiException(
+                exception.getStatus(),
+                exception.getCode(),
+                exception.getMessage(),
+                details
         );
     }
 

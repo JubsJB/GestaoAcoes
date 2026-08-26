@@ -17,6 +17,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
@@ -70,7 +71,16 @@ public class PosicaoService {
             }
 
             Acao acao = operacoes.get(0).getAcao();
-            posicoes.add(mapper.toResponse(acao, resultado.posicao()));
+            BigDecimal valorAtualPosicao;
+            try {
+                valorAtualPosicao = calculadora.calcularValorAtual(
+                        resultado.posicao().quantidadeAtual(),
+                        acao.getCotacaoAtual()
+                );
+            } catch (ArithmeticException exception) {
+                throw falhaValorAtual(carteiraId, acao, exception);
+            }
+            posicoes.add(mapper.toResponse(acao, resultado.posicao(), valorAtualPosicao));
         }
 
         posicoes.sort(ORDEM_APRESENTACAO);
@@ -102,6 +112,20 @@ public class PosicaoService {
                 HttpStatus.CONFLICT,
                 ErrorCodes.HISTORICO_OPERACOES_INCONSISTENTE,
                 "Histórico de Operações inconsistente",
+                detalhes
+        );
+    }
+
+    private ApiException falhaValorAtual(Long carteiraId, Acao acao, ArithmeticException exception) {
+        Map<String, Object> detalhes = new LinkedHashMap<>();
+        detalhes.put("carteiraId", carteiraId);
+        detalhes.put("acaoId", acao.getId());
+        detalhes.put("ticker", acao.getTicker());
+        detalhes.put("motivo", exception.getMessage());
+        return new ApiException(
+                HttpStatus.valueOf(422),
+                ErrorCodes.CALCULO_POSICAO_FORA_DA_PRECISAO,
+                "Cálculo da posição excede a precisão aprovada",
                 detalhes
         );
     }

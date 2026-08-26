@@ -18,6 +18,7 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class CalculadoraPosicaoTest {
@@ -198,6 +199,34 @@ class CalculadoraPosicaoTest {
 
         assertTrue(result.valido());
         assertEquals(new BigDecimal("19999999999999.999998"), result.posicao().quantidadeAtual());
+    }
+
+    @Test
+    void calculatesExactCurrentValueForIntegerAndFractionalQuantities() {
+        assertEquals(
+                new BigDecimal("3550.000000000000"),
+                calculadora.calcularValorAtual(
+                        new BigDecimal("100.000000"),
+                        new BigDecimal("35.500000")
+                )
+        );
+        assertEquals(
+                new BigDecimal("112.205000000000"),
+                calculadora.calcularValorAtual(
+                        new BigDecimal("0.500000"),
+                        new BigDecimal("224.410000")
+                )
+        );
+        assertEquals(12, calculadora.calcularValorAtual(BigDecimal.ONE, BigDecimal.ONE).scale());
+        assertEquals(38, CalculadoraPosicao.PRECISAO_VALOR_ATUAL);
+    }
+
+    @Test
+    void rejectsCurrentValueOutsideApprovedPrecisionWithoutRounding() {
+        assertThrows(ArithmeticException.class, () -> calculadora.calcularValorAtual(
+                new BigDecimal("99999999999999.999999"),
+                new BigDecimal("9999999999999.999999")
+        ));
     }
 
     private void assertPosition(

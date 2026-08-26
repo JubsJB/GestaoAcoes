@@ -118,7 +118,7 @@ class PosicaoResourceTest {
                 .andExpect(content().string(Matchers.containsString("\"precoMedio\":14.000000000000")))
                 .andExpect(content().string(Matchers.containsString("\"custoPosicao\":1400.000000000000")))
                 .andExpect(jsonPath("$", Matchers.hasSize(3)))
-                .andExpect(jsonPath("$[0]", Matchers.aMapWithSize(8)))
+                .andExpect(jsonPath("$[0]", Matchers.aMapWithSize(11)))
                 .andExpect(jsonPath("$[0].acaoId").value(petr4.getId()))
                 .andExpect(jsonPath("$[0].ticker").value("PETR4"))
                 .andExpect(jsonPath("$[0].nomeEmpresa").value("Petróleo Brasileiro S.A."))
@@ -127,12 +127,20 @@ class PosicaoResourceTest {
                 .andExpect(jsonPath("$[0].quantidadeAtual").value(100.0))
                 .andExpect(jsonPath("$[0].precoMedio").value(14.0))
                 .andExpect(jsonPath("$[0].custoPosicao").value(1400.0))
+                .andExpect(jsonPath("$[0].cotacaoAtual").value(99.123456))
+                .andExpect(jsonPath("$[0].dataHoraCotacao").value("2026-08-01T10:00:00Z"))
+                .andExpect(jsonPath("$[0].valorAtualPosicao").value(9912.3456))
                 .andExpect(jsonPath("$[1].ticker").value("VALE3"))
+                .andExpect(jsonPath("$[1].valorAtualPosicao").value(700.0))
                 .andExpect(jsonPath("$[2].ticker").value("AAPL"))
                 .andExpect(jsonPath("$[2].quantidadeAtual").value(0.5))
-                .andExpect(jsonPath("$[0].cotacaoAtual").doesNotExist())
+                .andExpect(jsonPath("$[2].moeda").value("USD"))
+                .andExpect(jsonPath("$[2].valorAtualPosicao").value(112.205))
                 .andExpect(jsonPath("$[0].resultadoRealizado").doesNotExist())
-                .andExpect(jsonPath("$[0].valorAtual").doesNotExist());
+                .andExpect(jsonPath("$[0].resultadoNaoRealizado").doesNotExist())
+                .andExpect(jsonPath("$[0].rentabilidade").doesNotExist())
+                .andExpect(jsonPath("$[0].patrimonio").doesNotExist())
+                .andExpect(jsonPath("$[0].snapshot").doesNotExist());
 
         assertEquals(operationCount, operacaoRepository.count());
         assertEquals(new BigDecimal("99.123456"),
