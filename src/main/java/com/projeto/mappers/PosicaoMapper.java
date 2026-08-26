@@ -14,7 +14,8 @@ public class PosicaoMapper {
             Acao acao,
             PosicaoCalculada posicao,
             BigDecimal valorAtualPosicao,
-            BigDecimal resultadoNaoRealizado
+            BigDecimal resultadoNaoRealizado,
+            BigDecimal rentabilidadePercentual
     ) {
         return new PosicaoResponse(
                 acao.getId(),
@@ -28,7 +29,8 @@ public class PosicaoMapper {
                 acao.getCotacaoAtual(),
                 acao.getDataHoraCotacao(),
                 valorAtualPosicao,
-                resultadoNaoRealizado
+                resultadoNaoRealizado,
+                rentabilidadePercentual
         );
     }
 }

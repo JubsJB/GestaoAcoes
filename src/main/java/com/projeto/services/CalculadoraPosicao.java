@@ -21,7 +21,11 @@ public class CalculadoraPosicao {
     public static final int PRECISAO_CUSTO = 38;
     public static final int PRECISAO_VALOR_ATUAL = 38;
     public static final int PRECISAO_RESULTADO_NAO_REALIZADO = 38;
+    public static final int ESCALA_RENTABILIDADE_PERCENTUAL = 6;
+    public static final int PRECISAO_RENTABILIDADE_PERCENTUAL = 38;
     public static final RoundingMode ARREDONDAMENTO = RoundingMode.HALF_EVEN;
+
+    private static final BigDecimal CEM = new BigDecimal("100");
 
     private static final int PRECISAO_OPERANDO = 19;
     private static final int ESCALA_OPERANDO = 6;
@@ -60,6 +64,27 @@ public class CalculadoraPosicao {
             throw new ArithmeticException("Resultado não realizado excede a precisão aprovada");
         }
         return resultado;
+    }
+
+    public BigDecimal calcularRentabilidadePercentual(
+            BigDecimal resultadoNaoRealizado,
+            BigDecimal custoPosicao
+    ) {
+        if (resultadoNaoRealizado == null || custoPosicao == null || custoPosicao.signum() <= 0) {
+            throw new ArithmeticException("Resultado não realizado e custo positivo são obrigatórios");
+        }
+
+        BigDecimal razao = resultadoNaoRealizado.divide(
+                custoPosicao,
+                ESCALA_INTERMEDIARIA,
+                ARREDONDAMENTO
+        );
+        BigDecimal rentabilidade = razao.multiply(CEM)
+                .setScale(ESCALA_RENTABILIDADE_PERCENTUAL, ARREDONDAMENTO);
+        if (rentabilidade.precision() > PRECISAO_RENTABILIDADE_PERCENTUAL) {
+            throw new ArithmeticException("Rentabilidade percentual excede a precisão aprovada");
+        }
+        return rentabilidade;
     }
 
     private ResultadoReplay reproduzir(List<Operacao> operacoesOrdenadas, boolean calcularFinanceiro) {

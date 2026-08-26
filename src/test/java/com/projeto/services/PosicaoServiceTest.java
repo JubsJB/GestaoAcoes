@@ -34,6 +34,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
@@ -124,9 +125,11 @@ class PosicaoServiceTest {
         assertEquals(OffsetDateTime.parse("2026-08-01T10:00:00Z"), petrobras.dataHoraCotacao());
         assertEquals(new BigDecimal("99999.999900000000"), petrobras.valorAtualPosicao());
         assertEquals(new BigDecimal("98599.999900000000"), petrobras.resultadoNaoRealizado());
+        assertEquals(new BigDecimal("7042.857136"), petrobras.rentabilidadePercentual());
         assertEquals(new BigDecimal("0.500000"), responses.get(2).quantidadeAtual());
         assertEquals(new BigDecimal("499.999999500000"), responses.get(2).valorAtualPosicao());
         assertEquals(new BigDecimal("399.999999500000"), responses.get(2).resultadoNaoRealizado());
+        assertEquals(new BigDecimal("400.000000"), responses.get(2).rentabilidadePercentual());
     }
 
     @Test
@@ -210,6 +213,8 @@ class PosicaoServiceTest {
         assertEquals(new BigDecimal("125.000000000000"), second.valorAtualPosicao());
         assertEquals(new BigDecimal("50.000000000000"), first.resultadoNaoRealizado());
         assertEquals(new BigDecimal("75.000000000000"), second.resultadoNaoRealizado());
+        assertEquals(new BigDecimal("100.000000"), first.rentabilidadePercentual());
+        assertEquals(new BigDecimal("150.000000"), second.rentabilidadePercentual());
         assertEquals(action.getDataHoraCotacao(), second.dataHoraCotacao());
     }
 
@@ -244,6 +249,7 @@ class PosicaoServiceTest {
         assertEquals(new BigDecimal("600.000000000000"), partialResponse.custoPosicao());
         assertEquals(new BigDecimal("900.000000000000"), partialResponse.valorAtualPosicao());
         assertEquals(new BigDecimal("300.000000000000"), partialResponse.resultadoNaoRealizado());
+        assertEquals(new BigDecimal("50.000000"), partialResponse.rentabilidadePercentual());
 
         PosicaoResponse newCycleResponse = result.get(1);
         assertEquals(new BigDecimal("50.000000"), newCycleResponse.quantidadeAtual());
@@ -251,6 +257,73 @@ class PosicaoServiceTest {
         assertEquals(new BigDecimal("1000.000000000000"), newCycleResponse.custoPosicao());
         assertEquals(new BigDecimal("1250.000000000000"), newCycleResponse.valorAtualPosicao());
         assertEquals(new BigDecimal("250.000000000000"), newCycleResponse.resultadoNaoRealizado());
+        assertEquals(new BigDecimal("25.000000"), newCycleResponse.rentabilidadePercentual());
+    }
+
+    @Test
+    void rejectsOpenPositionWithNonPositiveCostAsInconsistentWithoutPartialResponse() {
+        Acao action = action(2L, "PETR4", "Petrobras", Mercado.BRASIL, Moeda.BRL);
+        Operacao operation = operation(carteira, action, TipoOperacao.COMPRA, "10", "5", "2026-08-01", 1);
+        CalculadoraPosicao calculator = mock(CalculadoraPosicao.class);
+        when(calculator.reproduzir(any())).thenReturn(new CalculadoraPosicao.ResultadoReplay(
+                new CalculadoraPosicao.PosicaoCalculada(
+                        new BigDecimal("10.000000"),
+                        new BigDecimal("5.000000000000"),
+                        BigDecimal.ZERO.setScale(12)
+                ),
+                null
+        ));
+        PosicaoService inconsistentService = new PosicaoService(
+                carteiraRepository,
+                operacaoRepository,
+                calculator,
+                new PosicaoMapper()
+        );
+        when(carteiraRepository.findById(1L)).thenReturn(Optional.of(carteira));
+        when(operacaoRepository.findByCarteiraIdOrderByDataOperacaoAscOrdemNoDiaAscIdAsc(1L))
+                .thenReturn(List.of(operation));
+
+        ApiException exception = assertThrows(ApiException.class, () ->
+                inconsistentService.listarPorCarteira(1L));
+
+        assertEquals(409, exception.getStatus().value());
+        assertEquals(ErrorCodes.HISTORICO_OPERACOES_INCONSISTENTE, exception.getCode());
+        assertEquals(BigDecimal.ZERO.setScale(12), exception.getDetails().get("custoPosicao"));
+        verify(calculator, never()).calcularRentabilidadePercentual(any(), any());
+        verify(operacaoRepository, never()).save(any(Operacao.class));
+    }
+
+    @Test
+    void rejectsOpenPositionWithNegativeCostAsInconsistent() {
+        Acao action = action(2L, "PETR4", "Petrobras", Mercado.BRASIL, Moeda.BRL);
+        Operacao operation = operation(carteira, action, TipoOperacao.COMPRA, "10", "5", "2026-08-01", 1);
+        CalculadoraPosicao calculator = mock(CalculadoraPosicao.class);
+        BigDecimal negativeCost = new BigDecimal("-1.000000000000");
+        when(calculator.reproduzir(any())).thenReturn(new CalculadoraPosicao.ResultadoReplay(
+                new CalculadoraPosicao.PosicaoCalculada(
+                        new BigDecimal("10.000000"),
+                        new BigDecimal("5.000000000000"),
+                        negativeCost
+                ),
+                null
+        ));
+        PosicaoService inconsistentService = new PosicaoService(
+                carteiraRepository,
+                operacaoRepository,
+                calculator,
+                new PosicaoMapper()
+        );
+        when(carteiraRepository.findById(1L)).thenReturn(Optional.of(carteira));
+        when(operacaoRepository.findByCarteiraIdOrderByDataOperacaoAscOrdemNoDiaAscIdAsc(1L))
+                .thenReturn(List.of(operation));
+
+        ApiException exception = assertThrows(ApiException.class, () ->
+                inconsistentService.listarPorCarteira(1L));
+
+        assertEquals(409, exception.getStatus().value());
+        assertEquals(ErrorCodes.HISTORICO_OPERACOES_INCONSISTENTE, exception.getCode());
+        assertEquals(negativeCost, exception.getDetails().get("custoPosicao"));
+        verify(calculator, never()).calcularRentabilidadePercentual(any(), any());
     }
 
     @Test
