@@ -120,7 +120,11 @@ class PosicaoServiceTest {
         assertEquals(new BigDecimal("100.000000"), petrobras.quantidadeAtual());
         assertEquals(new BigDecimal("14.000000000000"), petrobras.precoMedio());
         assertEquals(new BigDecimal("1400.000000000000"), petrobras.custoPosicao());
+        assertEquals(new BigDecimal("999.999999"), petrobras.cotacaoAtual());
+        assertEquals(OffsetDateTime.parse("2026-08-01T10:00:00Z"), petrobras.dataHoraCotacao());
+        assertEquals(new BigDecimal("99999.999900000000"), petrobras.valorAtualPosicao());
         assertEquals(new BigDecimal("0.500000"), responses.get(2).quantidadeAtual());
+        assertEquals(new BigDecimal("499.999999500000"), responses.get(2).valorAtualPosicao());
     }
 
     @Test
@@ -180,6 +184,29 @@ class PosicaoServiceTest {
         assertEquals(422, exception.getStatus().value());
         assertEquals(ErrorCodes.CALCULO_POSICAO_FORA_DA_PRECISAO, exception.getCode());
         assertFalse(exception.getDetails().isEmpty());
+    }
+
+    @Test
+    void currentQuoteChangesOnlyCurrentValueAndPreservesAccountingReplayAndTimestamp() {
+        OffsetDateTime quoteTimestamp = OffsetDateTime.parse("2026-08-20T15:30:00-03:00");
+        Acao action = action(2L, "AAPL", "Apple", Mercado.EUA, Moeda.USD);
+        action.atualizarCotacao(new BigDecimal("200.000000"), quoteTimestamp);
+        when(carteiraRepository.findById(1L)).thenReturn(Optional.of(carteira));
+        when(operacaoRepository.findByCarteiraIdOrderByDataOperacaoAscOrdemNoDiaAscIdAsc(1L))
+                .thenReturn(List.of(
+                        operation(carteira, action, TipoOperacao.COMPRA, "0.500000", "100", "2026-08-01", 1)
+                ));
+
+        PosicaoResponse first = service.listarPorCarteira(1L).get(0);
+        action.atualizarCotacao(new BigDecimal("250.000000"), quoteTimestamp.plusHours(1));
+        PosicaoResponse second = service.listarPorCarteira(1L).get(0);
+
+        assertEquals(first.quantidadeAtual(), second.quantidadeAtual());
+        assertEquals(first.precoMedio(), second.precoMedio());
+        assertEquals(first.custoPosicao(), second.custoPosicao());
+        assertEquals(new BigDecimal("100.000000000000"), first.valorAtualPosicao());
+        assertEquals(new BigDecimal("125.000000000000"), second.valorAtualPosicao());
+        assertEquals(action.getDataHoraCotacao(), second.dataHoraCotacao());
     }
 
     @Test

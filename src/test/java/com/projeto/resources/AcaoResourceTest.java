@@ -30,6 +30,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -220,6 +221,97 @@ class AcaoResourceTest {
                 .andExpect(jsonPath("$.details").isEmpty());
 
         verify(service).buscarPorId(999999L);
+    }
+
+    @Test
+    void patchSemBodyAtualizaBrasilERetornaDtoCompletoSemLocation() throws Exception {
+        when(service.atualizarCotacao(1L)).thenReturn(response(1L, "PETR4", Mercado.BRASIL, Moeda.BRL));
+
+        mockMvc.perform(patch("/acoes/{id}/cotacao", 1L))
+                .andExpect(status().isOk())
+                .andExpect(header().doesNotExist("Location"))
+                .andExpect(jsonPath("$.id").value(1))
+                .andExpect(jsonPath("$.ticker").value("PETR4"))
+                .andExpect(jsonPath("$.nomeEmpresa").value("Empresa"))
+                .andExpect(jsonPath("$.mercado").value("BRASIL"))
+                .andExpect(jsonPath("$.moeda").value("BRL"))
+                .andExpect(jsonPath("$.cotacaoAtual").value(100.123456))
+                .andExpect(jsonPath("$.dataHoraCotacao").value("2026-08-20T15:30:00Z"));
+
+        verify(service).atualizarCotacao(1L);
+    }
+
+    @Test
+    void patchComBodyVazioAtualizaEua() throws Exception {
+        when(service.atualizarCotacao(2L)).thenReturn(response(2L, "AAPL", Mercado.EUA, Moeda.USD));
+
+        mockMvc.perform(patch("/acoes/{id}/cotacao", 2L).content(""))
+                .andExpect(status().isOk())
+                .andExpect(header().doesNotExist("Location"))
+                .andExpect(jsonPath("$.mercado").value("EUA"))
+                .andExpect(jsonPath("$.moeda").value("USD"));
+
+        verify(service).atualizarCotacao(2L);
+    }
+
+    @Test
+    void patchRejeitaQualquerBodyNaoVazioSemChamarService() throws Exception {
+        for (String body : List.of("{\"cotacaoAtual\":1}", "{invalido", "texto")) {
+            mockMvc.perform(patch("/acoes/{id}/cotacao", 1L)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(body))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.code").value(ErrorCodes.REQUEST_INVALIDO));
+        }
+
+        verifyNoInteractions(service);
+    }
+
+    @Test
+    void patchPropagaNotFoundEConflitoCanonicoPadronizados() throws Exception {
+        when(service.atualizarCotacao(404L)).thenThrow(
+                new ObjectNotFoundException("Ação não encontrada para o id: 404"));
+        mockMvc.perform(patch("/acoes/{id}/cotacao", 404L))
+                .andExpect(status().isNotFound());
+
+        when(service.atualizarCotacao(1L)).thenThrow(new ApiException(
+                HttpStatus.CONFLICT,
+                ErrorCodes.TICKER_CANONICO_DIVERGENTE,
+                "Ticker divergente",
+                Map.of(
+                        "tickerPersistido", "PETR4",
+                        "tickerCanonicoRetornado", "NEW3",
+                        "acaoId", 1L,
+                        "cotacaoPreservada", true
+                )
+        ));
+        mockMvc.perform(patch("/acoes/{id}/cotacao", 1L))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value(ErrorCodes.TICKER_CANONICO_DIVERGENTE))
+                .andExpect(jsonPath("$.details.tickerPersistido").value("PETR4"))
+                .andExpect(jsonPath("$.details.cotacaoPreservada").value(true));
+    }
+
+    @Test
+    void patchPreservaDetailsDeFalhaExterna() throws Exception {
+        when(service.atualizarCotacao(1L)).thenThrow(new ApiException(
+                HttpStatus.GATEWAY_TIMEOUT,
+                ErrorCodes.SERVICO_EXTERNO_TIMEOUT,
+                "Timeout",
+                Map.of(
+                        "acaoId", 1L,
+                        "cotacaoPreservada", true,
+                        "ultimaCotacaoValida", new BigDecimal("30.000000"),
+                        "dataHoraUltimaCotacao", "2026-08-19T15:30:00Z"
+                )
+        ));
+
+        mockMvc.perform(patch("/acoes/{id}/cotacao", 1L))
+                .andExpect(status().isGatewayTimeout())
+                .andExpect(jsonPath("$.code").value(ErrorCodes.SERVICO_EXTERNO_TIMEOUT))
+                .andExpect(jsonPath("$.details.acaoId").value(1))
+                .andExpect(jsonPath("$.details.cotacaoPreservada").value(true))
+                .andExpect(jsonPath("$.details.ultimaCotacaoValida").value(30.000000));
     }
 
     private AcaoResponse response(Long id, String ticker, Mercado market, Moeda currency) {

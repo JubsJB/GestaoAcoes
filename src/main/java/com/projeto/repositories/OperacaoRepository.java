@@ -1,6 +1,7 @@
 package com.projeto.repositories;
 
 import com.projeto.entities.Operacao;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.time.LocalDate;
@@ -8,6 +9,7 @@ import java.util.List;
 
 public interface OperacaoRepository extends JpaRepository<Operacao, Long> {
 
+    @EntityGraph(attributePaths = "acao")
     List<Operacao> findByCarteiraIdOrderByDataOperacaoAscOrdemNoDiaAscIdAsc(Long carteiraId);
 
     List<Operacao> findByCarteiraIdAndAcaoIdOrderByDataOperacaoAscOrdemNoDiaAsc(

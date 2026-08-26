@@ -19,6 +19,7 @@ public class CalculadoraPosicao {
     public static final int ESCALA_SAIDA = 12;
     public static final int PRECISAO_PRECO_MEDIO = 25;
     public static final int PRECISAO_CUSTO = 38;
+    public static final int PRECISAO_VALOR_ATUAL = 38;
     public static final RoundingMode ARREDONDAMENTO = RoundingMode.HALF_EVEN;
 
     private static final int PRECISAO_OPERANDO = 19;
@@ -33,6 +34,15 @@ public class CalculadoraPosicao {
 
     public ResultadoReplay validarQuantidade(List<Operacao> operacoesOrdenadas) {
         return reproduzir(operacoesOrdenadas, false);
+    }
+
+    public BigDecimal calcularValorAtual(BigDecimal quantidadeAtual, BigDecimal cotacaoAtual) {
+        BigDecimal valorAtual = quantidadeAtual.multiply(cotacaoAtual)
+                .setScale(ESCALA_SAIDA, RoundingMode.UNNECESSARY);
+        if (valorAtual.precision() > PRECISAO_VALOR_ATUAL) {
+            throw new ArithmeticException("Valor atual da posição excede a precisão aprovada");
+        }
+        return valorAtual;
     }
 
     private ResultadoReplay reproduzir(List<Operacao> operacoesOrdenadas, boolean calcularFinanceiro) {

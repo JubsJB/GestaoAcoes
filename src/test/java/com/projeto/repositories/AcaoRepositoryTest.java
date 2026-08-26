@@ -57,6 +57,19 @@ class AcaoRepositoryTest {
     }
 
     @Test
+    void buscaPorIdComLockPreservaMetodosAtuais() {
+        Acao saved = repository.saveAndFlush(action(
+                "VALE3", Mercado.BRASIL, Moeda.BRL, new BigDecimal("60.000000"), utcNow()
+        ));
+
+        Acao locked = repository.findByIdForUpdate(saved.getId()).orElseThrow();
+
+        assertEquals(saved.getId(), locked.getId());
+        assertEquals(saved.getId(), repository.findByTickerAndMercado("VALE3", Mercado.BRASIL)
+                .orElseThrow().getId());
+    }
+
+    @Test
     void compositeUniqueConstraintAllowsSameTickerInDifferentMarketsButRejectsSamePair() {
         repository.saveAndFlush(action(
                 "ABC", Mercado.BRASIL, Moeda.BRL, new BigDecimal("10.000000"), utcNow()

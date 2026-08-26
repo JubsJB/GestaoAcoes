@@ -31,11 +31,14 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -55,6 +58,9 @@ class AcaoServiceTest {
     private AcaoPersistenceService persistenceService;
 
     @Mock
+    private AcaoCotacaoPersistenceService cotacaoPersistenceService;
+
+    @Mock
     private AcaoRepository repository;
 
     private AcaoService service;
@@ -67,11 +73,12 @@ class AcaoServiceTest {
                 new TickerNormalizer(),
                 List.of(brapi, alphaVantage),
                 persistenceService,
+                cotacaoPersistenceService,
                 repository,
                 new AcaoMapper(),
                 Clock.fixed(FALLBACK_INSTANT, ZoneOffset.UTC)
         );
-        clearInvocations(brapi, alphaVantage, persistenceService, repository);
+        clearInvocations(brapi, alphaVantage, persistenceService, cotacaoPersistenceService, repository);
     }
 
     @Test
@@ -208,6 +215,165 @@ class AcaoServiceTest {
                 () -> service.cadastrar(new AcaoCreateRequest("OLD3", Mercado.BRASIL))
         );
         assertEquals(ErrorCodes.ACAO_DUPLICADA, canonical.getCode());
+    }
+
+    @Test
+    void atualizaCotacaoBrasilForaDeTransacaoComTimestampDoProvider() {
+        Acao existente = action(10L, "PETR4", "Nome persistido", Mercado.BRASIL, Moeda.BRL,
+                new BigDecimal("30.000000"), OffsetDateTime.parse("2026-08-19T15:30:00Z"));
+        Acao persistida = action(10L, "PETR4", "Nome persistido", Mercado.BRASIL, Moeda.BRL,
+                new BigDecimal("32.123456"), OffsetDateTime.parse("2026-08-20T15:15:00Z"));
+        when(repository.findById(10L)).thenReturn(Optional.of(existente));
+        when(brapi.consultar("PETR4")).thenAnswer(invocation -> {
+            assertFalse(org.springframework.transaction.support.TransactionSynchronizationManager
+                    .isActualTransactionActive());
+            return new CotacaoData("PETR4", "Nome externo", "BRL", new BigDecimal("32.123456"),
+                    OffsetDateTime.parse("2026-08-20T12:15:00-03:00"), false);
+        });
+        when(cotacaoPersistenceService.atualizarSePosterior(
+                10L, new BigDecimal("32.123456"), OffsetDateTime.parse("2026-08-20T15:15:00Z")))
+                .thenReturn(persistida);
+
+        AcaoResponse resposta = service.atualizarCotacao(10L);
+
+        assertEquals("Nome persistido", resposta.nomeEmpresa());
+        assertEquals(new BigDecimal("32.123456"), resposta.cotacaoAtual());
+        verify(brapi).consultar("PETR4");
+        verifyNoInteractions(alphaVantage);
+    }
+
+    @Test
+    void atualizaCotacaoEuaComFallbackDoClock() {
+        Acao existente = action(11L, "AAPL", "Apple", Mercado.EUA, Moeda.USD,
+                new BigDecimal("220.000000"), OffsetDateTime.parse("2026-08-19T15:30:00Z"));
+        Acao persistida = action(11L, "AAPL", "Apple", Mercado.EUA, Moeda.USD,
+                new BigDecimal("224.410000"), OffsetDateTime.parse("2026-08-20T15:30:00Z"));
+        when(repository.findById(11L)).thenReturn(Optional.of(existente));
+        when(alphaVantage.consultar("AAPL")).thenReturn(
+                new CotacaoData("AAPL", "Apple Inc.", "USD", new BigDecimal("224.41"), null, false));
+        when(cotacaoPersistenceService.atualizarSePosterior(
+                11L, new BigDecimal("224.410000"), OffsetDateTime.parse("2026-08-20T15:30:00Z")))
+                .thenReturn(persistida);
+
+        AcaoResponse resposta = service.atualizarCotacao(11L);
+
+        assertEquals(Moeda.USD, resposta.moeda());
+        assertEquals(new BigDecimal("224.410000"), resposta.cotacaoAtual());
+        verify(alphaVantage).consultar("AAPL");
+        verifyNoInteractions(brapi);
+    }
+
+    @Test
+    void idInexistenteNaoConsultaProvidersNemPersiste() {
+        when(repository.findById(404L)).thenReturn(Optional.empty());
+
+        assertThrows(ObjectNotFoundException.class, () -> service.atualizarCotacao(404L));
+
+        verifyNoInteractions(brapi, alphaVantage, cotacaoPersistenceService);
+    }
+
+    @Test
+    void rejeitaTickerCanonicoDivergenteEPreservaCotacao() {
+        Acao existente = action(12L, "PETR4", "Empresa", Mercado.BRASIL, Moeda.BRL,
+                new BigDecimal("30.000000"), OffsetDateTime.parse("2026-08-19T15:30:00Z"));
+        when(repository.findById(12L)).thenReturn(Optional.of(existente));
+        when(brapi.consultar("PETR4")).thenReturn(
+                new CotacaoData("NEW3", "Empresa", "BRL", new BigDecimal("36"), null, true));
+
+        ApiException erro = assertThrows(ApiException.class, () -> service.atualizarCotacao(12L));
+
+        assertEquals(org.springframework.http.HttpStatus.CONFLICT, erro.getStatus());
+        assertEquals(ErrorCodes.TICKER_CANONICO_DIVERGENTE, erro.getCode());
+        assertEquals("PETR4", erro.getDetails().get("tickerPersistido"));
+        assertEquals("NEW3", erro.getDetails().get("tickerCanonicoRetornado"));
+        assertEquals(true, erro.getDetails().get("cotacaoPreservada"));
+        assertEquals(new BigDecimal("30.000000"), erro.getDetails().get("ultimaCotacaoValida"));
+        verifyNoInteractions(cotacaoPersistenceService, alphaVantage);
+    }
+
+    @Test
+    void preservaCotacaoNosErrosExternosEDeValidacaoSemEscrita() {
+        Acao existente = action(12L, "PETR4", "Empresa", Mercado.BRASIL, Moeda.BRL,
+                new BigDecimal("30.000000"), OffsetDateTime.parse("2026-08-19T15:30:00Z"));
+        List<ApiException> falhas = List.of(
+                new ApiException(org.springframework.http.HttpStatus.NOT_FOUND, ErrorCodes.TICKER_INEXISTENTE, "Ticker inexistente"),
+                new ApiException(org.springframework.http.HttpStatus.TOO_MANY_REQUESTS, ErrorCodes.LIMITE_REQUISICOES_EXCEDIDO, "Limite"),
+                new ApiException(org.springframework.http.HttpStatus.SERVICE_UNAVAILABLE, ErrorCodes.SERVICO_EXTERNO_INDISPONIVEL, "Indisponível"),
+                new ApiException(org.springframework.http.HttpStatus.GATEWAY_TIMEOUT, ErrorCodes.SERVICO_EXTERNO_TIMEOUT, "Timeout")
+        );
+        for (ApiException falha : falhas) {
+            reset(brapi);
+            clearInvocations(alphaVantage, cotacaoPersistenceService, repository);
+            when(repository.findById(12L)).thenReturn(Optional.of(existente));
+            org.mockito.Mockito.doThrow(falha).when(brapi).consultar("PETR4");
+            ApiException erro = assertThrows(ApiException.class, () -> service.atualizarCotacao(12L));
+            assertEquals(falha.getCode(), erro.getCode());
+            assertEquals(12L, erro.getDetails().get("acaoId"));
+            assertEquals(true, erro.getDetails().get("cotacaoPreservada"));
+            verifyNoInteractions(cotacaoPersistenceService, alphaVantage);
+        }
+
+        reset(brapi);
+        clearInvocations(alphaVantage, cotacaoPersistenceService, repository);
+        when(repository.findById(12L)).thenReturn(Optional.of(existente));
+        when(brapi.consultar("PETR4")).thenReturn(
+                new CotacaoData("PETR4", "Empresa", "BRL", new BigDecimal("1.1234567"), null, false));
+        ApiException precisao = assertThrows(ApiException.class, () -> service.atualizarCotacao(12L));
+        assertEquals(ErrorCodes.COTACAO_FORA_DA_PRECISAO, precisao.getCode());
+        verifyNoInteractions(cotacaoPersistenceService, alphaVantage);
+    }
+
+    @Test
+    void retornaEstadoPersistidoParaTimestampIgualOuAnterior() {
+        Acao existente = action(12L, "PETR4", "Empresa", Mercado.BRASIL, Moeda.BRL,
+                new BigDecimal("30.000000"), OffsetDateTime.parse("2026-08-19T15:30:00Z"));
+        when(repository.findById(12L)).thenReturn(Optional.of(existente));
+        when(brapi.consultar("PETR4")).thenReturn(new CotacaoData(
+                "PETR4", "Empresa", "BRL", new BigDecimal("30"),
+                OffsetDateTime.parse("2026-08-19T15:30:00Z"), false));
+        when(cotacaoPersistenceService.atualizarSePosterior(
+                eq(12L), eq(new BigDecimal("30.000000")), eq(OffsetDateTime.parse("2026-08-19T15:30:00Z"))))
+                .thenReturn(existente);
+
+        AcaoResponse resposta = service.atualizarCotacao(12L);
+
+        assertEquals(new BigDecimal("30.000000"), resposta.cotacaoAtual());
+        assertEquals(OffsetDateTime.parse("2026-08-19T15:30:00Z"), resposta.dataHoraCotacao());
+    }
+
+    @Test
+    void rejeitaPayloadIncompletoCotacaoInvalidaEIdentidadeIncompativelPreservandoEstado() {
+        List<CotacaoData> dados = List.of(
+                new CotacaoData("PETR4", " ", "BRL", BigDecimal.TEN, null, false),
+                new CotacaoData("VALE3", "Empresa", "BRL", BigDecimal.TEN, null, false),
+                new CotacaoData("PETR4", "Empresa", "USD", BigDecimal.TEN, null, false),
+                new CotacaoData("PETR4", "Empresa", "BRL", BigDecimal.ZERO, null, false),
+                new CotacaoData("PETR4", "Empresa", "BRL", BigDecimal.ONE.negate(), null, false)
+        );
+        List<String> codigos = List.of(
+                ErrorCodes.DADOS_EXTERNOS_INCOMPLETOS,
+                ErrorCodes.RESPOSTA_EXTERNA_INVALIDA,
+                ErrorCodes.RESPOSTA_EXTERNA_INVALIDA,
+                ErrorCodes.COTACAO_INDISPONIVEL,
+                ErrorCodes.COTACAO_INDISPONIVEL
+        );
+
+        for (int indice = 0; indice < dados.size(); indice++) {
+            reset(brapi);
+            clearInvocations(alphaVantage, cotacaoPersistenceService, repository);
+            Acao existente = action(12L, "PETR4", "Empresa", Mercado.BRASIL, Moeda.BRL,
+                    new BigDecimal("30.000000"), OffsetDateTime.parse("2026-08-19T15:30:00Z"));
+            when(repository.findById(12L)).thenReturn(Optional.of(existente));
+            when(brapi.consultar("PETR4")).thenReturn(dados.get(indice));
+
+            ApiException erro = assertThrows(ApiException.class, () -> service.atualizarCotacao(12L));
+
+            assertEquals(codigos.get(indice), erro.getCode());
+            assertEquals(true, erro.getDetails().get("cotacaoPreservada"));
+            assertEquals(OffsetDateTime.parse("2026-08-19T15:30:00Z"),
+                    erro.getDetails().get("dataHoraUltimaCotacao"));
+            verifyNoInteractions(cotacaoPersistenceService, alphaVantage);
+        }
     }
 
     @Test

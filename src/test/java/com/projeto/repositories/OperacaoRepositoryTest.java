@@ -9,6 +9,9 @@ import com.projeto.entities.Moeda;
 import com.projeto.entities.Operacao;
 import com.projeto.entities.TipoOperacao;
 import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceUnitUtil;
+import org.hibernate.SessionFactory;
+import org.hibernate.stat.Statistics;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -207,6 +210,45 @@ class OperacaoRepositoryTest {
                 history.stream().map(item -> item.getAcao().getId()).toList());
         assertNull(history.get(0).getCorretora());
         assertEquals(corretora.getId(), history.get(1).getCorretora().getId());
+    }
+
+    @Test
+    void portfolioHistoryFetchesActionsWithoutNPlusOneAndDoesNotFetchBrokers() {
+        Carteira carteira = carteiraRepository.saveAndFlush(portfolio("Carteira selecionada"));
+        Acao petr4 = acaoRepository.saveAndFlush(action("PETR4", Mercado.BRASIL, Moeda.BRL));
+        Acao aapl = acaoRepository.saveAndFlush(action("AAPL", Mercado.EUA, Moeda.USD));
+        Corretora corretora = corretoraRepository.saveAndFlush(broker());
+        operacaoRepository.saveAndFlush(operation(
+                carteira, petr4, null, TipoOperacao.COMPRA,
+                "100", "32", "3200", LocalDate.of(2026, 8, 1), 1
+        ));
+        operacaoRepository.saveAndFlush(operation(
+                carteira, aapl, corretora, TipoOperacao.COMPRA,
+                "0.5", "200", "100", LocalDate.of(2026, 8, 1), 1
+        ));
+        operacaoRepository.saveAndFlush(operation(
+                carteira, petr4, null, TipoOperacao.VENDA,
+                "10", "35", "350", LocalDate.of(2026, 8, 10), 2
+        ));
+        entityManager.clear();
+
+        SessionFactory sessionFactory = entityManager.getEntityManagerFactory().unwrap(SessionFactory.class);
+        Statistics statistics = sessionFactory.getStatistics();
+        statistics.setStatisticsEnabled(true);
+        statistics.clear();
+
+        List<Operacao> history = operacaoRepository
+                .findByCarteiraIdOrderByDataOperacaoAscOrdemNoDiaAscIdAsc(carteira.getId());
+        PersistenceUnitUtil persistence = entityManager.getEntityManagerFactory().getPersistenceUnitUtil();
+
+        assertEquals(3, history.size());
+        assertTrue(history.stream().allMatch(item -> persistence.isLoaded(item, "acao")));
+        assertFalse(persistence.isLoaded(history.get(1), "corretora"));
+        assertEquals(
+                List.of("PETR4", "AAPL", "PETR4"),
+                history.stream().map(item -> item.getAcao().getTicker()).toList()
+        );
+        assertEquals(1L, statistics.getPrepareStatementCount());
     }
 
     @Test

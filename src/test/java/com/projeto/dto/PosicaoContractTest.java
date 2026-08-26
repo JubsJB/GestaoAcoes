@@ -19,7 +19,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 class PosicaoContractTest {
 
     @Test
-    void exposesExactlyTheEightApprovedFields() {
+    void exposesExactlyTheElevenApprovedFields() {
         Set<String> fields = Arrays.stream(PosicaoResponse.class.getRecordComponents())
                 .map(component -> component.getName())
                 .collect(Collectors.toSet());
@@ -32,7 +32,10 @@ class PosicaoContractTest {
                 "moeda",
                 "quantidadeAtual",
                 "precoMedio",
-                "custoPosicao"
+                "custoPosicao",
+                "cotacaoAtual",
+                "dataHoraCotacao",
+                "valorAtualPosicao"
         ), fields);
     }
 
@@ -53,7 +56,8 @@ class PosicaoContractTest {
                 new BigDecimal("1400.000000000000")
         );
 
-        PosicaoResponse response = new PosicaoMapper().toResponse(acao, calculada);
+        BigDecimal valorAtual = new BigDecimal("99999.999900000000");
+        PosicaoResponse response = new PosicaoMapper().toResponse(acao, calculada, valorAtual);
         assertEquals(7L, response.acaoId());
         assertEquals("PETR4", response.ticker());
         assertEquals("Petróleo Brasileiro S.A.", response.nomeEmpresa());
@@ -62,6 +66,9 @@ class PosicaoContractTest {
         assertEquals(new BigDecimal("100.000000"), response.quantidadeAtual());
         assertEquals(new BigDecimal("14.000000000000"), response.precoMedio());
         assertEquals(new BigDecimal("1400.000000000000"), response.custoPosicao());
+        assertEquals(new BigDecimal("999.999999"), response.cotacaoAtual());
+        assertEquals(OffsetDateTime.parse("2026-08-01T10:00:00Z"), response.dataHoraCotacao());
+        assertEquals(valorAtual, response.valorAtualPosicao());
         assertEquals(12, response.precoMedio().scale());
         assertEquals(12, response.custoPosicao().scale());
     }
