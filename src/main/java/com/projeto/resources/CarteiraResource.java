@@ -5,9 +5,11 @@ import com.projeto.dto.CarteiraResponse;
 import com.projeto.dto.CarteiraUpdateRequest;
 import com.projeto.dto.OperacaoResponse;
 import com.projeto.dto.PosicaoResponse;
+import com.projeto.dto.ResultadoRealizadoResponse;
 import com.projeto.services.CarteiraService;
 import com.projeto.services.OperacaoService;
 import com.projeto.services.PosicaoService;
+import com.projeto.services.ResultadoRealizadoService;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -30,15 +32,18 @@ public class CarteiraResource {
     private final CarteiraService service;
     private final OperacaoService operacaoService;
     private final PosicaoService posicaoService;
+    private final ResultadoRealizadoService resultadoRealizadoService;
 
     public CarteiraResource(
             CarteiraService service,
             OperacaoService operacaoService,
-            PosicaoService posicaoService
+            PosicaoService posicaoService,
+            ResultadoRealizadoService resultadoRealizadoService
     ) {
         this.service = service;
         this.operacaoService = operacaoService;
         this.posicaoService = posicaoService;
+        this.resultadoRealizadoService = resultadoRealizadoService;
     }
 
     @PostMapping
@@ -74,6 +79,13 @@ public class CarteiraResource {
             @PathVariable Long carteiraId
     ) {
         return ResponseEntity.ok(posicaoService.listarPorCarteira(carteiraId));
+    }
+
+    @GetMapping("/{carteiraId}/resultados-realizados")
+    public ResponseEntity<List<ResultadoRealizadoResponse>> listarResultadosRealizados(
+            @PathVariable Long carteiraId
+    ) {
+        return ResponseEntity.ok(resultadoRealizadoService.listarPorCarteira(carteiraId));
     }
 
     @PatchMapping("/{id}")

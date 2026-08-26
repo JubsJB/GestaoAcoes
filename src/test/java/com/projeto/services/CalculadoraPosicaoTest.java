@@ -108,6 +108,99 @@ class CalculadoraPosicaoTest {
     }
 
     @Test
+    void calculatesRealizedGainLossAndZeroFromTheAverageBeforeEachSale() {
+        CalculadoraPosicao.ResultadoReplay gain = calculadora.reproduzir(List.of(
+                operation(brasileira, TipoOperacao.COMPRA, "100", "10", "2026-08-01", 1),
+                operation(brasileira, TipoOperacao.VENDA, "40", "15", "2026-08-02", 1)
+        ));
+        assertEquals(new BigDecimal("200.000000000000"), gain.resultadoRealizado());
+        assertTrue(gain.possuiVenda());
+
+        CalculadoraPosicao.ResultadoReplay loss = calculadora.reproduzir(List.of(
+                operation(brasileira, TipoOperacao.COMPRA, "100", "20", "2026-08-01", 1),
+                operation(brasileira, TipoOperacao.VENDA, "30", "15", "2026-08-02", 1)
+        ));
+        assertEquals(new BigDecimal("-150.000000000000"), loss.resultadoRealizado());
+
+        CalculadoraPosicao.ResultadoReplay zero = calculadora.reproduzir(List.of(
+                operation(brasileira, TipoOperacao.COMPRA, "100", "10", "2026-08-01", 1),
+                operation(brasileira, TipoOperacao.VENDA, "10", "10", "2026-08-02", 1)
+        ));
+        assertEquals(new BigDecimal("0.000000000000"), zero.resultadoRealizado());
+        assertTrue(zero.possuiVenda());
+
+        CalculadoraPosicao.ResultadoReplay purchaseOnly = calculadora.reproduzir(List.of(
+                operation(brasileira, TipoOperacao.COMPRA, "100", "10", "2026-08-01", 1)
+        ));
+        assertEquals(new BigDecimal("0.000000000000"), purchaseOnly.resultadoRealizado());
+        assertFalse(purchaseOnly.possuiVenda());
+    }
+
+    @Test
+    void accumulatesMultipleSalesBeforeFinalNormalization() {
+        CalculadoraPosicao.ResultadoReplay signed = calculadora.reproduzir(List.of(
+                operation(brasileira, TipoOperacao.COMPRA, "100", "10", "2026-08-01", 1),
+                operation(brasileira, TipoOperacao.VENDA, "20", "15", "2026-08-02", 1),
+                operation(brasileira, TipoOperacao.VENDA, "30", "8", "2026-08-03", 1)
+        ));
+        assertEquals(new BigDecimal("40.000000000000"), signed.resultadoRealizado());
+
+        CalculadoraPosicao.ResultadoReplay periodic = calculadora.reproduzir(List.of(
+                operation(brasileira, TipoOperacao.COMPRA, "1", "10", "2026-08-01", 1),
+                operation(brasileira, TipoOperacao.COMPRA, "2", "10.5", "2026-08-02", 1),
+                operation(brasileira, TipoOperacao.VENDA, "1", "10", "2026-08-03", 1),
+                operation(brasileira, TipoOperacao.VENDA, "1", "10", "2026-08-04", 1)
+        ));
+        assertEquals(new BigDecimal("-0.666666666667"), periodic.resultadoRealizado());
+        assertEquals(12, periodic.resultadoRealizado().scale());
+        assertEquals(24, CalculadoraPosicao.ESCALA_INTERMEDIARIA);
+        assertEquals(RoundingMode.HALF_EVEN, CalculadoraPosicao.ARREDONDAMENTO);
+    }
+
+    @Test
+    void preservesRealizedResultAcrossTotalSaleAndNewCycles() {
+        CalculadoraPosicao.ResultadoReplay result = calculadora.reproduzir(List.of(
+                operation(brasileira, TipoOperacao.COMPRA, "100", "10", "2026-08-01", 1),
+                operation(brasileira, TipoOperacao.VENDA, "100", "15", "2026-08-02", 1),
+                operation(brasileira, TipoOperacao.COMPRA, "50", "20", "2026-08-03", 1),
+                operation(brasileira, TipoOperacao.VENDA, "10", "18", "2026-08-04", 1)
+        ));
+
+        assertPosition(result, "40.000000", "20.000000000000", "800.000000000000");
+        assertEquals(new BigDecimal("480.000000000000"), result.resultadoRealizado());
+        assertTrue(result.possuiVenda());
+    }
+
+    @Test
+    void rejectsRealizedAccumulationBeyondPrecisionThirtyEight() {
+        List<Operacao> operations = new java.util.ArrayList<>();
+        for (int cycle = 0; cycle < 100; cycle++) {
+            operations.add(operation(
+                    americana,
+                    TipoOperacao.COMPRA,
+                    "9999999999999.999999",
+                    "0.000001",
+                    LocalDate.of(2025, 1, 1).plusDays(cycle * 2L).toString(),
+                    1
+            ));
+            operations.add(operation(
+                    americana,
+                    TipoOperacao.VENDA,
+                    "9999999999999.999999",
+                    "9999999999999.999999",
+                    LocalDate.of(2025, 1, 2).plusDays(cycle * 2L).toString(),
+                    1
+            ));
+        }
+
+        CalculadoraPosicao.ResultadoReplay result = calculadora.reproduzir(operations);
+
+        assertFalse(result.valido());
+        assertEquals(CalculadoraPosicao.TipoFalha.CALCULO_FORA_DA_PRECISAO, result.falha().tipo());
+        assertEquals(38, CalculadoraPosicao.PRECISAO_RESULTADO_REALIZADO);
+    }
+
+    @Test
     void preservesBrazilianIntegerAndAmericanFractionalQuantityRules() {
         CalculadoraPosicao.ResultadoReplay brazil = calculadora.reproduzir(List.of(
                 operation(brasileira, TipoOperacao.COMPRA, "10", "1", "2026-08-01", 1)

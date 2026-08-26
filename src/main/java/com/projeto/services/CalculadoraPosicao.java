@@ -21,6 +21,7 @@ public class CalculadoraPosicao {
     public static final int PRECISAO_CUSTO = 38;
     public static final int PRECISAO_VALOR_ATUAL = 38;
     public static final int PRECISAO_RESULTADO_NAO_REALIZADO = 38;
+    public static final int PRECISAO_RESULTADO_REALIZADO = 38;
     public static final int ESCALA_RENTABILIDADE_PERCENTUAL = 6;
     public static final int PRECISAO_RENTABILIDADE_PERCENTUAL = 38;
     public static final RoundingMode ARREDONDAMENTO = RoundingMode.HALF_EVEN;
@@ -92,7 +93,14 @@ public class CalculadoraPosicao {
             return falhaHistorico("Histórico de Operações ausente", null, null, null);
         }
         if (operacoesOrdenadas.isEmpty()) {
-            return sucesso(BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, calcularFinanceiro);
+            return sucesso(
+                    BigDecimal.ZERO,
+                    BigDecimal.ZERO,
+                    BigDecimal.ZERO,
+                    BigDecimal.ZERO,
+                    false,
+                    calcularFinanceiro
+            );
         }
 
         Operacao primeira = operacoesOrdenadas.get(0);
@@ -102,6 +110,8 @@ public class CalculadoraPosicao {
         BigDecimal quantidade = BigDecimal.ZERO;
         BigDecimal custo = BigDecimal.ZERO;
         BigDecimal precoMedio = BigDecimal.ZERO;
+        BigDecimal resultadoRealizado = BigDecimal.ZERO;
+        boolean possuiVenda = false;
 
         for (Operacao operacao : operacoesOrdenadas) {
             ResultadoReplay falhaEstrutural = validarOperacao(
@@ -136,6 +146,12 @@ public class CalculadoraPosicao {
                 }
 
                 if (calcularFinanceiro) {
+                    BigDecimal resultadoVenda = operacao.getPrecoUnitario()
+                            .subtract(precoMedio)
+                            .multiply(quantidadeOperacao);
+                    resultadoRealizado = resultadoRealizado.add(resultadoVenda);
+                    possuiVenda = true;
+
                     if (novaQuantidade.signum() == 0) {
                         custo = BigDecimal.ZERO;
                         precoMedio = BigDecimal.ZERO;
@@ -153,7 +169,26 @@ public class CalculadoraPosicao {
             anterior = operacao;
         }
 
-        return sucesso(quantidade, precoMedio, custo, calcularFinanceiro);
+        BigDecimal resultadoRealizadoSaida = BigDecimal.ZERO;
+        if (calcularFinanceiro) {
+            try {
+                resultadoRealizadoSaida = resultadoRealizado.setScale(ESCALA_SAIDA, ARREDONDAMENTO);
+            } catch (ArithmeticException exception) {
+                return falhaPrecisao("Resultado realizado não pode ser representado", anterior);
+            }
+            if (resultadoRealizadoSaida.precision() > PRECISAO_RESULTADO_REALIZADO) {
+                return falhaPrecisao("Resultado realizado excede a precisão aprovada", anterior);
+            }
+        }
+
+        return sucesso(
+                quantidade,
+                precoMedio,
+                custo,
+                resultadoRealizadoSaida,
+                possuiVenda,
+                calcularFinanceiro
+        );
     }
 
     private ResultadoReplay validarOperacao(
@@ -235,6 +270,8 @@ public class CalculadoraPosicao {
             BigDecimal quantidade,
             BigDecimal precoMedio,
             BigDecimal custo,
+            BigDecimal resultadoRealizado,
+            boolean possuiVenda,
             boolean normalizarFinanceiro
     ) {
         BigDecimal precoSaida = normalizarFinanceiro
@@ -245,6 +282,8 @@ public class CalculadoraPosicao {
                 : BigDecimal.ZERO;
         return new ResultadoReplay(
                 new PosicaoCalculada(quantidade, precoSaida, custoSaida),
+                resultadoRealizado.setScale(ESCALA_SAIDA, ARREDONDAMENTO),
+                normalizarFinanceiro && possuiVenda,
                 null
         );
     }
@@ -291,7 +330,16 @@ public class CalculadoraPosicao {
     ) {
     }
 
-    public record ResultadoReplay(PosicaoCalculada posicao, FalhaReplay falha) {
+    public record ResultadoReplay(
+            PosicaoCalculada posicao,
+            BigDecimal resultadoRealizado,
+            boolean possuiVenda,
+            FalhaReplay falha
+    ) {
+
+        public ResultadoReplay(PosicaoCalculada posicao, FalhaReplay falha) {
+            this(posicao, BigDecimal.ZERO.setScale(ESCALA_SAIDA), false, falha);
+        }
 
         public boolean valido() {
             return falha == null;
