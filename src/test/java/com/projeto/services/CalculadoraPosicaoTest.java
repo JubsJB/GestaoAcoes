@@ -229,6 +229,55 @@ class CalculadoraPosicaoTest {
         ));
     }
 
+    @Test
+    void calculatesPositiveNegativeAndZeroUnrealizedResultsAtScaleTwelve() {
+        assertEquals(
+                new BigDecimal("350.000000000000"),
+                calculadora.calcularResultadoNaoRealizado(
+                        new BigDecimal("3550.000000000000"),
+                        new BigDecimal("3200.000000000000")
+                )
+        );
+        assertEquals(
+                new BigDecimal("-200.000000000000"),
+                calculadora.calcularResultadoNaoRealizado(
+                        new BigDecimal("3000.000000000000"),
+                        new BigDecimal("3200.000000000000")
+                )
+        );
+        BigDecimal zero = calculadora.calcularResultadoNaoRealizado(
+                new BigDecimal("3200.000000000000"),
+                new BigDecimal("3200.000000000000")
+        );
+        assertEquals(new BigDecimal("0.000000000000"), zero);
+        assertEquals(12, zero.scale());
+        assertEquals(38, CalculadoraPosicao.PRECISAO_RESULTADO_NAO_REALIZADO);
+    }
+
+    @Test
+    void calculatesUnrealizedResultOnlyFromCurrentValueAndConsolidatedCost() {
+        BigDecimal result = calculadora.calcularResultadoNaoRealizado(
+                new BigDecimal("900.000000000000"),
+                new BigDecimal("600.000000000000")
+        );
+
+        assertEquals(new BigDecimal("300.000000000000"), result);
+    }
+
+    @Test
+    void rejectsUnrealizedResultThatRequiresRoundingOrExceedsPrecision() {
+        assertThrows(ArithmeticException.class, () -> calculadora.calcularResultadoNaoRealizado(
+                new BigDecimal("1.0000000000001"),
+                BigDecimal.ZERO
+        ));
+        assertThrows(ArithmeticException.class, () -> calculadora.calcularResultadoNaoRealizado(
+                new BigDecimal("999999999999999999999999999.000000000000"),
+                new BigDecimal("-1.000000000000")
+        ));
+        assertThrows(ArithmeticException.class, () ->
+                calculadora.calcularResultadoNaoRealizado(null, BigDecimal.ZERO));
+    }
+
     private void assertPosition(
             CalculadoraPosicao.ResultadoReplay result,
             String quantity,

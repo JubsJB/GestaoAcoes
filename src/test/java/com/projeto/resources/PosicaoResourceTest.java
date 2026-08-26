@@ -118,7 +118,7 @@ class PosicaoResourceTest {
                 .andExpect(content().string(Matchers.containsString("\"precoMedio\":14.000000000000")))
                 .andExpect(content().string(Matchers.containsString("\"custoPosicao\":1400.000000000000")))
                 .andExpect(jsonPath("$", Matchers.hasSize(3)))
-                .andExpect(jsonPath("$[0]", Matchers.aMapWithSize(11)))
+                .andExpect(jsonPath("$[0]", Matchers.aMapWithSize(12)))
                 .andExpect(jsonPath("$[0].acaoId").value(petr4.getId()))
                 .andExpect(jsonPath("$[0].ticker").value("PETR4"))
                 .andExpect(jsonPath("$[0].nomeEmpresa").value("Petróleo Brasileiro S.A."))
@@ -130,14 +130,18 @@ class PosicaoResourceTest {
                 .andExpect(jsonPath("$[0].cotacaoAtual").value(99.123456))
                 .andExpect(jsonPath("$[0].dataHoraCotacao").value("2026-08-01T10:00:00Z"))
                 .andExpect(jsonPath("$[0].valorAtualPosicao").value(9912.3456))
+                .andExpect(content().string(Matchers.containsString(
+                        "\"resultadoNaoRealizado\":8512.345600000000"
+                )))
                 .andExpect(jsonPath("$[1].ticker").value("VALE3"))
                 .andExpect(jsonPath("$[1].valorAtualPosicao").value(700.0))
+                .andExpect(jsonPath("$[1].resultadoNaoRealizado").value(100.0))
                 .andExpect(jsonPath("$[2].ticker").value("AAPL"))
                 .andExpect(jsonPath("$[2].quantidadeAtual").value(0.5))
                 .andExpect(jsonPath("$[2].moeda").value("USD"))
                 .andExpect(jsonPath("$[2].valorAtualPosicao").value(112.205))
+                .andExpect(jsonPath("$[2].resultadoNaoRealizado").value(12.205))
                 .andExpect(jsonPath("$[0].resultadoRealizado").doesNotExist())
-                .andExpect(jsonPath("$[0].resultadoNaoRealizado").doesNotExist())
                 .andExpect(jsonPath("$[0].rentabilidade").doesNotExist())
                 .andExpect(jsonPath("$[0].patrimonio").doesNotExist())
                 .andExpect(jsonPath("$[0].snapshot").doesNotExist());
@@ -147,6 +151,34 @@ class PosicaoResourceTest {
                 acaoRepository.findById(petr4.getId()).orElseThrow().getCotacaoAtual());
         assertEquals("Carteira selecionada",
                 carteiraRepository.findById(selected.getId()).orElseThrow().getNome());
+    }
+
+    @Test
+    void returnsPositiveNegativeAndZeroUnrealizedResultsAtScaleTwelve() throws Exception {
+        Carteira carteira = carteiraRepository.saveAndFlush(portfolio("Carteira resultados"));
+        Acao gain = acaoRepository.saveAndFlush(action(
+                "GAIN3", "Ganho", Mercado.BRASIL, Moeda.BRL, "35.500000"
+        ));
+        Acao loss = acaoRepository.saveAndFlush(action(
+                "LOSS3", "Perda", Mercado.BRASIL, Moeda.BRL, "30.000000"
+        ));
+        Acao zero = acaoRepository.saveAndFlush(action(
+                "ZERO3", "Zero", Mercado.BRASIL, Moeda.BRL, "32.000000"
+        ));
+        save(carteira, gain, TipoOperacao.COMPRA, "100", "32", "2026-08-01", 1);
+        save(carteira, loss, TipoOperacao.COMPRA, "100", "32", "2026-08-01", 1);
+        save(carteira, zero, TipoOperacao.COMPRA, "100", "32", "2026-08-01", 1);
+
+        mockMvc.perform(get("/carteiras/{id}/posicoes", carteira.getId()))
+                .andExpect(status().isOk())
+                .andExpect(header().doesNotExist("Location"))
+                .andExpect(content().string(Matchers.containsString(
+                        "\"resultadoNaoRealizado\":350.000000000000"
+                )))
+                .andExpect(content().string(Matchers.containsString(
+                        "\"resultadoNaoRealizado\":-200.000000000000"
+                )))
+                .andExpect(jsonPath("$[2].resultadoNaoRealizado").value(0.0));
     }
 
     @Test

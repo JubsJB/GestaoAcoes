@@ -123,8 +123,10 @@ class PosicaoServiceTest {
         assertEquals(new BigDecimal("999.999999"), petrobras.cotacaoAtual());
         assertEquals(OffsetDateTime.parse("2026-08-01T10:00:00Z"), petrobras.dataHoraCotacao());
         assertEquals(new BigDecimal("99999.999900000000"), petrobras.valorAtualPosicao());
+        assertEquals(new BigDecimal("98599.999900000000"), petrobras.resultadoNaoRealizado());
         assertEquals(new BigDecimal("0.500000"), responses.get(2).quantidadeAtual());
         assertEquals(new BigDecimal("499.999999500000"), responses.get(2).valorAtualPosicao());
+        assertEquals(new BigDecimal("399.999999500000"), responses.get(2).resultadoNaoRealizado());
     }
 
     @Test
@@ -206,7 +208,49 @@ class PosicaoServiceTest {
         assertEquals(first.custoPosicao(), second.custoPosicao());
         assertEquals(new BigDecimal("100.000000000000"), first.valorAtualPosicao());
         assertEquals(new BigDecimal("125.000000000000"), second.valorAtualPosicao());
+        assertEquals(new BigDecimal("50.000000000000"), first.resultadoNaoRealizado());
+        assertEquals(new BigDecimal("75.000000000000"), second.resultadoNaoRealizado());
         assertEquals(action.getDataHoraCotacao(), second.dataHoraCotacao());
+    }
+
+    @Test
+    void partialSaleAndNewCycleUseOnlyTheRemainingOpenPosition() {
+        Acao partial = action(2L, "PETR4", "Petrobras", Mercado.BRASIL, Moeda.BRL);
+        partial.atualizarCotacao(
+                new BigDecimal("15.000000"),
+                OffsetDateTime.parse("2026-08-20T15:30:00Z")
+        );
+        Acao newCycle = action(3L, "VALE3", "Vale", Mercado.BRASIL, Moeda.BRL);
+        newCycle.atualizarCotacao(
+                new BigDecimal("25.000000"),
+                OffsetDateTime.parse("2026-08-20T15:30:00Z")
+        );
+        when(carteiraRepository.findById(1L)).thenReturn(Optional.of(carteira));
+        when(operacaoRepository.findByCarteiraIdOrderByDataOperacaoAscOrdemNoDiaAscIdAsc(1L))
+                .thenReturn(List.of(
+                        operation(carteira, partial, TipoOperacao.COMPRA, "100", "10", "2026-08-01", 1),
+                        operation(carteira, newCycle, TipoOperacao.COMPRA, "100", "10", "2026-08-01", 1),
+                        operation(carteira, partial, TipoOperacao.VENDA, "40", "99", "2026-08-02", 1),
+                        operation(carteira, newCycle, TipoOperacao.VENDA, "100", "99", "2026-08-02", 1),
+                        operation(carteira, newCycle, TipoOperacao.COMPRA, "50", "20", "2026-08-03", 1)
+                ));
+
+        List<PosicaoResponse> result = service.listarPorCarteira(1L);
+
+        assertEquals(2, result.size());
+        PosicaoResponse partialResponse = result.get(0);
+        assertEquals(new BigDecimal("60.000000"), partialResponse.quantidadeAtual());
+        assertEquals(new BigDecimal("10.000000000000"), partialResponse.precoMedio());
+        assertEquals(new BigDecimal("600.000000000000"), partialResponse.custoPosicao());
+        assertEquals(new BigDecimal("900.000000000000"), partialResponse.valorAtualPosicao());
+        assertEquals(new BigDecimal("300.000000000000"), partialResponse.resultadoNaoRealizado());
+
+        PosicaoResponse newCycleResponse = result.get(1);
+        assertEquals(new BigDecimal("50.000000"), newCycleResponse.quantidadeAtual());
+        assertEquals(new BigDecimal("20.000000000000"), newCycleResponse.precoMedio());
+        assertEquals(new BigDecimal("1000.000000000000"), newCycleResponse.custoPosicao());
+        assertEquals(new BigDecimal("1250.000000000000"), newCycleResponse.valorAtualPosicao());
+        assertEquals(new BigDecimal("250.000000000000"), newCycleResponse.resultadoNaoRealizado());
     }
 
     @Test

@@ -72,15 +72,25 @@ public class PosicaoService {
 
             Acao acao = operacoes.get(0).getAcao();
             BigDecimal valorAtualPosicao;
+            BigDecimal resultadoNaoRealizado;
             try {
                 valorAtualPosicao = calculadora.calcularValorAtual(
                         resultado.posicao().quantidadeAtual(),
                         acao.getCotacaoAtual()
                 );
+                resultadoNaoRealizado = calculadora.calcularResultadoNaoRealizado(
+                        valorAtualPosicao,
+                        resultado.posicao().custoPosicao()
+                );
             } catch (ArithmeticException exception) {
-                throw falhaValorAtual(carteiraId, acao, exception);
+                throw falhaCalculoPosicao(carteiraId, acao, exception);
             }
-            posicoes.add(mapper.toResponse(acao, resultado.posicao(), valorAtualPosicao));
+            posicoes.add(mapper.toResponse(
+                    acao,
+                    resultado.posicao(),
+                    valorAtualPosicao,
+                    resultadoNaoRealizado
+            ));
         }
 
         posicoes.sort(ORDEM_APRESENTACAO);
@@ -116,7 +126,11 @@ public class PosicaoService {
         );
     }
 
-    private ApiException falhaValorAtual(Long carteiraId, Acao acao, ArithmeticException exception) {
+    private ApiException falhaCalculoPosicao(
+            Long carteiraId,
+            Acao acao,
+            ArithmeticException exception
+    ) {
         Map<String, Object> detalhes = new LinkedHashMap<>();
         detalhes.put("carteiraId", carteiraId);
         detalhes.put("acaoId", acao.getId());
