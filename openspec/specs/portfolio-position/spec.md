@@ -7,7 +7,7 @@ Definir a consulta da posição contábil consolidada das Ações de uma Carteir
 ## Requirements
 
 ### Requirement: Consulta REST das posições consolidadas da Carteira
-O sistema SHALL expor `GET /carteiras/{carteiraId}/posicoes`, SHALL responder `200 OK` com uma lista de posições consolidadas atualmente abertas, SHALL ordenar a resposta por `mercado ASC`, `ticker ASC`, `acaoId ASC` e MUST NOT devolver `Location`. Essa ordenação SHALL servir somente à apresentação e MUST NOT participar do replay financeiro. Esta primeira versão MUST NOT adicionar consulta individual de posição, filtros ou paginação.
+O sistema SHALL expor `GET /carteiras/{carteiraId}/posicoes`, SHALL responder `200 OK` com uma lista de posições consolidadas atualmente abertas, SHALL ordenar a resposta por `mercado ASC`, `ticker ASC`, `acaoId ASC` e MUST NOT exigir body nem devolver `Location`. Essa ordenação SHALL servir somente à apresentação e MUST NOT participar do replay financeiro. Esta primeira versão MUST NOT adicionar consulta individual de posição, filtros ou paginação.
 
 #### Scenario: Carteira com uma posição aberta
 - **WHEN** a Carteira existe e seu histórico resulta em quantidade positiva para uma Ação
@@ -41,19 +41,19 @@ O sistema SHALL validar a existência da Carteira antes da consolidação. Carte
 - **THEN** o sistema responde `404 Not Found` pelo tratamento centralizado atual
 
 ### Requirement: Representação contábil e de mercado da posição
-Cada posição SHALL conter `acaoId`, `ticker`, `nomeEmpresa`, `mercado`, `moeda`, `quantidadeAtual`, `precoMedio`, `custoPosicao`, `cotacaoAtual`, `dataHoraCotacao` e `valorAtualPosicao`. Os identificadores, dados descritivos, moeda, `cotacaoAtual` e `dataHoraCotacao` da Ação SHALL refletir exatamente o relacionamento e o estado persistidos. `valorAtualPosicao` SHALL ser derivado conforme a regra desta capability. A resposta MUST NOT incluir resultado realizado, resultado não realizado, rentabilidade, patrimônio ou snapshot.
+Cada posição SHALL conter `acaoId`, `ticker`, `nomeEmpresa`, `mercado`, `moeda`, `quantidadeAtual`, `precoMedio`, `custoPosicao`, `cotacaoAtual`, `dataHoraCotacao`, `valorAtualPosicao` e `resultadoNaoRealizado`. Os identificadores, dados descritivos, moeda, `cotacaoAtual` e `dataHoraCotacao` da Ação SHALL refletir exatamente o relacionamento e o estado persistidos. `valorAtualPosicao` e `resultadoNaoRealizado` SHALL ser derivados conforme as regras desta capability. A resposta MUST NOT incluir resultado realizado, rentabilidade, patrimônio ou snapshot.
 
 #### Scenario: Posição brasileira com cotação
 - **WHEN** uma posição aberta referencia Ação de `mercado=BRASIL`, `moeda=BRL` e cotação persistida válida
-- **THEN** a resposta identifica a Ação, preserva os valores contábeis em BRL e inclui a cotação persistida, sua data/hora e o valor atual em BRL
+- **THEN** a resposta identifica a Ação, preserva os valores contábeis em BRL e inclui a cotação persistida, sua data/hora, o valor atual e o resultado não realizado em BRL
 
 #### Scenario: Posição americana com quantidade fracionária
 - **WHEN** uma posição aberta referencia Ação de `mercado=EUA`, `moeda=USD`, possui quantidade fracionária e cotação persistida válida
-- **THEN** a resposta preserva mercado, moeda, quantidade fracionária, cotação e valor atual em USD, sem conversão cambial
+- **THEN** a resposta preserva mercado, moeda, quantidade fracionária, cotação, valor atual e resultado não realizado em USD, sem conversão cambial
 
 #### Scenario: Indicadores fora do escopo ausentes
 - **WHEN** qualquer posição é retornada
-- **THEN** a resposta não contém resultado realizado, resultado não realizado, rentabilidade, patrimônio ou snapshot
+- **THEN** a resposta não contém resultado realizado, rentabilidade, patrimônio ou snapshot
 
 ### Requirement: Fonte única do estado contábil e separação da cotação
 O sistema SHALL calcular quantidade, preço médio e custo de cada posição usando exclusivamente as Operações persistidas da mesma combinação de Carteira e Ação. Operações de outra Carteira ou de outra Ação MUST NOT afetar esses valores. `Operacao.precoUnitario` SHALL ser o único preço usado no replay contábil. `Acao.cotacaoAtual` SHALL ser usada exclusivamente como a última cotação de mercado conhecida para calcular `valorAtualPosicao` e MUST NOT participar de `precoMedio` ou `custoPosicao`.
@@ -178,8 +178,53 @@ Quando uma nova COMPRA ocorrer após VENDA parcial, o sistema SHALL usar o custo
 - **WHEN** a posição compra 100 a 10, vende 40 e depois compra 40 a 20
 - **THEN** o replay calcula quantidade 100, custo 1400 e preço médio 14
 
+### Requirement: Resultado não realizado da posição aberta
+Para cada posição aberta, o sistema SHALL calcular `resultadoNaoRealizado = valorAtualPosicao - custoPosicao`. O indicador SHALL representar somente a diferença potencial da posição atualmente mantida, MUST NOT incluir resultado realizado de vendas nem dividendos, taxas, impostos, corretagem, câmbio ou eventos corporativos e MUST NOT participar do replay que determina quantidade, preço médio ou custo.
+
+#### Scenario: Ganho potencial
+- **WHEN** a posição possui `valorAtualPosicao=3550.000000000000` e `custoPosicao=3200.000000000000`
+- **THEN** `resultadoNaoRealizado` é `350.000000000000`, indicando ganho potencial
+
+#### Scenario: Perda potencial
+- **WHEN** a posição possui `valorAtualPosicao=3000.000000000000` e `custoPosicao=3200.000000000000`
+- **THEN** `resultadoNaoRealizado` é `-200.000000000000`, indicando perda potencial
+
+#### Scenario: Resultado potencial nulo
+- **WHEN** `valorAtualPosicao` é numericamente igual a `custoPosicao`
+- **THEN** `resultadoNaoRealizado` é zero com escala 12 e não é `null`
+
+#### Scenario: Equivalência matemática
+- **WHEN** quantidade, preço médio, custo e valor atual representam a mesma posição consolidada válida
+- **THEN** o resultado calculado por `valorAtualPosicao - custoPosicao` é matematicamente equivalente a `(cotacaoAtual - precoMedio) × quantidadeAtual`, sem tornar a fórmula equivalente uma segunda fonte de cálculo
+
+### Requirement: Resultado restrito ao ciclo atualmente aberto
+O resultado não realizado SHALL considerar exclusivamente quantidade, custo e valor atual do ciclo que permanece aberto ao final do replay. Uma VENDA parcial SHALL reduzir a base ao estado remanescente; uma VENDA total SHALL omitir a posição; uma COMPRA posterior ao zeramento SHALL iniciar resultado independente dos ciclos encerrados.
+
+#### Scenario: Venda parcial
+- **WHEN** uma posição compra 100 unidades a 10, vende 40 e permanece com quantidade 60, custo 600 e valor atual 900
+- **THEN** `resultadoNaoRealizado` é `300.000000000000` somente sobre as 60 unidades remanescentes, sem incorporar o resultado da VENDA
+
+#### Scenario: Venda total
+- **WHEN** uma VENDA encerra totalmente a posição
+- **THEN** a posição é omitida de `GET /carteiras/{carteiraId}/posicoes` e nenhum resultado não realizado é devolvido para o ciclo encerrado
+
+#### Scenario: Novo ciclo após zeramento
+- **WHEN** uma posição é zerada e uma COMPRA cronologicamente posterior inicia novo ciclo
+- **THEN** `resultadoNaoRealizado` usa somente custo, quantidade e valor atual do novo ciclo, sem carregar custo ou resultado potencial anterior
+
+### Requirement: Moeda do resultado não realizado
+`resultadoNaoRealizado` SHALL permanecer expresso na moeda da Ação da própria posição. A capability MUST NOT converter moedas nem agregar resultados de posições em moedas diferentes.
+
+#### Scenario: Posição brasileira
+- **WHEN** a posição pertence a Ação em `BRL`
+- **THEN** seu resultado não realizado permanece em BRL
+
+#### Scenario: Posição americana fracionária
+- **WHEN** a posição pertence a Ação em `USD` e possui quantidade fracionária
+- **THEN** seu resultado não realizado permanece em USD e preserva o cálculo decimal aprovado, sem conversão
+
 ### Requirement: Precisão e arredondamento explícitos
-O replay SHALL continuar usando aritmética `BigDecimal`, escala interna de cálculo 24 nas divisões proporcionais e `RoundingMode.HALF_EVEN` explicitamente. `precoMedio` SHALL ser apresentado com escala 12 e precisão máxima 25; `custoPosicao` e `valorAtualPosicao` SHALL ser apresentados com escala 12 e precisão total máxima 38. A quantidade SHALL permanecer exata e `cotacaoAtual` SHALL preservar escala 6 e precisão máxima 19 conforme persistida. Multiplicações e somas exatas MUST NOT ser arredondadas; normalizar `valorAtualPosicao` para escala 12 SHALL usar `RoundingMode.UNNECESSARY` e rejeitar qualquer perda de informação. Resultado que não puder ser representado nesses limites SHALL falhar integralmente com erro padronizado, sem truncamento nem resposta parcial.
+O replay SHALL continuar usando aritmética `BigDecimal`, escala interna de cálculo 24 nas divisões proporcionais e `RoundingMode.HALF_EVEN` explicitamente. `precoMedio` SHALL ser apresentado com escala 12 e precisão máxima 25; `custoPosicao`, `valorAtualPosicao` e `resultadoNaoRealizado` SHALL ser apresentados com escala 12 e precisão total máxima 38. A quantidade SHALL permanecer exata e `cotacaoAtual` SHALL preservar escala 6 e precisão máxima 19 conforme persistida. Multiplicações, somas e a subtração do resultado não realizado MUST NOT ser arredondadas; normalizar `valorAtualPosicao` e `resultadoNaoRealizado` para escala 12 SHALL usar `RoundingMode.UNNECESSARY` e rejeitar qualquer perda de informação. Resultado que não puder ser representado nesses limites SHALL falhar integralmente com erro padronizado, sem truncamento nem resposta parcial.
 
 #### Scenario: Divisão exata
 - **WHEN** custo dividido por quantidade possui representação decimal finita dentro dos limites
@@ -193,12 +238,16 @@ O replay SHALL continuar usando aritmética `BigDecimal`, escala interna de cál
 - **WHEN** quantidade e cotação respeitam `NUMERIC(19,6)`
 - **THEN** o produto cabe em precisão 38 e escala 12 e é devolvido exatamente, sem arredondamento
 
+#### Scenario: Subtração exata positiva, negativa ou nula
+- **WHEN** `valorAtualPosicao` e `custoPosicao` estão normalizados em escala 12 e dentro da precisão aprovada
+- **THEN** sua diferença é calculada exatamente, aceita sinal positivo, negativo ou zero e é apresentada em escala 12 sem arredondamento
+
 #### Scenario: Preservação dos cálculos contábeis
-- **WHEN** a cotação é incluída na posição
+- **WHEN** o resultado não realizado é incluído na posição
 - **THEN** as escalas, o `HALF_EVEN` das divisões inevitáveis, `precoMedio` e `custoPosicao` permanecem conforme a política já aprovada
 
 #### Scenario: Resultado fora da precisão
-- **WHEN** algum estado calculado não puder ser representado nos limites aprovados
+- **WHEN** algum estado calculado, inclusive `resultadoNaoRealizado`, não puder ser representado nos limites aprovados
 - **THEN** o sistema responde `422 Unprocessable Entity` com código `CALCULO_POSICAO_FORA_DA_PRECISAO` e não devolve consolidação parcial
 
 ### Requirement: Histórico inconsistente falha de forma segura
@@ -232,11 +281,11 @@ A consolidação SHALL observar um conjunto transacionalmente consistente de Car
 - **THEN** a consolidação obtém as Ações associadas junto ao histórico necessário, sem uma consulta adicional para cada Ação
 
 ### Requirement: Ausência de indicadores fora desta consolidação
-Esta capability MUST NOT calcular resultado realizado, resultado não realizado, rentabilidade, patrimônio, câmbio ou evolução patrimonial. Resultado realizado SHALL permanecer para capability própria que possa representar corretamente ciclos encerrados, sem misturá-lo ao preço médio ou ao custo da posição aberta.
+Esta capability MUST NOT calcular resultado realizado, rentabilidade, patrimônio, câmbio ou evolução patrimonial. Resultado realizado SHALL permanecer para capability própria que possa representar corretamente vendas e ciclos encerrados, sem misturá-lo ao resultado não realizado, ao preço médio ou ao custo da posição aberta.
 
 #### Scenario: Venda com lucro ou prejuízo
-- **WHEN** o histórico contém VENDA acima ou abaixo do preço médio vigente
-- **THEN** a consolidação atualiza somente quantidade e custo contábil e calcula o valor atual da posição remanescente, sem expor ou persistir resultados realizado ou não realizado
+- **WHEN** o histórico contém VENDA acima ou abaixo do preço médio vigente e ainda resta posição aberta
+- **THEN** a consolidação atualiza quantidade e custo contábil, calcula valor atual e resultado não realizado somente da posição remanescente e não expõe nem persiste resultado realizado
 
 ### Requirement: Compatibilidade sem persistência adicional
 A capability SHALL operar sobre as entidades e o schema vigentes, MUST NOT criar entidade ou tabela de posição, migration, snapshot ou campo consolidado e SHALL preservar `POST /operacoes`, as consultas de Operação, o replay de validação de VENDA, a atualização dedicada de cotação da Ação, a proteção de DELETE de Carteira e os demais endpoints promovidos.

@@ -17,6 +17,7 @@ public record PosicaoResponse(
         BigDecimal custoPosicao,
         BigDecimal cotacaoAtual,
         OffsetDateTime dataHoraCotacao,
-        BigDecimal valorAtualPosicao
+        BigDecimal valorAtualPosicao,
+        BigDecimal resultadoNaoRealizado
 ) {
 }

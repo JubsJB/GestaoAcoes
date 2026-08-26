@@ -20,6 +20,7 @@ public class CalculadoraPosicao {
     public static final int PRECISAO_PRECO_MEDIO = 25;
     public static final int PRECISAO_CUSTO = 38;
     public static final int PRECISAO_VALOR_ATUAL = 38;
+    public static final int PRECISAO_RESULTADO_NAO_REALIZADO = 38;
     public static final RoundingMode ARREDONDAMENTO = RoundingMode.HALF_EVEN;
 
     private static final int PRECISAO_OPERANDO = 19;
@@ -43,6 +44,22 @@ public class CalculadoraPosicao {
             throw new ArithmeticException("Valor atual da posição excede a precisão aprovada");
         }
         return valorAtual;
+    }
+
+    public BigDecimal calcularResultadoNaoRealizado(
+            BigDecimal valorAtualPosicao,
+            BigDecimal custoPosicao
+    ) {
+        if (valorAtualPosicao == null || custoPosicao == null) {
+            throw new ArithmeticException("Operandos do resultado não realizado são obrigatórios");
+        }
+
+        BigDecimal resultado = valorAtualPosicao.subtract(custoPosicao)
+                .setScale(ESCALA_SAIDA, RoundingMode.UNNECESSARY);
+        if (resultado.precision() > PRECISAO_RESULTADO_NAO_REALIZADO) {
+            throw new ArithmeticException("Resultado não realizado excede a precisão aprovada");
+        }
+        return resultado;
     }
 
     private ResultadoReplay reproduzir(List<Operacao> operacoesOrdenadas, boolean calcularFinanceiro) {

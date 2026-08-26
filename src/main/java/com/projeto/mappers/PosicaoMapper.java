@@ -13,7 +13,8 @@ public class PosicaoMapper {
     public PosicaoResponse toResponse(
             Acao acao,
             PosicaoCalculada posicao,
-            BigDecimal valorAtualPosicao
+            BigDecimal valorAtualPosicao,
+            BigDecimal resultadoNaoRealizado
     ) {
         return new PosicaoResponse(
                 acao.getId(),
@@ -26,7 +27,8 @@ public class PosicaoMapper {
                 posicao.custoPosicao(),
                 acao.getCotacaoAtual(),
                 acao.getDataHoraCotacao(),
-                valorAtualPosicao
+                valorAtualPosicao,
+                resultadoNaoRealizado
         );
     }
 }
