@@ -118,7 +118,7 @@ class PosicaoResourceTest {
                 .andExpect(content().string(Matchers.containsString("\"precoMedio\":14.000000000000")))
                 .andExpect(content().string(Matchers.containsString("\"custoPosicao\":1400.000000000000")))
                 .andExpect(jsonPath("$", Matchers.hasSize(3)))
-                .andExpect(jsonPath("$[0]", Matchers.aMapWithSize(12)))
+                .andExpect(jsonPath("$[0]", Matchers.aMapWithSize(13)))
                 .andExpect(jsonPath("$[0].acaoId").value(petr4.getId()))
                 .andExpect(jsonPath("$[0].ticker").value("PETR4"))
                 .andExpect(jsonPath("$[0].nomeEmpresa").value("Petróleo Brasileiro S.A."))
@@ -133,16 +133,22 @@ class PosicaoResourceTest {
                 .andExpect(content().string(Matchers.containsString(
                         "\"resultadoNaoRealizado\":8512.345600000000"
                 )))
+                .andExpect(content().string(Matchers.containsString(
+                        "\"rentabilidadePercentual\":608.024686"
+                )))
                 .andExpect(jsonPath("$[1].ticker").value("VALE3"))
                 .andExpect(jsonPath("$[1].valorAtualPosicao").value(700.0))
                 .andExpect(jsonPath("$[1].resultadoNaoRealizado").value(100.0))
+                .andExpect(jsonPath("$[1].rentabilidadePercentual").value(16.666667))
                 .andExpect(jsonPath("$[2].ticker").value("AAPL"))
                 .andExpect(jsonPath("$[2].quantidadeAtual").value(0.5))
                 .andExpect(jsonPath("$[2].moeda").value("USD"))
                 .andExpect(jsonPath("$[2].valorAtualPosicao").value(112.205))
                 .andExpect(jsonPath("$[2].resultadoNaoRealizado").value(12.205))
+                .andExpect(jsonPath("$[2].rentabilidadePercentual").value(12.205))
                 .andExpect(jsonPath("$[0].resultadoRealizado").doesNotExist())
                 .andExpect(jsonPath("$[0].rentabilidade").doesNotExist())
+                .andExpect(jsonPath("$[0].rentabilidadeConsolidada").doesNotExist())
                 .andExpect(jsonPath("$[0].patrimonio").doesNotExist())
                 .andExpect(jsonPath("$[0].snapshot").doesNotExist());
 
@@ -176,9 +182,16 @@ class PosicaoResourceTest {
                         "\"resultadoNaoRealizado\":350.000000000000"
                 )))
                 .andExpect(content().string(Matchers.containsString(
+                        "\"rentabilidadePercentual\":10.937500"
+                )))
+                .andExpect(content().string(Matchers.containsString(
                         "\"resultadoNaoRealizado\":-200.000000000000"
                 )))
-                .andExpect(jsonPath("$[2].resultadoNaoRealizado").value(0.0));
+                .andExpect(content().string(Matchers.containsString(
+                        "\"rentabilidadePercentual\":-6.250000"
+                )))
+                .andExpect(jsonPath("$[2].resultadoNaoRealizado").value(0.0))
+                .andExpect(jsonPath("$[2].rentabilidadePercentual").value(0.0));
     }
 
     @Test

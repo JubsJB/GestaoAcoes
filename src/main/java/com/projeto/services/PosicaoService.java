@@ -71,8 +71,12 @@ public class PosicaoService {
             }
 
             Acao acao = operacoes.get(0).getAcao();
+            if (resultado.posicao().custoPosicao().signum() <= 0) {
+                throw falhaCustoPosicao(carteiraId, acao, resultado.posicao().custoPosicao());
+            }
             BigDecimal valorAtualPosicao;
             BigDecimal resultadoNaoRealizado;
+            BigDecimal rentabilidadePercentual;
             try {
                 valorAtualPosicao = calculadora.calcularValorAtual(
                         resultado.posicao().quantidadeAtual(),
@@ -82,6 +86,10 @@ public class PosicaoService {
                         valorAtualPosicao,
                         resultado.posicao().custoPosicao()
                 );
+                rentabilidadePercentual = calculadora.calcularRentabilidadePercentual(
+                        resultadoNaoRealizado,
+                        resultado.posicao().custoPosicao()
+                );
             } catch (ArithmeticException exception) {
                 throw falhaCalculoPosicao(carteiraId, acao, exception);
             }
@@ -89,7 +97,8 @@ public class PosicaoService {
                     acao,
                     resultado.posicao(),
                     valorAtualPosicao,
-                    resultadoNaoRealizado
+                    resultadoNaoRealizado,
+                    rentabilidadePercentual
             ));
         }
 
@@ -140,6 +149,21 @@ public class PosicaoService {
                 HttpStatus.valueOf(422),
                 ErrorCodes.CALCULO_POSICAO_FORA_DA_PRECISAO,
                 "Cálculo da posição excede a precisão aprovada",
+                detalhes
+        );
+    }
+
+    private ApiException falhaCustoPosicao(Long carteiraId, Acao acao, BigDecimal custoPosicao) {
+        Map<String, Object> detalhes = new LinkedHashMap<>();
+        detalhes.put("carteiraId", carteiraId);
+        detalhes.put("acaoId", acao.getId());
+        detalhes.put("ticker", acao.getTicker());
+        detalhes.put("custoPosicao", custoPosicao);
+        detalhes.put("motivo", "Posição aberta possui custo não positivo");
+        return new ApiException(
+                HttpStatus.CONFLICT,
+                ErrorCodes.HISTORICO_OPERACOES_INCONSISTENTE,
+                "Histórico de Operações inconsistente",
                 detalhes
         );
     }
