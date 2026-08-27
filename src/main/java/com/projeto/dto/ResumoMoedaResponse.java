@@ -8,6 +8,7 @@ public record ResumoMoedaResponse(
         Moeda moeda,
         BigDecimal custoTotalPosicoes,
         BigDecimal patrimonioAtual,
-        BigDecimal resultadoNaoRealizadoTotal
+        BigDecimal resultadoNaoRealizadoTotal,
+        BigDecimal rentabilidadePercentual
 ) {
 }

@@ -31,6 +31,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.mock;
 
 @ExtendWith(MockitoExtension.class)
 class ResumoCarteiraServiceTest {
@@ -45,6 +46,7 @@ class ResumoCarteiraServiceTest {
         service = new ResumoCarteiraService(
                 posicaoService,
                 new AgregadorPosicoesPorMoeda(),
+                new CalculadoraRentabilidade(),
                 new ResumoCarteiraMapper()
         );
     }
@@ -88,6 +90,8 @@ class ResumoCarteiraServiceTest {
                 response.resumos().get(0).patrimonioAtual());
         assertEquals(new BigDecimal("450.000000000000"),
                 response.resumos().get(0).resultadoNaoRealizadoTotal());
+        assertEquals(new BigDecimal("11.842105"),
+                response.resumos().get(0).rentabilidadePercentual());
         assertEquals(Moeda.USD, response.resumos().get(1).moeda());
         verify(posicaoService, times(1)).listarPorCarteira(1L);
         verifyNoMoreInteractions(posicaoService);
@@ -115,6 +119,97 @@ class ResumoCarteiraServiceTest {
     }
 
     @Test
+    void calculatesFromCurrencyTotalsInsteadOfAveragingPositionPercentages() {
+        when(posicaoService.listarPorCarteira(1L)).thenReturn(List.of(
+                posicao(1L, Mercado.BRASIL, Moeda.BRL, "1000", "1100", "100", "10"),
+                posicao(2L, Mercado.BRASIL, Moeda.BRL, "3000", "3300", "300", "90")
+        ));
+
+        ResumoCarteiraResponse response = service.consultar(1L);
+
+        assertEquals(new BigDecimal("4000.000000000000"),
+                response.resumos().get(0).custoTotalPosicoes());
+        assertEquals(new BigDecimal("400.000000000000"),
+                response.resumos().get(0).resultadoNaoRealizadoTotal());
+        assertEquals(new BigDecimal("10.000000"),
+                response.resumos().get(0).rentabilidadePercentual());
+    }
+
+    @Test
+    void supportsNegativeZeroAndAboveOneHundredWithoutArtificialLimits() {
+        when(posicaoService.listarPorCarteira(1L)).thenReturn(List.of(
+                posicao(1L, Mercado.BRASIL, Moeda.BRL, "100", "250", "150", "0"),
+                posicao(2L, Mercado.EUA, Moeda.USD, "100", "85", "-15", "0")
+        ));
+
+        ResumoCarteiraResponse response = service.consultar(1L);
+
+        assertEquals(new BigDecimal("150.000000"),
+                response.resumos().get(0).rentabilidadePercentual());
+        assertEquals(new BigDecimal("-15.000000"),
+                response.resumos().get(1).rentabilidadePercentual());
+
+        when(posicaoService.listarPorCarteira(2L)).thenReturn(List.of(
+                posicao(3L, Mercado.BRASIL, Moeda.BRL, "100", "100", "0", "999")
+        ));
+        assertEquals(new BigDecimal("0.000000"),
+                service.consultar(2L).resumos().get(0).rentabilidadePercentual());
+    }
+
+    @Test
+    void rejectsNonPositiveAggregateCostAsInconsistentBeforeCalculatingPercentage() {
+        AgregadorPosicoesPorMoeda agregador = mock(AgregadorPosicoesPorMoeda.class);
+        CalculadoraRentabilidade calculadora = mock(CalculadoraRentabilidade.class);
+        ResumoCarteiraService isolatedService = new ResumoCarteiraService(
+                posicaoService, agregador, calculadora, new ResumoCarteiraMapper());
+        when(posicaoService.listarPorCarteira(1L)).thenReturn(List.of(
+                posicao(1L, Mercado.BRASIL, Moeda.BRL, "1", "1", "0", "0")));
+        when(agregador.agregar(org.mockito.ArgumentMatchers.any())).thenReturn(List.of(
+                new AgregadorPosicoesPorMoeda.TotaisPorMoeda(
+                        Moeda.BRL, BigDecimal.ZERO.setScale(12), BigDecimal.ONE.setScale(12),
+                        BigDecimal.ONE.setScale(12))));
+
+        ApiException zero = assertThrows(ApiException.class, () -> isolatedService.consultar(1L));
+        assertEquals(409, zero.getStatus().value());
+        assertEquals(ErrorCodes.HISTORICO_OPERACOES_INCONSISTENTE, zero.getCode());
+        verifyNoMoreInteractions(calculadora);
+
+        when(agregador.agregar(org.mockito.ArgumentMatchers.any())).thenReturn(List.of(
+                new AgregadorPosicoesPorMoeda.TotaisPorMoeda(
+                        Moeda.BRL, BigDecimal.ONE.negate().setScale(12), BigDecimal.ZERO.setScale(12),
+                        BigDecimal.ONE.setScale(12))));
+        ApiException negative = assertThrows(
+                ApiException.class, () -> isolatedService.consultar(1L));
+        assertEquals(409, negative.getStatus().value());
+        assertEquals(ErrorCodes.HISTORICO_OPERACOES_INCONSISTENTE, negative.getCode());
+        verifyNoMoreInteractions(calculadora);
+    }
+
+    @Test
+    void translatesPercentagePrecisionFailureToUnprocessableWithoutPartialSummary() {
+        AgregadorPosicoesPorMoeda agregador = mock(AgregadorPosicoesPorMoeda.class);
+        ResumoCarteiraService isolatedService = new ResumoCarteiraService(
+                posicaoService, agregador, new CalculadoraRentabilidade(),
+                new ResumoCarteiraMapper());
+        when(posicaoService.listarPorCarteira(1L)).thenReturn(List.of(
+                posicao(1L, Mercado.BRASIL, Moeda.BRL, "1", "1", "0", "0")));
+        when(agregador.agregar(org.mockito.ArgumentMatchers.any())).thenReturn(List.of(
+                new AgregadorPosicoesPorMoeda.TotaisPorMoeda(
+                        Moeda.BRL,
+                        new BigDecimal("0.000000000001"),
+                        new BigDecimal("99999999999999999999999999.000000000000"),
+                        new BigDecimal("99999999999999999999999999.000000000000"))));
+
+        ApiException exception = assertThrows(ApiException.class,
+                () -> isolatedService.consultar(1L));
+
+        assertEquals(422, exception.getStatus().value());
+        assertEquals(ErrorCodes.CALCULO_POSICAO_FORA_DA_PRECISAO, exception.getCode());
+        assertEquals(Moeda.BRL, exception.getDetails().get("moeda"));
+        assertEquals("rentabilidadePercentual", exception.getDetails().get("indicador"));
+    }
+
+    @Test
     void matchesPatrimonioServiceExactlyForTheSameConsolidatedPositions() {
         List<PosicaoResponse> posicoes = List.of(
                 posicao(1L, Mercado.EUA, Moeda.USD, "100", "112.205", "12.205", "12.205"),
@@ -123,7 +218,8 @@ class ResumoCarteiraServiceTest {
         when(posicaoService.listarPorCarteira(1L)).thenReturn(posicoes);
         AgregadorPosicoesPorMoeda agregador = new AgregadorPosicoesPorMoeda();
         ResumoCarteiraService resumoService = new ResumoCarteiraService(
-                posicaoService, agregador, new ResumoCarteiraMapper());
+                posicaoService, agregador, new CalculadoraRentabilidade(),
+                new ResumoCarteiraMapper());
         PatrimonioService patrimonioService = new PatrimonioService(
                 posicaoService, agregador, new PatrimonioMapper());
 
@@ -183,7 +279,7 @@ class ResumoCarteiraServiceTest {
         assertTrue(transactional.readOnly());
         assertEquals(Isolation.REPEATABLE_READ, transactional.isolation());
         assertEquals(
-                List.of("posicaoService", "agregador", "mapper"),
+                List.of("posicaoService", "agregador", "calculadoraRentabilidade", "mapper"),
                 Arrays.stream(ResumoCarteiraService.class.getDeclaredFields())
                         .filter(field -> !java.lang.reflect.Modifier.isStatic(field.getModifiers()))
                         .map(field -> field.getName())

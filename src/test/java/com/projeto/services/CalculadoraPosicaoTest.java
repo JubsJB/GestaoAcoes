@@ -371,66 +371,6 @@ class CalculadoraPosicaoTest {
                 calculadora.calcularResultadoNaoRealizado(null, BigDecimal.ZERO));
     }
 
-    @Test
-    void calculatesPositiveNegativeAndZeroProfitabilityAsPercentageAtScaleSix() {
-        assertEquals(
-                new BigDecimal("10.937500"),
-                calculadora.calcularRentabilidadePercentual(
-                        new BigDecimal("350.000000000000"),
-                        new BigDecimal("3200.000000000000")
-                )
-        );
-        assertEquals(
-                new BigDecimal("-6.250000"),
-                calculadora.calcularRentabilidadePercentual(
-                        new BigDecimal("-200.000000000000"),
-                        new BigDecimal("3200.000000000000")
-                )
-        );
-        BigDecimal zero = calculadora.calcularRentabilidadePercentual(
-                BigDecimal.ZERO,
-                new BigDecimal("3200.000000000000")
-        );
-        assertEquals(new BigDecimal("0.000000"), zero);
-        assertEquals(6, zero.scale());
-        assertEquals(6, CalculadoraPosicao.ESCALA_RENTABILIDADE_PERCENTUAL);
-        assertEquals(38, CalculadoraPosicao.PRECISAO_RENTABILIDADE_PERCENTUAL);
-    }
-
-    @Test
-    void usesScaleTwentyFourHalfEvenBeforeMultiplyingByOneHundred() {
-        assertEquals(
-                new BigDecimal("50.000000"),
-                calculadora.calcularRentabilidadePercentual(
-                        new BigDecimal("300.000000000000"),
-                        new BigDecimal("600.000000000000")
-                )
-        );
-        assertEquals(
-                new BigDecimal("33.333333"),
-                calculadora.calcularRentabilidadePercentual(BigDecimal.ONE, new BigDecimal("3"))
-        );
-        assertEquals(RoundingMode.HALF_EVEN, CalculadoraPosicao.ARREDONDAMENTO);
-        assertEquals(24, CalculadoraPosicao.ESCALA_INTERMEDIARIA);
-    }
-
-    @Test
-    void acceptsProfitabilityAboveOneHundredAndRejectsInvalidCostOrPrecisionOverflow() {
-        assertEquals(
-                new BigDecimal("250.000000"),
-                calculadora.calcularRentabilidadePercentual(new BigDecimal("250"), new BigDecimal("100"))
-        );
-        assertThrows(ArithmeticException.class, () ->
-                calculadora.calcularRentabilidadePercentual(BigDecimal.ONE, BigDecimal.ZERO));
-        assertThrows(ArithmeticException.class, () ->
-                calculadora.calcularRentabilidadePercentual(BigDecimal.ONE, new BigDecimal("-1")));
-        assertThrows(ArithmeticException.class, () ->
-                calculadora.calcularRentabilidadePercentual(
-                        new BigDecimal("99999999999999999999999999.000000000000"),
-                        new BigDecimal("0.000000000001")
-                ));
-    }
-
     private void assertPosition(
             CalculadoraPosicao.ResultadoReplay result,
             String quantity,

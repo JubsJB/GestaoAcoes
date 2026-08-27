@@ -100,6 +100,8 @@ class ResumoCarteiraConcurrencyTest {
                         snapshot.resumos().get(0).patrimonioAtual());
                 assertEquals(new BigDecimal("350.000000000000"),
                         snapshot.resumos().get(0).resultadoNaoRealizadoTotal());
+                assertEquals(new BigDecimal("10.937500"),
+                        snapshot.resumos().get(0).rentabilidadePercentual());
             }
 
             ResumoCarteiraResponse committed = resumoCarteiraService.consultar(carteira.getId());

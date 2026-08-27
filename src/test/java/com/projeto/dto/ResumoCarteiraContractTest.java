@@ -21,7 +21,7 @@ class ResumoCarteiraContractTest {
         assertEquals(Set.of("carteiraId", "resumos"), components(ResumoCarteiraResponse.class));
         assertEquals(
                 Set.of("moeda", "custoTotalPosicoes", "patrimonioAtual",
-                        "resultadoNaoRealizadoTotal"),
+                        "resultadoNaoRealizadoTotal", "rentabilidadePercentual"),
                 components(ResumoMoedaResponse.class)
         );
     }
@@ -34,7 +34,7 @@ class ResumoCarteiraContractTest {
                 new BigDecimal("10000.000000000000"),
                 new BigDecimal("12500.000000000000"),
                 new BigDecimal("2500.000000000000")
-        ));
+        ), new BigDecimal("25.000000"));
         ResumoCarteiraResponse response = mapper.toResponse(1L, List.of(brl));
 
         assertEquals(1L, response.carteiraId());

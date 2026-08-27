@@ -35,17 +35,20 @@ public class PosicaoService {
     private final CarteiraRepository carteiraRepository;
     private final OperacaoRepository operacaoRepository;
     private final CalculadoraPosicao calculadora;
+    private final CalculadoraRentabilidade calculadoraRentabilidade;
     private final PosicaoMapper mapper;
 
     public PosicaoService(
             CarteiraRepository carteiraRepository,
             OperacaoRepository operacaoRepository,
             CalculadoraPosicao calculadora,
+            CalculadoraRentabilidade calculadoraRentabilidade,
             PosicaoMapper mapper
     ) {
         this.carteiraRepository = carteiraRepository;
         this.operacaoRepository = operacaoRepository;
         this.calculadora = calculadora;
+        this.calculadoraRentabilidade = calculadoraRentabilidade;
         this.mapper = mapper;
     }
 
@@ -86,7 +89,7 @@ public class PosicaoService {
                         valorAtualPosicao,
                         resultado.posicao().custoPosicao()
                 );
-                rentabilidadePercentual = calculadora.calcularRentabilidadePercentual(
+                rentabilidadePercentual = calculadoraRentabilidade.calcularPercentual(
                         resultadoNaoRealizado,
                         resultado.posicao().custoPosicao()
                 );
