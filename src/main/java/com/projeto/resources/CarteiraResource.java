@@ -7,11 +7,13 @@ import com.projeto.dto.OperacaoResponse;
 import com.projeto.dto.PatrimonioResponse;
 import com.projeto.dto.PosicaoResponse;
 import com.projeto.dto.ResultadoRealizadoResponse;
+import com.projeto.dto.ResumoCarteiraResponse;
 import com.projeto.services.CarteiraService;
 import com.projeto.services.OperacaoService;
 import com.projeto.services.PatrimonioService;
 import com.projeto.services.PosicaoService;
 import com.projeto.services.ResultadoRealizadoService;
+import com.projeto.services.ResumoCarteiraService;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -36,19 +38,22 @@ public class CarteiraResource {
     private final PosicaoService posicaoService;
     private final ResultadoRealizadoService resultadoRealizadoService;
     private final PatrimonioService patrimonioService;
+    private final ResumoCarteiraService resumoCarteiraService;
 
     public CarteiraResource(
             CarteiraService service,
             OperacaoService operacaoService,
             PosicaoService posicaoService,
             ResultadoRealizadoService resultadoRealizadoService,
-            PatrimonioService patrimonioService
+            PatrimonioService patrimonioService,
+            ResumoCarteiraService resumoCarteiraService
     ) {
         this.service = service;
         this.operacaoService = operacaoService;
         this.posicaoService = posicaoService;
         this.resultadoRealizadoService = resultadoRealizadoService;
         this.patrimonioService = patrimonioService;
+        this.resumoCarteiraService = resumoCarteiraService;
     }
 
     @PostMapping
@@ -98,6 +103,13 @@ public class CarteiraResource {
             @PathVariable Long carteiraId
     ) {
         return ResponseEntity.ok(patrimonioService.consultar(carteiraId));
+    }
+
+    @GetMapping("/{carteiraId}/resumo")
+    public ResponseEntity<ResumoCarteiraResponse> consultarResumo(
+            @PathVariable Long carteiraId
+    ) {
+        return ResponseEntity.ok(resumoCarteiraService.consultar(carteiraId));
     }
 
     @PatchMapping("/{id}")

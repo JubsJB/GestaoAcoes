@@ -1,9 +1,9 @@
 package com.projeto.services;
 
-import com.projeto.dto.PatrimonioMoedaResponse;
-import com.projeto.dto.PatrimonioResponse;
 import com.projeto.dto.PosicaoResponse;
-import com.projeto.mappers.PatrimonioMapper;
+import com.projeto.dto.ResumoCarteiraResponse;
+import com.projeto.dto.ResumoMoedaResponse;
+import com.projeto.mappers.ResumoCarteiraMapper;
 import com.projeto.services.AgregadorPosicoesPorMoeda.FalhaAgregacaoException;
 import com.projeto.services.AgregadorPosicoesPorMoeda.TotaisPorMoeda;
 import com.projeto.services.exceptions.ApiException;
@@ -19,16 +19,16 @@ import java.util.List;
 import java.util.Map;
 
 @Service
-public class PatrimonioService {
+public class ResumoCarteiraService {
 
     private final PosicaoService posicaoService;
     private final AgregadorPosicoesPorMoeda agregador;
-    private final PatrimonioMapper mapper;
+    private final ResumoCarteiraMapper mapper;
 
-    public PatrimonioService(
+    public ResumoCarteiraService(
             PosicaoService posicaoService,
             AgregadorPosicoesPorMoeda agregador,
-            PatrimonioMapper mapper
+            ResumoCarteiraMapper mapper
     ) {
         this.posicaoService = posicaoService;
         this.agregador = agregador;
@@ -36,16 +36,13 @@ public class PatrimonioService {
     }
 
     @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
-    public PatrimonioResponse consultar(Long carteiraId) {
+    public ResumoCarteiraResponse consultar(Long carteiraId) {
         List<PosicaoResponse> posicoes = posicaoService.listarPorCarteira(carteiraId);
         try {
             List<TotaisPorMoeda> totais = agregador.agregar(posicoes);
-            List<PatrimonioMoedaResponse> patrimonios = new ArrayList<>(totais.size());
-            totais.forEach(total -> patrimonios.add(mapper.toMoedaResponse(
-                    total.moeda(),
-                    total.patrimonioAtual()
-            )));
-            return mapper.toResponse(carteiraId, patrimonios);
+            List<ResumoMoedaResponse> resumos = new ArrayList<>(totais.size());
+            totais.forEach(total -> resumos.add(mapper.toMoedaResponse(total)));
+            return mapper.toResponse(carteiraId, resumos);
         } catch (FalhaAgregacaoException exception) {
             throw falhaCalculo(carteiraId, exception);
         }
@@ -55,11 +52,12 @@ public class PatrimonioService {
         Map<String, Object> detalhes = new LinkedHashMap<>();
         detalhes.put("carteiraId", carteiraId);
         detalhes.put("moeda", exception.moeda());
+        detalhes.put("indicador", exception.indicador());
         detalhes.put("motivo", exception.getMessage());
         return new ApiException(
                 HttpStatus.UNPROCESSABLE_CONTENT,
                 ErrorCodes.CALCULO_POSICAO_FORA_DA_PRECISAO,
-                "Cálculo do patrimônio excede a precisão aprovada",
+                "Cálculo do resumo excede a precisão aprovada",
                 detalhes
         );
     }
