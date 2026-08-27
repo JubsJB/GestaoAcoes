@@ -1,0 +1,46 @@
+databaseChangeLog:
+  - changeSet:
+      id: 005-create-historico-cotacao
+      author: codex
+      changes:
+        - createTable:
+            tableName: historico_cotacao
+            columns:
+              - column:
+                  name: id
+                  type: BIGINT
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    primaryKeyName: pk_historico_cotacao
+                    nullable: false
+              - column:
+                  name: acao_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: cotacao
+                  type: NUMERIC(19,6)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: data_hora_cotacao
+                  type: TIMESTAMP WITH TIME ZONE
+                  constraints:
+                    nullable: false
+        - addForeignKeyConstraint:
+            baseTableName: historico_cotacao
+            baseColumnNames: acao_id
+            referencedTableName: acao
+            referencedColumnNames: id
+            constraintName: fk_historico_cotacao_acao
+        - addUniqueConstraint:
+            tableName: historico_cotacao
+            columnNames: acao_id, data_hora_cotacao
+            constraintName: uk_historico_cotacao_acao_data_hora
+        - sql:
+            sql: ALTER TABLE historico_cotacao ADD CONSTRAINT ck_historico_cotacao_positiva CHECK (cotacao > 0)
+      rollback:
+        - dropTable:
+            tableName: historico_cotacao

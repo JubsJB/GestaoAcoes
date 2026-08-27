@@ -5,6 +5,7 @@ import com.projeto.entities.Acao;
 import com.projeto.entities.Mercado;
 import com.projeto.entities.Moeda;
 import com.projeto.repositories.AcaoRepository;
+import com.projeto.repositories.HistoricoCotacaoRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -21,6 +22,7 @@ import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 
 @SpringBootTest(classes = GestaoacoesApplication.class)
 @ActiveProfiles("test")
@@ -29,6 +31,9 @@ class AcaoCotacaoConcurrencyTest {
 
     @Autowired
     private AcaoRepository repository;
+
+    @Autowired
+    private HistoricoCotacaoRepository historicoRepository;
 
     @Autowired
     private AcaoCotacaoPersistenceService persistenceService;
@@ -60,6 +65,14 @@ class AcaoCotacaoConcurrencyTest {
         Acao finalState = repository.findById(saved.getId()).orElseThrow();
         assertEquals(new BigDecimal("32.000000"), finalState.getCotacaoAtual());
         assertEquals(recente.toInstant(), finalState.getDataHoraCotacao().toInstant());
+        var historico = historicoRepository.findByAcaoIdOrderByDataHoraCotacaoAsc(saved.getId());
+        assertFalse(historico.isEmpty());
+        assertEquals(recente.toInstant(), historico.get(historico.size() - 1).getDataHoraCotacao().toInstant());
+        assertEquals(new BigDecimal("32.000000"), historico.get(historico.size() - 1).getCotacao());
+        assertEquals(historico.size(), historico.stream()
+                .map(item -> item.getDataHoraCotacao().toInstant())
+                .distinct()
+                .count());
     }
 
     private void atualizarAposInicio(

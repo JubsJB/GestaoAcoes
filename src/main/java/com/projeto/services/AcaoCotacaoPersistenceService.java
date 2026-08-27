@@ -1,7 +1,9 @@
 package com.projeto.services;
 
 import com.projeto.entities.Acao;
+import com.projeto.entities.HistoricoCotacao;
 import com.projeto.repositories.AcaoRepository;
+import com.projeto.repositories.HistoricoCotacaoRepository;
 import com.projeto.services.exceptions.ObjectNotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -13,9 +15,14 @@ import java.time.OffsetDateTime;
 public class AcaoCotacaoPersistenceService {
 
     private final AcaoRepository repository;
+    private final HistoricoCotacaoRepository historicoRepository;
 
-    public AcaoCotacaoPersistenceService(AcaoRepository repository) {
+    public AcaoCotacaoPersistenceService(
+            AcaoRepository repository,
+            HistoricoCotacaoRepository historicoRepository
+    ) {
         this.repository = repository;
+        this.historicoRepository = historicoRepository;
     }
 
     @Transactional
@@ -34,6 +41,12 @@ public class AcaoCotacaoPersistenceService {
         }
 
         acao.atualizarCotacao(cotacaoCandidata, dataHoraCandidata);
-        return repository.saveAndFlush(acao);
+        Acao persisted = repository.saveAndFlush(acao);
+        historicoRepository.saveAndFlush(new HistoricoCotacao(
+                persisted,
+                persisted.getCotacaoAtual(),
+                persisted.getDataHoraCotacao()
+        ));
+        return persisted;
     }
 }

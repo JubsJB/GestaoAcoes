@@ -4,6 +4,7 @@ import com.projeto.entities.Acao;
 import com.projeto.entities.Mercado;
 import com.projeto.entities.Moeda;
 import com.projeto.repositories.AcaoRepository;
+import com.projeto.repositories.HistoricoCotacaoRepository;
 import com.projeto.services.exceptions.ApiException;
 import com.projeto.services.exceptions.ErrorCodes;
 import org.junit.jupiter.api.Test;
@@ -19,6 +20,8 @@ import java.time.ZoneOffset;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.verify;
+import static org.mockito.ArgumentMatchers.any;
 
 @ExtendWith(MockitoExtension.class)
 class AcaoPersistenceServiceTest {
@@ -26,13 +29,17 @@ class AcaoPersistenceServiceTest {
     @Mock
     private AcaoRepository repository;
 
+    @Mock
+    private HistoricoCotacaoRepository historicoRepository;
+
     @Test
     void rejectsKnownDuplicateBeforeSaving() {
         when(repository.existsByTickerAndMercado("AAPL", Mercado.EUA)).thenReturn(true);
 
         ApiException exception = assertThrows(
                 ApiException.class,
-                () -> new AcaoPersistenceService(repository).ensureAvailable("AAPL", Mercado.EUA)
+                () -> new AcaoPersistenceService(repository, historicoRepository)
+                        .ensureAvailable("AAPL", Mercado.EUA)
         );
 
         assertDuplicate(exception);
@@ -48,10 +55,35 @@ class AcaoPersistenceServiceTest {
 
         ApiException exception = assertThrows(
                 ApiException.class,
-                () -> new AcaoPersistenceService(repository).saveUnique(acao)
+                () -> new AcaoPersistenceService(repository, historicoRepository).saveUnique(acao)
         );
 
         assertDuplicate(exception);
+    }
+
+    @Test
+    void persisteExatamenteUmHistoricoInicialComOsMesmosValores() {
+        Acao acao = action("PETR4", Mercado.BRASIL, Moeda.BRL);
+        when(repository.saveAndFlush(acao)).thenReturn(acao);
+
+        new AcaoPersistenceService(repository, historicoRepository).saveUnique(acao);
+
+        var captor = org.mockito.ArgumentCaptor.forClass(com.projeto.entities.HistoricoCotacao.class);
+        verify(historicoRepository).saveAndFlush(captor.capture());
+        assertEquals(acao, captor.getValue().getAcao());
+        assertEquals(acao.getCotacaoAtual(), captor.getValue().getCotacao());
+        assertEquals(acao.getDataHoraCotacao(), captor.getValue().getDataHoraCotacao());
+        verify(repository).saveAndFlush(acao);
+    }
+
+    @Test
+    void propagaFalhaDoHistoricoParaRollbackDaTransacao() {
+        Acao acao = action("PETR4", Mercado.BRASIL, Moeda.BRL);
+        when(repository.saveAndFlush(acao)).thenReturn(acao);
+        when(historicoRepository.saveAndFlush(any())).thenThrow(new DataIntegrityViolationException("history"));
+
+        assertThrows(DataIntegrityViolationException.class,
+                () -> new AcaoPersistenceService(repository, historicoRepository).saveUnique(acao));
     }
 
     private Acao action(String ticker, Mercado mercado, Moeda moeda) {

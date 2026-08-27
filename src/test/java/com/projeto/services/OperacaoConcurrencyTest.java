@@ -8,6 +8,7 @@ import com.projeto.entities.Mercado;
 import com.projeto.entities.Moeda;
 import com.projeto.entities.TipoOperacao;
 import com.projeto.repositories.AcaoRepository;
+import com.projeto.repositories.HistoricoCotacaoRepository;
 import com.projeto.repositories.CarteiraRepository;
 import com.projeto.repositories.CorretoraRepository;
 import com.projeto.repositories.OperacaoRepository;
@@ -53,12 +54,16 @@ class OperacaoConcurrencyTest {
     private AcaoRepository acaoRepository;
 
     @Autowired
+    private HistoricoCotacaoRepository historicoCotacaoRepository;
+
+    @Autowired
     private CorretoraRepository corretoraRepository;
 
     @BeforeEach
     void cleanDatabase() {
         operacaoRepository.deleteAll();
         carteiraRepository.deleteAll();
+        historicoCotacaoRepository.deleteAll();
         acaoRepository.deleteAll();
         corretoraRepository.deleteAll();
     }

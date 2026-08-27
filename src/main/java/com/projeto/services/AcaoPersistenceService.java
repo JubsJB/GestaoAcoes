@@ -1,8 +1,10 @@
 package com.projeto.services;
 
 import com.projeto.entities.Acao;
+import com.projeto.entities.HistoricoCotacao;
 import com.projeto.entities.Mercado;
 import com.projeto.repositories.AcaoRepository;
+import com.projeto.repositories.HistoricoCotacaoRepository;
 import com.projeto.services.exceptions.ApiException;
 import com.projeto.services.exceptions.ErrorCodes;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -17,9 +19,14 @@ import java.util.Map;
 public class AcaoPersistenceService {
 
     private final AcaoRepository repository;
+    private final HistoricoCotacaoRepository historicoRepository;
 
-    public AcaoPersistenceService(AcaoRepository repository) {
+    public AcaoPersistenceService(
+            AcaoRepository repository,
+            HistoricoCotacaoRepository historicoRepository
+    ) {
         this.repository = repository;
+        this.historicoRepository = historicoRepository;
     }
 
     @Transactional(readOnly = true)
@@ -35,11 +42,19 @@ public class AcaoPersistenceService {
             throw duplicate(acao.getTicker(), acao.getMercado());
         }
 
+        Acao persisted;
         try {
-            return repository.saveAndFlush(acao);
+            persisted = repository.saveAndFlush(acao);
         } catch (DataIntegrityViolationException exception) {
             throw duplicate(acao.getTicker(), acao.getMercado());
         }
+
+        historicoRepository.saveAndFlush(new HistoricoCotacao(
+                persisted,
+                persisted.getCotacaoAtual(),
+                persisted.getDataHoraCotacao()
+        ));
+        return persisted;
     }
 
     private ApiException duplicate(String ticker, Mercado mercado) {
