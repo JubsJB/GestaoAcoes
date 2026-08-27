@@ -59,6 +59,7 @@ class PosicaoServiceTest {
                 carteiraRepository,
                 operacaoRepository,
                 new CalculadoraPosicao(),
+                new CalculadoraRentabilidade(),
                 new PosicaoMapper()
         );
         nextOperationId = 100L;
@@ -265,6 +266,7 @@ class PosicaoServiceTest {
         Acao action = action(2L, "PETR4", "Petrobras", Mercado.BRASIL, Moeda.BRL);
         Operacao operation = operation(carteira, action, TipoOperacao.COMPRA, "10", "5", "2026-08-01", 1);
         CalculadoraPosicao calculator = mock(CalculadoraPosicao.class);
+        CalculadoraRentabilidade profitabilityCalculator = mock(CalculadoraRentabilidade.class);
         when(calculator.reproduzir(any())).thenReturn(new CalculadoraPosicao.ResultadoReplay(
                 new CalculadoraPosicao.PosicaoCalculada(
                         new BigDecimal("10.000000"),
@@ -277,6 +279,7 @@ class PosicaoServiceTest {
                 carteiraRepository,
                 operacaoRepository,
                 calculator,
+                profitabilityCalculator,
                 new PosicaoMapper()
         );
         when(carteiraRepository.findById(1L)).thenReturn(Optional.of(carteira));
@@ -289,7 +292,7 @@ class PosicaoServiceTest {
         assertEquals(409, exception.getStatus().value());
         assertEquals(ErrorCodes.HISTORICO_OPERACOES_INCONSISTENTE, exception.getCode());
         assertEquals(BigDecimal.ZERO.setScale(12), exception.getDetails().get("custoPosicao"));
-        verify(calculator, never()).calcularRentabilidadePercentual(any(), any());
+        verify(profitabilityCalculator, never()).calcularPercentual(any(), any());
         verify(operacaoRepository, never()).save(any(Operacao.class));
     }
 
@@ -298,6 +301,7 @@ class PosicaoServiceTest {
         Acao action = action(2L, "PETR4", "Petrobras", Mercado.BRASIL, Moeda.BRL);
         Operacao operation = operation(carteira, action, TipoOperacao.COMPRA, "10", "5", "2026-08-01", 1);
         CalculadoraPosicao calculator = mock(CalculadoraPosicao.class);
+        CalculadoraRentabilidade profitabilityCalculator = mock(CalculadoraRentabilidade.class);
         BigDecimal negativeCost = new BigDecimal("-1.000000000000");
         when(calculator.reproduzir(any())).thenReturn(new CalculadoraPosicao.ResultadoReplay(
                 new CalculadoraPosicao.PosicaoCalculada(
@@ -311,6 +315,7 @@ class PosicaoServiceTest {
                 carteiraRepository,
                 operacaoRepository,
                 calculator,
+                profitabilityCalculator,
                 new PosicaoMapper()
         );
         when(carteiraRepository.findById(1L)).thenReturn(Optional.of(carteira));
@@ -323,7 +328,7 @@ class PosicaoServiceTest {
         assertEquals(409, exception.getStatus().value());
         assertEquals(ErrorCodes.HISTORICO_OPERACOES_INCONSISTENTE, exception.getCode());
         assertEquals(negativeCost, exception.getDetails().get("custoPosicao"));
-        verify(calculator, never()).calcularRentabilidadePercentual(any(), any());
+        verify(profitabilityCalculator, never()).calcularPercentual(any(), any());
     }
 
     @Test
@@ -339,6 +344,7 @@ class PosicaoServiceTest {
                         "carteiraRepository",
                         "operacaoRepository",
                         "calculadora",
+                        "calculadoraRentabilidade",
                         "mapper"
                 ),
                 java.util.Arrays.stream(PosicaoService.class.getDeclaredFields())

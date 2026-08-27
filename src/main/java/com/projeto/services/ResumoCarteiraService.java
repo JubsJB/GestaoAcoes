@@ -13,6 +13,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -23,15 +24,18 @@ public class ResumoCarteiraService {
 
     private final PosicaoService posicaoService;
     private final AgregadorPosicoesPorMoeda agregador;
+    private final CalculadoraRentabilidade calculadoraRentabilidade;
     private final ResumoCarteiraMapper mapper;
 
     public ResumoCarteiraService(
             PosicaoService posicaoService,
             AgregadorPosicoesPorMoeda agregador,
+            CalculadoraRentabilidade calculadoraRentabilidade,
             ResumoCarteiraMapper mapper
     ) {
         this.posicaoService = posicaoService;
         this.agregador = agregador;
+        this.calculadoraRentabilidade = calculadoraRentabilidade;
         this.mapper = mapper;
     }
 
@@ -41,11 +45,58 @@ public class ResumoCarteiraService {
         try {
             List<TotaisPorMoeda> totais = agregador.agregar(posicoes);
             List<ResumoMoedaResponse> resumos = new ArrayList<>(totais.size());
-            totais.forEach(total -> resumos.add(mapper.toMoedaResponse(total)));
+            for (TotaisPorMoeda total : totais) {
+                validarCustoTotalPositivo(carteiraId, total);
+                BigDecimal rentabilidadePercentual;
+                try {
+                    rentabilidadePercentual = calculadoraRentabilidade.calcularPercentual(
+                            total.resultadoNaoRealizadoTotal(),
+                            total.custoTotalPosicoes()
+                    );
+                } catch (ArithmeticException exception) {
+                    throw falhaCalculoRentabilidade(carteiraId, total, exception);
+                }
+                resumos.add(mapper.toMoedaResponse(total, rentabilidadePercentual));
+            }
             return mapper.toResponse(carteiraId, resumos);
         } catch (FalhaAgregacaoException exception) {
             throw falhaCalculo(carteiraId, exception);
         }
+    }
+
+    private void validarCustoTotalPositivo(Long carteiraId, TotaisPorMoeda total) {
+        if (total.custoTotalPosicoes().signum() > 0) {
+            return;
+        }
+        Map<String, Object> detalhes = new LinkedHashMap<>();
+        detalhes.put("carteiraId", carteiraId);
+        detalhes.put("moeda", total.moeda());
+        detalhes.put("custoTotalPosicoes", total.custoTotalPosicoes());
+        detalhes.put("motivo", "Posições abertas possuem custo total não positivo");
+        throw new ApiException(
+                HttpStatus.CONFLICT,
+                ErrorCodes.HISTORICO_OPERACOES_INCONSISTENTE,
+                "Histórico de Operações inconsistente",
+                detalhes
+        );
+    }
+
+    private ApiException falhaCalculoRentabilidade(
+            Long carteiraId,
+            TotaisPorMoeda total,
+            ArithmeticException exception
+    ) {
+        Map<String, Object> detalhes = new LinkedHashMap<>();
+        detalhes.put("carteiraId", carteiraId);
+        detalhes.put("moeda", total.moeda());
+        detalhes.put("indicador", "rentabilidadePercentual");
+        detalhes.put("motivo", exception.getMessage());
+        return new ApiException(
+                HttpStatus.UNPROCESSABLE_CONTENT,
+                ErrorCodes.CALCULO_POSICAO_FORA_DA_PRECISAO,
+                "Cálculo do resumo excede a precisão aprovada",
+                detalhes
+        );
     }
 
     private ApiException falhaCalculo(Long carteiraId, FalhaAgregacaoException exception) {

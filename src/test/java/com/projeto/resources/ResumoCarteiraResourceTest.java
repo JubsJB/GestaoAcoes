@@ -112,7 +112,7 @@ class ResumoCarteiraResourceTest {
                 .andExpect(status().isOk())
                 .andExpect(header().doesNotExist("Location"))
                 .andExpect(jsonPath("$.resumos", Matchers.hasSize(2)))
-                .andExpect(jsonPath("$.resumos[0]", Matchers.aMapWithSize(4)))
+                .andExpect(jsonPath("$.resumos[0]", Matchers.aMapWithSize(5)))
                 .andExpect(jsonPath("$.resumos[0].moeda").value("BRL"))
                 .andExpect(content().string(Matchers.containsString(
                         "\"custoTotalPosicoes\":3800.000000000000"
@@ -122,6 +122,9 @@ class ResumoCarteiraResourceTest {
                 )))
                 .andExpect(content().string(Matchers.containsString(
                         "\"resultadoNaoRealizadoTotal\":450.000000000000"
+                )))
+                .andExpect(content().string(Matchers.containsString(
+                        "\"rentabilidadePercentual\":11.842105"
                 )))
                 .andExpect(jsonPath("$.resumos[1].moeda").value("USD"))
                 .andExpect(content().string(Matchers.containsString(
@@ -133,7 +136,9 @@ class ResumoCarteiraResourceTest {
                 .andExpect(content().string(Matchers.containsString(
                         "\"resultadoNaoRealizadoTotal\":12.205000000000"
                 )))
-                .andExpect(jsonPath("$.resumos[0].rentabilidadePercentual").doesNotExist())
+                .andExpect(content().string(Matchers.containsString(
+                        "\"rentabilidadePercentual\":12.205000"
+                )))
                 .andExpect(jsonPath("$.resumos[0].resultadoRealizado").doesNotExist());
 
         assertEquals(2, statistics.getPrepareStatementCount());
@@ -202,6 +207,9 @@ class ResumoCarteiraResourceTest {
                 )))
                 .andExpect(content().string(Matchers.containsString(
                         "\"resultadoNaoRealizadoTotal\":310.000000000000"
+                )))
+                .andExpect(content().string(Matchers.containsString(
+                        "\"rentabilidadePercentual\":47.692308"
                 )));
     }
 
