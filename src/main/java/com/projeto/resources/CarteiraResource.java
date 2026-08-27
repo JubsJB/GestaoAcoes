@@ -4,10 +4,12 @@ import com.projeto.dto.CarteiraCreateRequest;
 import com.projeto.dto.CarteiraResponse;
 import com.projeto.dto.CarteiraUpdateRequest;
 import com.projeto.dto.OperacaoResponse;
+import com.projeto.dto.PatrimonioResponse;
 import com.projeto.dto.PosicaoResponse;
 import com.projeto.dto.ResultadoRealizadoResponse;
 import com.projeto.services.CarteiraService;
 import com.projeto.services.OperacaoService;
+import com.projeto.services.PatrimonioService;
 import com.projeto.services.PosicaoService;
 import com.projeto.services.ResultadoRealizadoService;
 import jakarta.validation.Valid;
@@ -33,17 +35,20 @@ public class CarteiraResource {
     private final OperacaoService operacaoService;
     private final PosicaoService posicaoService;
     private final ResultadoRealizadoService resultadoRealizadoService;
+    private final PatrimonioService patrimonioService;
 
     public CarteiraResource(
             CarteiraService service,
             OperacaoService operacaoService,
             PosicaoService posicaoService,
-            ResultadoRealizadoService resultadoRealizadoService
+            ResultadoRealizadoService resultadoRealizadoService,
+            PatrimonioService patrimonioService
     ) {
         this.service = service;
         this.operacaoService = operacaoService;
         this.posicaoService = posicaoService;
         this.resultadoRealizadoService = resultadoRealizadoService;
+        this.patrimonioService = patrimonioService;
     }
 
     @PostMapping
@@ -86,6 +91,13 @@ public class CarteiraResource {
             @PathVariable Long carteiraId
     ) {
         return ResponseEntity.ok(resultadoRealizadoService.listarPorCarteira(carteiraId));
+    }
+
+    @GetMapping("/{carteiraId}/patrimonio")
+    public ResponseEntity<PatrimonioResponse> consultarPatrimonio(
+            @PathVariable Long carteiraId
+    ) {
+        return ResponseEntity.ok(patrimonioService.consultar(carteiraId));
     }
 
     @PatchMapping("/{id}")
