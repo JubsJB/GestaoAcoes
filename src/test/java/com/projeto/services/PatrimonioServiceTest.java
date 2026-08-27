@@ -39,7 +39,11 @@ class PatrimonioServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new PatrimonioService(posicaoService, new PatrimonioMapper());
+        service = new PatrimonioService(
+                posicaoService,
+                new AgregadorPosicoesPorMoeda(),
+                new PatrimonioMapper()
+        );
     }
 
     @Test
@@ -153,7 +157,7 @@ class PatrimonioServiceTest {
         assertTrue(transactional.readOnly());
         assertEquals(Isolation.REPEATABLE_READ, transactional.isolation());
         assertEquals(
-                List.of("posicaoService", "mapper"),
+                List.of("posicaoService", "agregador", "mapper"),
                 Arrays.stream(PatrimonioService.class.getDeclaredFields())
                         .filter(field -> !java.lang.reflect.Modifier.isStatic(field.getModifiers()))
                         .map(field -> field.getName())
