@@ -4,6 +4,7 @@ import com.projeto.entities.Acao;
 import com.projeto.entities.Mercado;
 import com.projeto.entities.Moeda;
 import com.projeto.repositories.AcaoRepository;
+import com.projeto.repositories.HistoricoCotacaoRepository;
 import com.projeto.services.exceptions.ObjectNotFoundException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -21,6 +22,8 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.mockito.ArgumentMatchers.any;
+import org.mockito.ArgumentCaptor;
 
 @ExtendWith(MockitoExtension.class)
 class AcaoCotacaoPersistenceServiceTest {
@@ -28,11 +31,14 @@ class AcaoCotacaoPersistenceServiceTest {
     @Mock
     private AcaoRepository repository;
 
+    @Mock
+    private HistoricoCotacaoRepository historicoRepository;
+
     private AcaoCotacaoPersistenceService service;
 
     @BeforeEach
     void setUp() {
-        service = new AcaoCotacaoPersistenceService(repository);
+        service = new AcaoCotacaoPersistenceService(repository, historicoRepository);
     }
 
     @Test
@@ -48,6 +54,11 @@ class AcaoCotacaoPersistenceServiceTest {
         assertEquals(new BigDecimal("35.000000"), acao.getCotacaoAtual());
         assertEquals(OffsetDateTime.parse("2026-08-20T15:30:00Z"), acao.getDataHoraCotacao());
         verify(repository).saveAndFlush(acao);
+        ArgumentCaptor<com.projeto.entities.HistoricoCotacao> captor =
+                ArgumentCaptor.forClass(com.projeto.entities.HistoricoCotacao.class);
+        verify(historicoRepository).saveAndFlush(captor.capture());
+        assertEquals(acao.getCotacaoAtual(), captor.getValue().getCotacao());
+        assertEquals(acao.getDataHoraCotacao(), captor.getValue().getDataHoraCotacao());
     }
 
     @Test
@@ -63,6 +74,7 @@ class AcaoCotacaoPersistenceServiceTest {
             assertEquals(new BigDecimal("30.000000"), acao.getCotacaoAtual());
         }
         verify(repository, never()).saveAndFlush(org.mockito.ArgumentMatchers.any());
+        verify(historicoRepository, never()).saveAndFlush(any());
     }
 
     @Test
@@ -72,6 +84,31 @@ class AcaoCotacaoPersistenceServiceTest {
         assertThrows(ObjectNotFoundException.class, () -> service.atualizarSePosterior(
                 1L, BigDecimal.TEN, OffsetDateTime.parse("2026-08-20T15:30:00Z")));
         verify(repository, never()).saveAndFlush(org.mockito.ArgumentMatchers.any());
+        verify(historicoRepository, never()).saveAndFlush(any());
+    }
+
+    @Test
+    void mesmoPrecoEmTimestampPosteriorCriaHistorico() {
+        Acao acao = acao();
+        OffsetDateTime posterior = OffsetDateTime.parse("2026-08-20T15:30:00Z");
+        when(repository.findByIdForUpdate(1L)).thenReturn(Optional.of(acao));
+        when(repository.saveAndFlush(acao)).thenReturn(acao);
+
+        service.atualizarSePosterior(1L, new BigDecimal("30.000000"), posterior);
+
+        assertEquals(posterior, acao.getDataHoraCotacao());
+        verify(historicoRepository).saveAndFlush(any());
+    }
+
+    @Test
+    void propagaFalhaDoHistoricoParaRollbackDaTransacao() {
+        Acao acao = acao();
+        when(repository.findByIdForUpdate(1L)).thenReturn(Optional.of(acao));
+        when(repository.saveAndFlush(acao)).thenReturn(acao);
+        when(historicoRepository.saveAndFlush(any())).thenThrow(new RuntimeException("history"));
+
+        assertThrows(RuntimeException.class, () -> service.atualizarSePosterior(
+                1L, new BigDecimal("35.000000"), OffsetDateTime.parse("2026-08-20T15:30:00Z")));
     }
 
     private Acao acao() {
