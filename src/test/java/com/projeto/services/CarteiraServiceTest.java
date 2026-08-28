@@ -7,6 +7,7 @@ import com.projeto.entities.Carteira;
 import com.projeto.mappers.CarteiraMapper;
 import com.projeto.repositories.CarteiraRepository;
 import com.projeto.repositories.OperacaoRepository;
+import com.projeto.repositories.SnapshotCarteiraRepository;
 import com.projeto.services.exceptions.ApiException;
 import com.projeto.services.exceptions.ErrorCodes;
 import com.projeto.services.exceptions.ObjectNotFoundException;
@@ -50,6 +51,9 @@ class CarteiraServiceTest {
     @Mock
     private OperacaoRepository operacaoRepository;
 
+    @Mock
+    private SnapshotCarteiraRepository snapshotCarteiraRepository;
+
     private CarteiraService service;
 
     @BeforeEach
@@ -57,6 +61,7 @@ class CarteiraServiceTest {
         service = new CarteiraService(
                 repository,
                 operacaoRepository,
+                snapshotCarteiraRepository,
                 new CarteiraMapper(),
                 Clock.fixed(NOW, ZoneOffset.UTC)
         );
@@ -326,6 +331,7 @@ class CarteiraServiceTest {
 
         verify(repository).findByIdForUpdate(46L);
         verify(operacaoRepository).existsByCarteiraId(46L);
+        verify(snapshotCarteiraRepository).existsByCarteiraId(46L);
         verify(repository).delete(persisted);
         verifyNoMoreInteractions(repository);
     }
@@ -347,6 +353,27 @@ class CarteiraServiceTest {
         assertEquals(47L, exception.getDetails().get("carteiraId"));
         verify(repository).findByIdForUpdate(47L);
         verify(operacaoRepository).existsByCarteiraId(47L);
+        verifyNoInteractions(snapshotCarteiraRepository);
+        verify(repository, never()).delete(any(Carteira.class));
+    }
+
+    @Test
+    void rejectsDeletionWhenPortfolioHasSnapshotsAfterCheckingOperations() {
+        Carteira persisted = carteira(
+                48L,
+                "Carteira com snapshots",
+                OffsetDateTime.parse("2026-08-13T03:30:00Z")
+        );
+        when(repository.findByIdForUpdate(48L)).thenReturn(Optional.of(persisted));
+        when(snapshotCarteiraRepository.existsByCarteiraId(48L)).thenReturn(true);
+
+        ApiException exception = assertThrows(ApiException.class, () -> readOnlyService().excluir(48L));
+
+        assertEquals(409, exception.getStatus().value());
+        assertEquals(ErrorCodes.CARTEIRA_POSSUI_SNAPSHOTS, exception.getCode());
+        verify(repository).findByIdForUpdate(48L);
+        verify(operacaoRepository).existsByCarteiraId(48L);
+        verify(snapshotCarteiraRepository).existsByCarteiraId(48L);
         verify(repository, never()).delete(any(Carteira.class));
     }
 
@@ -362,6 +389,7 @@ class CarteiraServiceTest {
         assertEquals("Carteira não encontrada para o id: 404", exception.getMessage());
         verify(repository).findByIdForUpdate(404L);
         verifyNoInteractions(operacaoRepository);
+        verifyNoInteractions(snapshotCarteiraRepository);
         verify(repository, never()).delete(any(Carteira.class));
         verifyNoMoreInteractions(repository);
     }
@@ -400,6 +428,12 @@ class CarteiraServiceTest {
             }
         };
 
-        return new CarteiraService(repository, operacaoRepository, new CarteiraMapper(), clockThatMustNotBeUsed);
+        return new CarteiraService(
+                repository,
+                operacaoRepository,
+                snapshotCarteiraRepository,
+                new CarteiraMapper(),
+                clockThatMustNotBeUsed
+        );
     }
 }

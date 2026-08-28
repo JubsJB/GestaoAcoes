@@ -1,0 +1,81 @@
+databaseChangeLog:
+  - changeSet:
+      id: 006-create-snapshot-carteira
+      author: codex
+      changes:
+        - createTable:
+            tableName: snapshot_carteira
+            columns:
+              - column:
+                  name: id
+                  type: BIGINT
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    primaryKeyName: pk_snapshot_carteira
+                    nullable: false
+              - column:
+                  name: carteira_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: data_hora_snapshot
+                  type: TIMESTAMP WITH TIME ZONE
+                  constraints:
+                    nullable: false
+        - createTable:
+            tableName: snapshot_carteira_moeda
+            columns:
+              - column:
+                  name: id
+                  type: BIGINT
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    primaryKeyName: pk_snapshot_carteira_moeda
+                    nullable: false
+              - column:
+                  name: snapshot_carteira_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: moeda
+                  type: VARCHAR(3)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: patrimonio_atual
+                  type: NUMERIC(38,12)
+                  constraints:
+                    nullable: false
+        - addForeignKeyConstraint:
+            baseTableName: snapshot_carteira
+            baseColumnNames: carteira_id
+            referencedTableName: carteira
+            referencedColumnNames: id
+            constraintName: fk_snapshot_carteira_carteira
+        - addForeignKeyConstraint:
+            baseTableName: snapshot_carteira_moeda
+            baseColumnNames: snapshot_carteira_id
+            referencedTableName: snapshot_carteira
+            referencedColumnNames: id
+            constraintName: fk_snapshot_carteira_moeda_snapshot
+        - addUniqueConstraint:
+            tableName: snapshot_carteira
+            columnNames: carteira_id, data_hora_snapshot
+            constraintName: uk_snapshot_carteira_carteira_data_hora
+        - addUniqueConstraint:
+            tableName: snapshot_carteira_moeda
+            columnNames: snapshot_carteira_id, moeda
+            constraintName: uk_snapshot_carteira_moeda_snapshot_moeda
+        - sql:
+            sql: ALTER TABLE snapshot_carteira_moeda ADD CONSTRAINT ck_snapshot_carteira_moeda_valida CHECK (moeda IN ('BRL', 'USD'))
+        - sql:
+            sql: ALTER TABLE snapshot_carteira_moeda ADD CONSTRAINT ck_snapshot_carteira_patrimonio_positivo CHECK (patrimonio_atual > 0)
+      rollback:
+        - dropTable:
+            tableName: snapshot_carteira_moeda
+        - dropTable:
+            tableName: snapshot_carteira
