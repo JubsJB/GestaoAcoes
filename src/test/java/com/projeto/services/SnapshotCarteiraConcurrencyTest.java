@@ -14,8 +14,7 @@ import com.projeto.repositories.HistoricoCotacaoRepository;
 import com.projeto.repositories.OperacaoRepository;
 import com.projeto.repositories.SnapshotCarteiraMoedaRepository;
 import com.projeto.repositories.SnapshotCarteiraRepository;
-import com.projeto.services.exceptions.ApiException;
-import com.projeto.services.exceptions.ErrorCodes;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -151,8 +150,7 @@ class SnapshotCarteiraConcurrencyTest {
             List<Object> results = List.of(first.get(10, TimeUnit.SECONDS), second.get(10, TimeUnit.SECONDS));
 
             assertEquals(1, results.stream().filter(SnapshotCarteiraResponse.class::isInstance).count());
-            assertEquals(1, results.stream().filter(item -> item instanceof ApiException exception
-                    && ErrorCodes.SNAPSHOT_CARTEIRA_DUPLICADO.equals(exception.getCode())).count());
+            assertEquals(1, results.stream().filter(DataIntegrityViolationException.class::isInstance).count());
             assertEquals(1, snapshotRepository.count());
             assertEquals(0, componenteRepository.count());
         } finally {
@@ -164,7 +162,7 @@ class SnapshotCarteiraConcurrencyTest {
         start.await(5, TimeUnit.SECONDS);
         try {
             return snapshotService.criar(carteiraId);
-        } catch (ApiException exception) {
+        } catch (DataIntegrityViolationException exception) {
             return exception;
         }
     }

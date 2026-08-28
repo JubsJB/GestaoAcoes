@@ -17,6 +17,8 @@ import com.projeto.repositories.OperacaoRepository;
 import com.projeto.services.exceptions.ApiException;
 import com.projeto.services.exceptions.ErrorCodes;
 import com.projeto.services.exceptions.ObjectNotFoundException;
+import com.projeto.services.exceptions.ConstraintNameExtractor;
+import org.hibernate.exception.ConstraintViolationException;
 import com.projeto.validation.TickerNormalizer;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -36,6 +38,7 @@ import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Optional;
+import java.sql.SQLException;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -564,9 +567,7 @@ class OperacaoServiceTest {
     @Test
     void translatesKnownDatabaseOrderConstraintAndPropagatesOtherIntegrityFailures() {
         when(operacaoRepository.saveAndFlush(any(Operacao.class)))
-                .thenThrow(new DataIntegrityViolationException(
-                        "Violation of uk_operacao_carteira_acao_data_ordem"
-                ));
+                .thenThrow(integrity("uk_operacao_carteira_acao_data_ordem"));
         ApiException duplicate = assertThrows(
                 ApiException.class,
                 () -> service.cadastrar(request(
@@ -577,12 +578,24 @@ class OperacaoServiceTest {
         assertEquals(ErrorCodes.ORDEM_OPERACAO_DUPLICADA, duplicate.getCode());
 
         when(operacaoRepository.saveAndFlush(any(Operacao.class)))
-                .thenThrow(new DataIntegrityViolationException("different constraint"));
+                .thenThrow(integrity("different_constraint"));
         assertThrows(
                 DataIntegrityViolationException.class,
                 () -> service.cadastrar(request(
                         "PETR4", Mercado.BRASIL, TipoOperacao.COMPRA,
                         "1", "10", LocalDate.of(2026, 8, 10), 2, null
+                ))
+        );
+
+        when(operacaoRepository.saveAndFlush(any(Operacao.class)))
+                .thenThrow(new DataIntegrityViolationException(
+                        "uk_operacao_carteira_acao_data_ordem only in message"
+                ));
+        assertThrows(
+                DataIntegrityViolationException.class,
+                () -> service.cadastrar(request(
+                        "PETR4", Mercado.BRASIL, TipoOperacao.COMPRA,
+                        "1", "10", LocalDate.of(2026, 8, 10), 3, null
                 ))
         );
     }
@@ -596,8 +609,14 @@ class OperacaoServiceTest {
                 new TickerNormalizer(),
                 new OperacaoMapper(),
                 clock,
-                new CalculadoraPosicao()
+                new CalculadoraPosicao(),
+                new ConstraintNameExtractor()
         );
+    }
+
+    private DataIntegrityViolationException integrity(String name) {
+        return new DataIntegrityViolationException("integrity",
+                new ConstraintViolationException("native", new SQLException("sql"), name));
     }
 
     private OperacaoCreateRequest request(

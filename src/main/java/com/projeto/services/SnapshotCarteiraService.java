@@ -14,6 +14,7 @@ import com.projeto.services.AgregadorPosicoesPorMoeda.TotaisPorMoeda;
 import com.projeto.services.exceptions.ApiException;
 import com.projeto.services.exceptions.ErrorCodes;
 import com.projeto.services.exceptions.ObjectNotFoundException;
+import com.projeto.services.exceptions.ConstraintNameExtractor;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -26,7 +27,6 @@ import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 
 @Service
@@ -41,6 +41,7 @@ public class SnapshotCarteiraService {
     private final SnapshotCarteiraRepository snapshotRepository;
     private final SnapshotCarteiraMoedaRepository componenteRepository;
     private final SnapshotCarteiraMapper mapper;
+    private final ConstraintNameExtractor constraintNameExtractor;
 
     public SnapshotCarteiraService(
             Clock clock,
@@ -49,7 +50,8 @@ public class SnapshotCarteiraService {
             AgregadorPosicoesPorMoeda agregador,
             SnapshotCarteiraRepository snapshotRepository,
             SnapshotCarteiraMoedaRepository componenteRepository,
-            SnapshotCarteiraMapper mapper
+            SnapshotCarteiraMapper mapper,
+            ConstraintNameExtractor constraintNameExtractor
     ) {
         this.clock = clock;
         this.carteiraRepository = carteiraRepository;
@@ -58,6 +60,7 @@ public class SnapshotCarteiraService {
         this.snapshotRepository = snapshotRepository;
         this.componenteRepository = componenteRepository;
         this.mapper = mapper;
+        this.constraintNameExtractor = constraintNameExtractor;
     }
 
     @Transactional(isolation = Isolation.REPEATABLE_READ)
@@ -80,7 +83,9 @@ public class SnapshotCarteiraService {
                     new SnapshotCarteira(carteira, dataHoraSnapshot)
             );
         } catch (DataIntegrityViolationException exception) {
-            if (causedByConstraint(exception, UNIQUE_TEMPORAL)) {
+            if (constraintNameExtractor.extractConstraintName(exception)
+                    .filter(UNIQUE_TEMPORAL::equalsIgnoreCase)
+                    .isPresent()) {
                 throw snapshotDuplicado(carteiraId, dataHoraSnapshot);
             }
             throw exception;
@@ -98,17 +103,6 @@ public class SnapshotCarteiraService {
             componentes = componenteRepository.saveAllAndFlush(componentes);
         }
         return mapper.toResponse(snapshot, componentes);
-    }
-
-    private boolean causedByConstraint(Throwable exception, String constraint) {
-        String expected = constraint.toLowerCase(Locale.ROOT);
-        for (Throwable cause = exception; cause != null; cause = cause.getCause()) {
-            String message = cause.getMessage();
-            if (message != null && message.toLowerCase(Locale.ROOT).contains(expected)) {
-                return true;
-            }
-        }
-        return false;
     }
 
     private ApiException snapshotDuplicado(Long carteiraId, OffsetDateTime dataHoraSnapshot) {
