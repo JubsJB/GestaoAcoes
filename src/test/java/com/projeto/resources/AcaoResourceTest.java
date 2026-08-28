@@ -224,6 +224,131 @@ class AcaoResourceTest {
     }
 
     @Test
+    void findsBrazilianAndAmericanActionsByTickerAndMarketWithCompleteResponse() throws Exception {
+        when(service.buscarPorTickerEMercado(" petr4 ", Mercado.BRASIL)).thenReturn(response(
+                10L,
+                "PETR4",
+                "Petróleo Brasileiro S.A.",
+                Mercado.BRASIL,
+                Moeda.BRL,
+                new BigDecimal("32.123456"),
+                OffsetDateTime.parse("2026-08-20T15:30:00Z")
+        ));
+        when(service.buscarPorTickerEMercado("aapl", Mercado.EUA)).thenReturn(response(
+                20L,
+                "AAPL",
+                "Apple Inc.",
+                Mercado.EUA,
+                Moeda.USD,
+                new BigDecimal("224.410000"),
+                OffsetDateTime.parse("2026-08-20T16:30:00Z")
+        ));
+
+        mockMvc.perform(get("/acoes/por-ticker")
+                        .param("ticker", " petr4 ")
+                        .param("mercado", "BRASIL"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(10))
+                .andExpect(jsonPath("$.ticker").value("PETR4"))
+                .andExpect(jsonPath("$.nomeEmpresa").value("Petróleo Brasileiro S.A."))
+                .andExpect(jsonPath("$.mercado").value("BRASIL"))
+                .andExpect(jsonPath("$.moeda").value("BRL"))
+                .andExpect(jsonPath("$.cotacaoAtual").value(32.123456))
+                .andExpect(jsonPath("$.dataHoraCotacao").value("2026-08-20T15:30:00Z"));
+
+        mockMvc.perform(get("/acoes/por-ticker")
+                        .param("ticker", "aapl")
+                        .param("mercado", "EUA"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(20))
+                .andExpect(jsonPath("$.ticker").value("AAPL"))
+                .andExpect(jsonPath("$.mercado").value("EUA"))
+                .andExpect(jsonPath("$.moeda").value("USD"));
+
+        verify(service).buscarPorTickerEMercado(" petr4 ", Mercado.BRASIL);
+        verify(service).buscarPorTickerEMercado("aapl", Mercado.EUA);
+    }
+
+    @Test
+    void returnsApprovedErrorsForMissingOrInvalidTicker() throws Exception {
+        ApiException invalidTicker = new ApiException(
+                HttpStatus.BAD_REQUEST,
+                ErrorCodes.TICKER_INVALIDO,
+                "Ticker inválido"
+        );
+        when(service.buscarPorTickerEMercado(null, Mercado.BRASIL)).thenThrow(invalidTicker);
+        when(service.buscarPorTickerEMercado("   ", Mercado.BRASIL)).thenThrow(invalidTicker);
+        when(service.buscarPorTickerEMercado("A".repeat(31), Mercado.BRASIL)).thenThrow(invalidTicker);
+
+        mockMvc.perform(get("/acoes/por-ticker").param("mercado", "BRASIL"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value(ErrorCodes.TICKER_INVALIDO));
+        mockMvc.perform(get("/acoes/por-ticker").param("ticker", "   ").param("mercado", "BRASIL"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value(ErrorCodes.TICKER_INVALIDO));
+        mockMvc.perform(get("/acoes/por-ticker")
+                        .param("ticker", "A".repeat(31))
+                        .param("mercado", "BRASIL"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value(ErrorCodes.TICKER_INVALIDO));
+    }
+
+    @Test
+    void returnsRequestInvalidForMissingOrUnknownMarket() throws Exception {
+        when(service.buscarPorTickerEMercado("PETR4", null)).thenThrow(new ApiException(
+                HttpStatus.BAD_REQUEST,
+                ErrorCodes.REQUEST_INVALIDO,
+                "Dados da requisição inválidos"
+        ));
+
+        mockMvc.perform(get("/acoes/por-ticker").param("ticker", "PETR4"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value(ErrorCodes.REQUEST_INVALIDO));
+
+        mockMvc.perform(get("/acoes/por-ticker")
+                        .param("ticker", "PETR4")
+                        .param("mercado", "EUROPA"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value(ErrorCodes.REQUEST_INVALIDO));
+
+        verify(service).buscarPorTickerEMercado("PETR4", null);
+    }
+
+    @Test
+    void returnsCentralizedNotFoundForMissingTickerAndMarketCombination() throws Exception {
+        when(service.buscarPorTickerEMercado("MISSING", Mercado.EUA)).thenThrow(
+                new ObjectNotFoundException("Ação não encontrada para o ticker e mercado: MISSING / EUA")
+        );
+
+        mockMvc.perform(get("/acoes/por-ticker")
+                        .param("ticker", "MISSING")
+                        .param("mercado", "EUA"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.status").value(404))
+                .andExpect(jsonPath("$.message")
+                        .value("Ação não encontrada para o ticker e mercado: MISSING / EUA"))
+                .andExpect(jsonPath("$.path").value("/acoes/por-ticker"))
+                .andExpect(jsonPath("$.code").value(Matchers.nullValue()));
+
+        verify(service).buscarPorTickerEMercado("MISSING", Mercado.EUA);
+    }
+
+    @Test
+    void doesNotExposeRejectedAliasesOrTurnCollectionIntoSingularLookup() throws Exception {
+        when(service.listar()).thenReturn(List.of());
+
+        mockMvc.perform(get("/acoes/ticker/{ticker}", "ABC"))
+                .andExpect(status().isNotFound());
+        mockMvc.perform(get("/acoes/por-ticker/{ticker}/mercados/{mercado}", "ABC", "BRASIL"))
+                .andExpect(status().isNotFound());
+        mockMvc.perform(get("/acoes").param("ticker", "ABC").param("mercado", "BRASIL"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isArray());
+
+        verify(service).listar();
+    }
+
+    @Test
     void patchSemBodyAtualizaBrasilERetornaDtoCompletoSemLocation() throws Exception {
         when(service.atualizarCotacao(1L)).thenReturn(response(1L, "PETR4", Mercado.BRASIL, Moeda.BRL));
 

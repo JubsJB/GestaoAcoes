@@ -2,6 +2,7 @@ package com.projeto.resources;
 
 import com.projeto.dto.AcaoCreateRequest;
 import com.projeto.dto.AcaoResponse;
+import com.projeto.entities.Mercado;
 import com.projeto.services.AcaoService;
 import com.projeto.services.exceptions.ApiException;
 import com.projeto.services.exceptions.ErrorCodes;
@@ -15,6 +16,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
@@ -50,6 +52,14 @@ public class AcaoResource {
     @GetMapping("/{id}")
     public ResponseEntity<AcaoResponse> buscarPorId(@PathVariable Long id) {
         return ResponseEntity.ok(service.buscarPorId(id));
+    }
+
+    @GetMapping("/por-ticker")
+    public ResponseEntity<AcaoResponse> buscarPorTickerEMercado(
+            @RequestParam(required = false) String ticker,
+            @RequestParam(required = false) Mercado mercado
+    ) {
+        return ResponseEntity.ok(service.buscarPorTickerEMercado(ticker, mercado));
     }
 
     @PatchMapping("/{id}/cotacao")

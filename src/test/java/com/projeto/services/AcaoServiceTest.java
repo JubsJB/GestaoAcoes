@@ -20,9 +20,14 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.repository.Lock;
+import org.springframework.http.HttpStatus;
 import org.springframework.test.util.ReflectionTestUtils;
+import org.springframework.transaction.annotation.Isolation;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.lang.reflect.Method;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.OffsetDateTime;
@@ -32,6 +37,7 @@ import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -39,6 +45,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.reset;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -466,6 +473,95 @@ class AcaoServiceTest {
         assertEquals("Ação não encontrada para o id: 99", exception.getMessage());
         verify(repository).findById(99L);
         verifyNoInteractions(brapi, alphaVantage, persistenceService);
+    }
+
+    @Test
+    void findsBrazilianAndAmericanActionsByNormalizedTickerAndMarketWithCompleteResponse() {
+        OffsetDateTime timestamp = OffsetDateTime.parse("2026-08-20T15:30:00Z");
+        Acao brazil = action(10L, "ABC", "Empresa Brasil", Mercado.BRASIL, Moeda.BRL,
+                new BigDecimal("10.000000"), timestamp);
+        Acao usa = action(20L, "ABC", "Empresa EUA", Mercado.EUA, Moeda.USD,
+                new BigDecimal("11.000000"), timestamp);
+        when(repository.findByTickerAndMercado("ABC", Mercado.BRASIL)).thenReturn(Optional.of(brazil));
+        when(repository.findByTickerAndMercado("ABC", Mercado.EUA)).thenReturn(Optional.of(usa));
+
+        AcaoResponse brazilResponse = service.buscarPorTickerEMercado(" abc ", Mercado.BRASIL);
+        AcaoResponse usaResponse = service.buscarPorTickerEMercado("ABC", Mercado.EUA);
+
+        assertEquals(10L, brazilResponse.id());
+        assertEquals("ABC", brazilResponse.ticker());
+        assertEquals("Empresa Brasil", brazilResponse.nomeEmpresa());
+        assertEquals(Mercado.BRASIL, brazilResponse.mercado());
+        assertEquals(Moeda.BRL, brazilResponse.moeda());
+        assertEquals(new BigDecimal("10.000000"), brazilResponse.cotacaoAtual());
+        assertEquals(timestamp, brazilResponse.dataHoraCotacao());
+        assertEquals(20L, usaResponse.id());
+        assertEquals(Mercado.EUA, usaResponse.mercado());
+        assertEquals(Moeda.USD, usaResponse.moeda());
+        verify(repository).findByTickerAndMercado("ABC", Mercado.BRASIL);
+        verify(repository).findByTickerAndMercado("ABC", Mercado.EUA);
+        verifyNoInteractions(brapi, alphaVantage, persistenceService, cotacaoPersistenceService);
+    }
+
+    @Test
+    void rejectsInvalidTickersBeforeRepositoryOrExternalDependencies() {
+        List<String> invalidTickers = java.util.Arrays.asList(
+                null,
+                "",
+                "   ",
+                "A".repeat(31)
+        );
+
+        for (String ticker : invalidTickers) {
+            ApiException exception = assertThrows(
+                    ApiException.class,
+                    () -> service.buscarPorTickerEMercado(ticker, Mercado.BRASIL)
+            );
+            assertEquals(HttpStatus.BAD_REQUEST, exception.getStatus());
+            assertEquals(ErrorCodes.TICKER_INVALIDO, exception.getCode());
+        }
+
+        verifyNoInteractions(repository, brapi, alphaVantage, persistenceService, cotacaoPersistenceService);
+    }
+
+    @Test
+    void rejectsMissingMarketBeforeRepositoryOrExternalDependencies() {
+        ApiException exception = assertThrows(
+                ApiException.class,
+                () -> service.buscarPorTickerEMercado("PETR4", null)
+        );
+
+        assertEquals(HttpStatus.BAD_REQUEST, exception.getStatus());
+        assertEquals(ErrorCodes.REQUEST_INVALIDO, exception.getCode());
+        verifyNoInteractions(repository, brapi, alphaVantage, persistenceService, cotacaoPersistenceService);
+    }
+
+    @Test
+    void throwsObjectNotFoundForMissingTickerAndMarketUsingOneRepositoryQuery() {
+        when(repository.findByTickerAndMercado("MISSING", Mercado.EUA)).thenReturn(Optional.empty());
+
+        ObjectNotFoundException exception = assertThrows(
+                ObjectNotFoundException.class,
+                () -> service.buscarPorTickerEMercado(" missing ", Mercado.EUA)
+        );
+
+        assertEquals("Ação não encontrada para o ticker e mercado: MISSING / EUA", exception.getMessage());
+        verify(repository, times(1)).findByTickerAndMercado("MISSING", Mercado.EUA);
+        verifyNoInteractions(brapi, alphaVantage, persistenceService, cotacaoPersistenceService);
+    }
+
+    @Test
+    void tickerAndMarketLookupIsReadOnlyWithDefaultIsolationAndNoLock() throws Exception {
+        Method method = AcaoService.class.getMethod(
+                "buscarPorTickerEMercado",
+                String.class,
+                Mercado.class
+        );
+        Transactional transactional = method.getAnnotation(Transactional.class);
+
+        assertTrue(transactional.readOnly());
+        assertEquals(Isolation.DEFAULT, transactional.isolation());
+        assertNull(method.getAnnotation(Lock.class));
     }
 
     private void assertExternalFailure(CotacaoData data, String expectedCode) {

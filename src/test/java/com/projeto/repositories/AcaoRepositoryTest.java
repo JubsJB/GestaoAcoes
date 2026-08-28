@@ -70,6 +70,22 @@ class AcaoRepositoryTest {
     }
 
     @Test
+    void findsOnlyRequestedMarketForSameTickerAndReturnsEmptyForMissingCombination() {
+        Acao brazil = repository.saveAndFlush(action(
+                "ABC", Mercado.BRASIL, Moeda.BRL, new BigDecimal("10.000000"), utcNow()
+        ));
+        Acao usa = repository.saveAndFlush(action(
+                "ABC", Mercado.EUA, Moeda.USD, new BigDecimal("11.000000"), utcNow()
+        ));
+
+        assertEquals(brazil.getId(), repository.findByTickerAndMercado("ABC", Mercado.BRASIL)
+                .orElseThrow().getId());
+        assertEquals(usa.getId(), repository.findByTickerAndMercado("ABC", Mercado.EUA)
+                .orElseThrow().getId());
+        assertTrue(repository.findByTickerAndMercado("MISSING", Mercado.BRASIL).isEmpty());
+    }
+
+    @Test
     void compositeUniqueConstraintAllowsSameTickerInDifferentMarketsButRejectsSamePair() {
         repository.saveAndFlush(action(
                 "ABC", Mercado.BRASIL, Moeda.BRL, new BigDecimal("10.000000"), utcNow()
