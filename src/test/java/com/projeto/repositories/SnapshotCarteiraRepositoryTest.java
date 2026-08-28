@@ -19,6 +19,9 @@ import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.util.List;
 import org.springframework.transaction.TransactionDefinition;
+import jakarta.persistence.EntityManagerFactory;
+import org.hibernate.SessionFactory;
+import org.hibernate.stat.Statistics;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -35,6 +38,54 @@ class SnapshotCarteiraRepositoryTest {
     @Autowired SnapshotCarteiraMoedaRepository componenteRepository;
     @Autowired JdbcTemplate jdbcTemplate;
     @Autowired PlatformTransactionManager transactionManager;
+    @Autowired EntityManagerFactory entityManagerFactory;
+
+    @Test
+    void evolutionProjectionDistinguishesMissingEmptyPortfolioAndEmptySnapshot() {
+        Carteira semSnapshot = carteiraRepository.saveAndFlush(carteira("Sem snapshot"));
+        Carteira comSnapshotVazio = carteiraRepository.saveAndFlush(carteira("Snapshot vazio"));
+        SnapshotCarteira snapshot = snapshotRepository.saveAndFlush(new SnapshotCarteira(
+                comSnapshotVazio, OffsetDateTime.parse("2026-08-28T10:00:00Z")));
+
+        assertTrue(snapshotRepository.consultarEvolucaoPatrimonial(Long.MAX_VALUE).isEmpty());
+        List<SnapshotCarteiraEvolucaoProjection> marcador =
+                snapshotRepository.consultarEvolucaoPatrimonial(semSnapshot.getId());
+        assertEquals(1, marcador.size());
+        assertEquals(null, marcador.get(0).getSnapshotId());
+        List<SnapshotCarteiraEvolucaoProjection> vazio =
+                snapshotRepository.consultarEvolucaoPatrimonial(comSnapshotVazio.getId());
+        assertEquals(1, vazio.size());
+        assertEquals(snapshot.getId(), vazio.get(0).getSnapshotId());
+        assertEquals(null, vazio.get(0).getMoeda());
+    }
+
+    @Test
+    void evolutionProjectionUsesOneOrderedQueryAndPreservesCurrenciesAndExactValues() {
+        Carteira carteira = carteiraRepository.saveAndFlush(carteira("Evolução"));
+        SnapshotCarteira tarde = snapshotRepository.saveAndFlush(new SnapshotCarteira(
+                carteira, OffsetDateTime.parse("2026-08-28T14:00:00Z")));
+        SnapshotCarteira cedo = snapshotRepository.saveAndFlush(new SnapshotCarteira(
+                carteira, OffsetDateTime.parse("2026-08-28T10:00:00Z")));
+        BigDecimal repetido = new BigDecimal("1000.123456789012");
+        componenteRepository.saveAndFlush(new SnapshotCarteiraMoeda(tarde, Moeda.USD, repetido));
+        componenteRepository.saveAndFlush(new SnapshotCarteiraMoeda(tarde, Moeda.BRL, repetido));
+        componenteRepository.saveAndFlush(new SnapshotCarteiraMoeda(cedo, Moeda.BRL, repetido));
+        Statistics statistics = entityManagerFactory.unwrap(SessionFactory.class).getStatistics();
+        statistics.setStatisticsEnabled(true);
+        statistics.clear();
+
+        List<SnapshotCarteiraEvolucaoProjection> linhas =
+                snapshotRepository.consultarEvolucaoPatrimonial(carteira.getId());
+
+        assertEquals(3, linhas.size());
+        assertEquals(List.of(cedo.getId(), tarde.getId(), tarde.getId()),
+                linhas.stream().map(SnapshotCarteiraEvolucaoProjection::getSnapshotId).toList());
+        assertEquals(List.of(Moeda.BRL, Moeda.BRL, Moeda.USD),
+                linhas.stream().map(SnapshotCarteiraEvolucaoProjection::getMoeda).toList());
+        assertEquals(repetido, linhas.get(0).getPatrimonioAtual());
+        assertEquals(12, linhas.get(0).getPatrimonioAtual().scale());
+        assertEquals(1, statistics.getPrepareStatementCount());
+    }
 
     @Test
     void persistsParentWithoutChildrenAndAllowsSameDayAndSameTimestampAcrossPortfolios() {

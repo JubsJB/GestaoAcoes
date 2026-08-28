@@ -3,6 +3,7 @@ package com.projeto.resources;
 import com.projeto.dto.CarteiraCreateRequest;
 import com.projeto.dto.CarteiraResponse;
 import com.projeto.dto.CarteiraUpdateRequest;
+import com.projeto.dto.EvolucaoPatrimonialResponse;
 import com.projeto.dto.OperacaoResponse;
 import com.projeto.dto.PatrimonioResponse;
 import com.projeto.dto.PosicaoResponse;
@@ -10,6 +11,7 @@ import com.projeto.dto.ResultadoRealizadoResponse;
 import com.projeto.dto.ResumoCarteiraResponse;
 import com.projeto.dto.SnapshotCarteiraResponse;
 import com.projeto.services.CarteiraService;
+import com.projeto.services.EvolucaoPatrimonialService;
 import com.projeto.services.OperacaoService;
 import com.projeto.services.PatrimonioService;
 import com.projeto.services.PosicaoService;
@@ -42,6 +44,7 @@ public class CarteiraResource {
     private final PatrimonioService patrimonioService;
     private final ResumoCarteiraService resumoCarteiraService;
     private final SnapshotCarteiraService snapshotCarteiraService;
+    private final EvolucaoPatrimonialService evolucaoPatrimonialService;
 
     public CarteiraResource(
             CarteiraService service,
@@ -50,7 +53,8 @@ public class CarteiraResource {
             ResultadoRealizadoService resultadoRealizadoService,
             PatrimonioService patrimonioService,
             ResumoCarteiraService resumoCarteiraService,
-            SnapshotCarteiraService snapshotCarteiraService
+            SnapshotCarteiraService snapshotCarteiraService,
+            EvolucaoPatrimonialService evolucaoPatrimonialService
     ) {
         this.service = service;
         this.operacaoService = operacaoService;
@@ -59,6 +63,7 @@ public class CarteiraResource {
         this.patrimonioService = patrimonioService;
         this.resumoCarteiraService = resumoCarteiraService;
         this.snapshotCarteiraService = snapshotCarteiraService;
+        this.evolucaoPatrimonialService = evolucaoPatrimonialService;
     }
 
     @PostMapping
@@ -125,6 +130,13 @@ public class CarteiraResource {
                 .buildAndExpand(response.id())
                 .toUri();
         return ResponseEntity.created(location).body(response);
+    }
+
+    @GetMapping("/{carteiraId}/evolucao-patrimonial")
+    public ResponseEntity<EvolucaoPatrimonialResponse> consultarEvolucaoPatrimonial(
+            @PathVariable Long carteiraId
+    ) {
+        return ResponseEntity.ok(evolucaoPatrimonialService.consultar(carteiraId));
     }
 
     @PatchMapping("/{id}")
