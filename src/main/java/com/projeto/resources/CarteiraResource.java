@@ -8,12 +8,14 @@ import com.projeto.dto.PatrimonioResponse;
 import com.projeto.dto.PosicaoResponse;
 import com.projeto.dto.ResultadoRealizadoResponse;
 import com.projeto.dto.ResumoCarteiraResponse;
+import com.projeto.dto.SnapshotCarteiraResponse;
 import com.projeto.services.CarteiraService;
 import com.projeto.services.OperacaoService;
 import com.projeto.services.PatrimonioService;
 import com.projeto.services.PosicaoService;
 import com.projeto.services.ResultadoRealizadoService;
 import com.projeto.services.ResumoCarteiraService;
+import com.projeto.services.SnapshotCarteiraService;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -39,6 +41,7 @@ public class CarteiraResource {
     private final ResultadoRealizadoService resultadoRealizadoService;
     private final PatrimonioService patrimonioService;
     private final ResumoCarteiraService resumoCarteiraService;
+    private final SnapshotCarteiraService snapshotCarteiraService;
 
     public CarteiraResource(
             CarteiraService service,
@@ -46,7 +49,8 @@ public class CarteiraResource {
             PosicaoService posicaoService,
             ResultadoRealizadoService resultadoRealizadoService,
             PatrimonioService patrimonioService,
-            ResumoCarteiraService resumoCarteiraService
+            ResumoCarteiraService resumoCarteiraService,
+            SnapshotCarteiraService snapshotCarteiraService
     ) {
         this.service = service;
         this.operacaoService = operacaoService;
@@ -54,6 +58,7 @@ public class CarteiraResource {
         this.resultadoRealizadoService = resultadoRealizadoService;
         this.patrimonioService = patrimonioService;
         this.resumoCarteiraService = resumoCarteiraService;
+        this.snapshotCarteiraService = snapshotCarteiraService;
     }
 
     @PostMapping
@@ -110,6 +115,16 @@ public class CarteiraResource {
             @PathVariable Long carteiraId
     ) {
         return ResponseEntity.ok(resumoCarteiraService.consultar(carteiraId));
+    }
+
+    @PostMapping("/{carteiraId}/snapshots")
+    public ResponseEntity<SnapshotCarteiraResponse> criarSnapshot(@PathVariable Long carteiraId) {
+        SnapshotCarteiraResponse response = snapshotCarteiraService.criar(carteiraId);
+        URI location = ServletUriComponentsBuilder.fromCurrentRequest()
+                .path("/{snapshotId}")
+                .buildAndExpand(response.id())
+                .toUri();
+        return ResponseEntity.created(location).body(response);
     }
 
     @PatchMapping("/{id}")

@@ -9,3 +9,5 @@ databaseChangeLog:
       file: db/changelog/changes/004-create-operacao.yaml
   - include:
       file: db/changelog/changes/005-create-historico-cotacao.yaml
+  - include:
+      file: db/changelog/changes/006-create-snapshot-carteira.yaml

@@ -7,6 +7,7 @@ import com.projeto.entities.Carteira;
 import com.projeto.mappers.CarteiraMapper;
 import com.projeto.repositories.CarteiraRepository;
 import com.projeto.repositories.OperacaoRepository;
+import com.projeto.repositories.SnapshotCarteiraRepository;
 import com.projeto.services.exceptions.ApiException;
 import com.projeto.services.exceptions.ErrorCodes;
 import com.projeto.services.exceptions.ObjectNotFoundException;
@@ -28,17 +29,20 @@ public class CarteiraService {
 
     private final CarteiraRepository repository;
     private final OperacaoRepository operacaoRepository;
+    private final SnapshotCarteiraRepository snapshotCarteiraRepository;
     private final CarteiraMapper mapper;
     private final Clock clock;
 
     public CarteiraService(
             CarteiraRepository repository,
             OperacaoRepository operacaoRepository,
+            SnapshotCarteiraRepository snapshotCarteiraRepository,
             CarteiraMapper mapper,
             Clock clock
     ) {
         this.repository = repository;
         this.operacaoRepository = operacaoRepository;
+        this.snapshotCarteiraRepository = snapshotCarteiraRepository;
         this.mapper = mapper;
         this.clock = clock;
     }
@@ -94,6 +98,15 @@ public class CarteiraService {
                     HttpStatus.CONFLICT,
                     ErrorCodes.CARTEIRA_POSSUI_OPERACOES,
                     "Carteira possui operações e não pode ser excluída",
+                    Map.of("carteiraId", id)
+            );
+        }
+
+        if (snapshotCarteiraRepository.existsByCarteiraId(id)) {
+            throw new ApiException(
+                    HttpStatus.CONFLICT,
+                    ErrorCodes.CARTEIRA_POSSUI_SNAPSHOTS,
+                    "Carteira possui snapshots e não pode ser excluída",
                     Map.of("carteiraId", id)
             );
         }

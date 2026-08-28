@@ -2,7 +2,10 @@ package com.projeto.resources;
 
 import com.projeto.GestaoacoesApplication;
 import com.projeto.entities.Carteira;
+import com.projeto.entities.SnapshotCarteira;
 import com.projeto.repositories.CarteiraRepository;
+import com.projeto.repositories.SnapshotCarteiraMoedaRepository;
+import com.projeto.repositories.SnapshotCarteiraRepository;
 import org.hamcrest.Matchers;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -39,9 +42,65 @@ class CarteiraResourceTest {
     @Autowired
     private CarteiraRepository repository;
 
+    @Autowired
+    private SnapshotCarteiraRepository snapshotRepository;
+
+    @Autowired
+    private SnapshotCarteiraMoedaRepository snapshotMoedaRepository;
+
     @BeforeEach
     void cleanDatabase() {
+        snapshotMoedaRepository.deleteAll();
+        snapshotRepository.deleteAll();
         repository.deleteAll();
+    }
+
+    @Test
+    void createsExplicitEmptySnapshotWithoutBodyWithCanonicalLocation() throws Exception {
+        Carteira carteira = repository.saveAndFlush(new Carteira(
+                "Carteira vazia",
+                OffsetDateTime.parse("2026-08-27T10:00:00Z")
+        ));
+
+        mockMvc.perform(post("/carteiras/{id}/snapshots", carteira.getId()))
+                .andExpect(status().isCreated())
+                .andExpect(header().string(
+                        "Location",
+                        Matchers.matchesPattern(".*/carteiras/" + carteira.getId() + "/snapshots/\\d+")
+                ))
+                .andExpect(jsonPath("$.id").isNumber())
+                .andExpect(jsonPath("$.carteiraId").value(carteira.getId()))
+                .andExpect(jsonPath("$.dataHoraSnapshot").exists())
+                .andExpect(jsonPath("$.patrimonios").isEmpty());
+
+        assertEquals(1, snapshotRepository.count());
+        assertEquals(0, snapshotMoedaRepository.count());
+    }
+
+    @Test
+    void rejectsSnapshotForMissingPortfolioWithoutPartialPersistence() throws Exception {
+        mockMvc.perform(post("/carteiras/999999/snapshots"))
+                .andExpect(status().isNotFound());
+        assertEquals(0, snapshotRepository.count());
+        assertEquals(0, snapshotMoedaRepository.count());
+    }
+
+    @Test
+    void rejectsDeletionOfPortfolioWithEmptySnapshotAndPreservesHistory() throws Exception {
+        Carteira carteira = repository.saveAndFlush(new Carteira(
+                "Carteira com fotografia",
+                OffsetDateTime.parse("2026-08-27T10:00:00Z")
+        ));
+        SnapshotCarteira snapshot = snapshotRepository.saveAndFlush(new SnapshotCarteira(
+                carteira, OffsetDateTime.parse("2026-08-27T15:00:00Z")
+        ));
+
+        mockMvc.perform(delete("/carteiras/{id}", carteira.getId()))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("CARTEIRA_POSSUI_SNAPSHOTS"));
+
+        assertEquals(true, repository.existsById(carteira.getId()));
+        assertEquals(true, snapshotRepository.existsById(snapshot.getId()));
     }
 
     @Test
