@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
@@ -45,5 +46,12 @@ public class CorretoraResource {
     @GetMapping("/{id}")
     public ResponseEntity<CorretoraResponse> buscarPorId(@PathVariable Long id) {
         return ResponseEntity.ok(service.buscarPorId(id));
+    }
+
+    @GetMapping("/por-cnpj")
+    public ResponseEntity<CorretoraResponse> buscarPorCnpj(
+            @RequestParam(required = false) String cnpj
+    ) {
+        return ResponseEntity.ok(service.buscarPorCnpj(cnpj));
     }
 }

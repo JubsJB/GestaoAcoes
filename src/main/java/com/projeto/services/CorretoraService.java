@@ -113,6 +113,17 @@ public class CorretoraService {
         return mapper.toResponse(corretora);
     }
 
+    @Transactional(readOnly = true)
+    public CorretoraResponse buscarPorCnpj(String cnpj) {
+        String cnpjNormalizado = cnpjValidator.normalizeAndValidate(cnpj);
+        Corretora corretora = repository.findByCnpj(cnpjNormalizado)
+                .orElseThrow(() -> new ObjectNotFoundException(
+                        "Corretora não encontrada para o CNPJ: " + cnpjNormalizado
+                ));
+
+        return mapper.toResponse(corretora);
+    }
+
     private void validateCnpjData(CnpjData data, String requestedCnpj) {
         if (data == null
                 || isBlank(data.cnpj())

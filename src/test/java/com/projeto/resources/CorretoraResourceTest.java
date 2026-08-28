@@ -242,6 +242,105 @@ class CorretoraResourceTest {
         verifyNoInteractions(cnpjProvider, cepProvider);
     }
 
+    @Test
+    void findsBrokerByUnmaskedCnpjWithCompleteResponseAndNoExternalCalls() throws Exception {
+        Corretora saved = repository.saveAndFlush(completeBroker(
+                CNPJ,
+                "Corretora Consultada S.A.",
+                true
+        ));
+
+        mockMvc.perform(get("/corretoras/por-cnpj").param("cnpj", CNPJ))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(saved.getId()))
+                .andExpect(jsonPath("$.cnpj").value(CNPJ))
+                .andExpect(jsonPath("$.razaoSocial").value("Corretora Consultada S.A."))
+                .andExpect(jsonPath("$.nomeFantasia").value("Nome Fantasia"))
+                .andExpect(jsonPath("$.email").value("contato@corretora.test"))
+                .andExpect(jsonPath("$.telefone").value("1130000000"))
+                .andExpect(jsonPath("$.cep").value(CEP))
+                .andExpect(jsonPath("$.logradouro").value("Praca da Se"))
+                .andExpect(jsonPath("$.numero").value("100"))
+                .andExpect(jsonPath("$.complemento").value("10 andar"))
+                .andExpect(jsonPath("$.bairro").value("Se"))
+                .andExpect(jsonPath("$.cidade").value("Sao Paulo"))
+                .andExpect(jsonPath("$.uf").value("SP"))
+                .andExpect(jsonPath("$.situacaoCadastral").value("ATIVA"))
+                .andExpect(jsonPath("$.validadaMercadoFinanceiro").value(false))
+                .andExpect(jsonPath("$.dataCadastro").exists());
+
+        verifyNoInteractions(cnpjProvider, cepProvider);
+    }
+
+    @Test
+    void findsSameBrokerByMaskedCnpjAndPreservesNullOptionalFields() throws Exception {
+        Corretora saved = repository.saveAndFlush(completeBroker(
+                CNPJ,
+                "Corretora Consultada S.A.",
+                false
+        ));
+
+        mockMvc.perform(get("/corretoras/por-cnpj")
+                        .param("cnpj", "11.222.333/0001-81"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(saved.getId()))
+                .andExpect(jsonPath("$.cnpj").value(CNPJ))
+                .andExpect(jsonPath("$.nomeFantasia").value(Matchers.nullValue()))
+                .andExpect(jsonPath("$.email").value(Matchers.nullValue()))
+                .andExpect(jsonPath("$.telefone").value(Matchers.nullValue()))
+                .andExpect(jsonPath("$.numero").value(Matchers.nullValue()))
+                .andExpect(jsonPath("$.complemento").value(Matchers.nullValue()));
+
+        verifyNoInteractions(cnpjProvider, cepProvider);
+    }
+
+    @Test
+    void rejectsMissingEmptyAndInvalidCnpjWithApprovedStandardError() throws Exception {
+        mockMvc.perform(get("/corretoras/por-cnpj"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("CNPJ_INVALIDO"));
+
+        mockMvc.perform(get("/corretoras/por-cnpj").param("cnpj", ""))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("CNPJ_INVALIDO"));
+
+        mockMvc.perform(get("/corretoras/por-cnpj").param("cnpj", "11.222.333/0001-82"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("CNPJ_INVALIDO"));
+
+        verifyNoInteractions(cnpjProvider, cepProvider);
+    }
+
+    @Test
+    void returnsCentralizedNotFoundForValidMissingCnpj() throws Exception {
+        mockMvc.perform(get("/corretoras/por-cnpj")
+                        .param("cnpj", "11.222.333/0001-81"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.status").value(404))
+                .andExpect(jsonPath("$.message")
+                        .value("Corretora não encontrada para o CNPJ: " + CNPJ))
+                .andExpect(jsonPath("$.path").value("/corretoras/por-cnpj"))
+                .andExpect(jsonPath("$.code").value(Matchers.nullValue()))
+                .andExpect(jsonPath("$.details").isEmpty());
+
+        verifyNoInteractions(cnpjProvider, cepProvider);
+    }
+
+    @Test
+    void doesNotExposeAliasOrTurnCollectionQueryIntoSingularLookup() throws Exception {
+        repository.saveAndFlush(completeBroker(CNPJ, "Corretora Listada S.A.", false));
+
+        mockMvc.perform(get("/corretoras/cnpj/{cnpj}", CNPJ))
+                .andExpect(status().isNotFound());
+
+        mockMvc.perform(get("/corretoras").param("cnpj", CNPJ))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isArray())
+                .andExpect(jsonPath("$.length()").value(1));
+
+        verifyNoInteractions(cnpjProvider, cepProvider);
+    }
+
     private void stubProviders(String status) {
         when(cnpjProvider.consultar(CNPJ)).thenReturn(new CnpjData(
                 "11.222.333/0001-81",
