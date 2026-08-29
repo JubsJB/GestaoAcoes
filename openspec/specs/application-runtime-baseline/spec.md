@@ -1,8 +1,10 @@
+# application-runtime-baseline Specification
+
 ## Purpose
 
 Estabelecer uma baseline de execução segura e verificável para que a aplicação Spring Boot possa evoluir sem falhas de bootstrap, exposição de credenciais ou recriação destrutiva do banco de dados.
 
-## ADDED Requirements
+## Requirements
 
 ### Requirement: Descoberta completa dos componentes da aplicação
 A aplicação SHALL configurar seu bootstrap para que todos os componentes Spring pertencentes à árvore de pacotes estabelecida do projeto sejam elegíveis para descoberta automática.
@@ -70,12 +72,12 @@ O projeto SHALL versionar um `.env.example` com os nomes das variáveis usadas n
 - **WHEN** a aplicação for executada diretamente fora de uma ferramenta que injete o `.env`
 - **THEN** as variáveis necessárias deverão ser exportadas pelo shell, pela IDE ou por outro orquestrador compatível
 
-### Requirement: Proteção do schema persistente
-A configuração de desenvolvimento SHALL validar a compatibilidade do schema PostgreSQL sem criar, recriar ou remover automaticamente estruturas persistentes.
+### Requirement: Proteção e evolução controlada do schema
+Os ambientes `dev` e `test` SHALL utilizar o Liquibase como fonte de criação e evolução do schema por meio das migrations versionadas 001–006. O Hibernate SHALL usar `ddl-auto=validate` e MUST NOT criar, recriar, atualizar ou remover automaticamente estruturas em PostgreSQL ou H2.
 
 #### Scenario: Inicialização sobre banco de desenvolvimento existente
 - **WHEN** a aplicação for iniciada com o profile `dev`
-- **THEN** a política de schema não executará `create` nem `create-drop` sobre o PostgreSQL
+- **THEN** o Liquibase aplicará as migrations pendentes e o Hibernate validará o schema resultante sem executar `create`, `create-drop` ou `update`
 
 #### Scenario: Schema de desenvolvimento incompatível
 - **WHEN** a aplicação for iniciada com um schema PostgreSQL incompatível
@@ -83,7 +85,7 @@ A configuração de desenvolvimento SHALL validar a compatibilidade do schema Po
 
 #### Scenario: Banco efêmero de teste
 - **WHEN** os testes automatizados forem executados com banco H2 isolado
-- **THEN** a configuração de teste poderá criar e descartar somente o schema efêmero dessa execução
+- **THEN** o Liquibase aplicará as migrations 001–006 no H2 efêmero e o Hibernate validará o schema com `ddl-auto=validate`, sem criação ou destruição automática pelo Hibernate
 
 ### Requirement: Baseline verificável de build e contexto
 O projeto SHALL compilar com a configuração de build versionada e SHALL possuir testes mínimos que comprovem o carregamento do contexto Spring Boot em ambiente isolado.
@@ -95,3 +97,4 @@ O projeto SHALL compilar com a configuração de build versionada e SHALL possui
 #### Scenario: Carregamento do contexto de teste
 - **WHEN** a suíte mínima da baseline for executada
 - **THEN** o contexto Spring Boot carregará usando o profile `test` e sem depender de PostgreSQL ou de credenciais externas
+

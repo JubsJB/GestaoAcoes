@@ -2,7 +2,7 @@
 
 Veja `proposal.md` para a motivação. A classe de bootstrap está em `com.projeto.gestaoacoes`, enquanto configurações, serviços e recursos estão em pacotes irmãos sob `com.projeto`; por convenção, a raiz atual não alcança esses componentes nem prepara a descoberta automática de futuros elementos de persistência no mesmo namespace. O Graphify confirma a relação `DevConfig` → `DBService` e a chamada de inicialização anotada com `@PostConstruct`, mas o serviço não implementa essa operação. `DevConfig`, `DBService` e `TestConfig` serão preservados para uso futuro. A configuração padrão ativa `test`, H2 está disponível no classpath de runtime, a configuração `dev` contém dados concretos do PostgreSQL e utiliza criação automática do schema, e a configuração de teste está empacotada nos recursos principais.
 
-As alterações devem preservar a aplicação Spring Boot e o build Maven existentes, evitar novas abstrações e não antecipar qualquer domínio descrito no PRD.
+As alterações devem preservar a aplicação Spring Boot e o build Maven existentes, evitar novas abstrações e não antecipar qualquer domínio descrito no PRD. Após a implementação original desta baseline, capabilities posteriores introduziram Liquibase e consolidaram o mesmo changelog nos ambientes `dev` e `test`; o estado final documentado por esta change incorpora essa evolução já implementada.
 
 ## Goals / Non-Goals
 
@@ -11,13 +11,13 @@ As alterações devem preservar a aplicação Spring Boot e o build Maven existe
 - Tornar o bootstrap determinístico para toda a árvore `com.projeto`.
 - Separar claramente configuração padrão e desenvolvimento PostgreSQL dos testes, mantendo H2 exclusivamente no ambiente de testes.
 - Eliminar inicializadores sem responsabilidade real.
-- Tornar configuração sensível externa e a gestão do schema persistente não destrutiva.
+- Tornar configuração sensível externa e manter a gestão de schema não destrutiva, com Liquibase como fonte de evolução e Hibernate somente como validador.
 - Manter uma verificação mínima e repetível de compilação e contexto.
 
 **Non-Goals:**
 
 - Definir entidades, repositories, dados iniciais ou regras de negócio.
-- Introduzir ferramenta de migração de banco nesta change.
+- Introduzir ferramenta de migração de banco como parte da implementação original desta change; o Liquibase foi incorporado posteriormente e integra a baseline técnica atual.
 - Introduzir biblioteca para carregar arquivos `.env` automaticamente ou adicionar Docker Compose nesta change.
 - Reestruturar as camadas da aplicação ou adicionar dependências.
 - Limpar histórico Git contendo segredos; credenciais já expostas devem ser revogadas ou rotacionadas operacionalmente.
@@ -52,34 +52,34 @@ Um `.env.example` será versionado para documentar as variáveis nativas e as va
 
 Alternativa considerada: exigir também URL e usuário externamente, sem defaults. A implementação final adotou defaults locais para esses dois valores por não serem secretos e por reduzirem configuração repetitiva; a senha permaneceu obrigatória para evitar credencial válida no repositório.
 
-### 5. Validar o schema persistente e isolar a criação em testes
+### 5. Evoluir o schema com Liquibase e validá-lo com Hibernate
 
-O profile `dev` utilizará `spring.jpa.hibernate.ddl-auto=validate`. Assim, o Hibernate verifica compatibilidade sem criar ou remover estruturas. O profile `test` poderá usar `create-drop` exclusivamente com H2 efêmero para isolar cada execução.
+Os profiles `dev` e `test` utilizam `spring.jpa.hibernate.ddl-auto=validate`. O Liquibase aplica o changelog versionado e as migrations 001–006 antes da criação do `EntityManagerFactory`; o Hibernate somente verifica a compatibilidade do mapeamento. O H2 permanece efêmero e restrito aos testes, mas seu schema também é criado pelo Liquibase, nunca por `create`, `create-drop` ou `update` do Hibernate.
 
-Alternativas consideradas: `update`, que pode modificar schema implicitamente e dificulta controle futuro; e introduzir Flyway ou Liquibase, que acrescentaria dependência e uma estratégia de migração ainda não necessária para a baseline vazia.
+A implementação original considerou `create-drop` exclusivamente para o H2 e adiou uma ferramenta de migração enquanto a baseline estava vazia. Essa alternativa foi superada pelas capabilities posteriores: o mesmo changelog Liquibase passou a atender PostgreSQL e H2, eliminando diferenças de estratégia de schema entre ambientes. `update` e qualquer criação automática pelo Hibernate permanecem rejeitados por reduzirem previsibilidade e controle.
 
 ### 6. Validar pelo build Maven e por teste de contexto focado
 
-A verificação usará o wrapper Maven já existente e a suíte de testes do projeto. O teste de contexto ativará `test` explicitamente e deverá comprovar que o bootstrap encontra componentes representativos sem acessar PostgreSQL. Testes adicionais serão limitados às fronteiras que não estejam cobertas pelo carregamento do contexto.
+A verificação usa o wrapper Maven e a suíte de testes do projeto. O teste de contexto ativa `test` explicitamente, comprova que o bootstrap encontra componentes representativos sem acessar PostgreSQL e confirma H2, Liquibase e Hibernate `validate`. Testes adicionais permanecem limitados às fronteiras que não estejam cobertas pelo carregamento do contexto.
 
 Alternativa considerada: criar uma suíte ampla de integração. Foi rejeitada por exceder a baseline e antecipar comportamentos de negócio inexistentes.
 
 ## Risks / Trade-offs
 
-- [O uso de `validate` impede a inicialização quando o schema ainda não existe] → Tratar a criação inicial do banco como ação operacional explícita; não reintroduzir criação automática destrutiva.
+- [O uso de `validate` impede a inicialização quando o changelog não produziu o schema esperado] → Aplicar as migrations Liquibase antes do Hibernate e não reintroduzir criação automática destrutiva.
 - [Senha ausente impede o profile `dev` de iniciar] → Documentar `SPRING_DATASOURCE_PASSWORD` e manter o erro explícito, sem senha padrão.
 - [Os defaults locais de URL e usuário podem apontar para um banco diferente do pretendido] → Permitir sobrescrita pelas variáveis nativas e documentar os valores efetivamente usados em cada ambiente.
 - [Copiar `.env.example` para `.env` não configura sozinho uma execução direta do Spring Boot] → Exigir exportação pelo shell, configuração da IDE ou injeção por orquestrador; não adicionar carregamento implícito.
 - [Mover a classe principal altera seu nome totalmente qualificado e pode afetar referências de teste ou execução] → Atualizar referências de bootstrap e testes na mesma alteração e validar pelo Maven Wrapper.
-- [Credenciais removidas do estado atual permanecem no histórico Git] → A credencial exposta foi revogada ou rotacionada externamente; qualquer reescrita de histórico continua sendo uma ação separada e coordenada.
+- [Credenciais removidas do estado atual permanecem no histórico Git] → Manter documentada a necessidade de revogação ou rotação no ambiente PostgreSQL; não afirmar sua execução sem evidência e tratar qualquer reescrita de histórico como ação separada e coordenada.
 - [Restringir H2 aos testes elimina o fallback conveniente em execuções locais sem profile] → Exigir seleção explícita de `dev` e configuração PostgreSQL externa, mantendo H2 somente para a suíte automatizada.
 - [As classes preservadas continuam sem comportamento útil nesta baseline] → Manter apenas sua estrutura atual e adiar qualquer responsabilidade para a change funcional que efetivamente a exigir.
 
 ## Migration Plan
 
-1. Revogar ou rotacionar as credenciais PostgreSQL expostas, registrar a confirmação operacional e preparar a senha externa para o ambiente `dev`.
+1. Remover credenciais ativas dos arquivos versionados, externalizar o datasource e documentar que qualquer credencial anteriormente exposta deve ser revogada ou rotacionada externamente; a execução dessa ação no PostgreSQL não é realizada nem comprovada pelo repositório.
 2. Mover a classe principal para `com.projeto`, retirar somente o vínculo de inicialização inconsistente e preservar `DevConfig`, `DBService` e `TestConfig`.
-3. Configurar `dev` com as variáveis nativas, defaults locais de URL e usuário, senha externa e validação não destrutiva; restringir H2 e sua configuração ao classpath de teste.
+3. Configurar `dev` com as variáveis nativas, defaults locais de URL e usuário e senha externa; restringir H2 ao classpath de teste; aplicar as migrations Liquibase 001–006 e usar Hibernate `validate` em ambos os ambientes.
 4. Executar compilação e testes mínimos antes de disponibilizar a baseline.
 5. Iniciar o ambiente de desenvolvimento com `dev` explicitamente selecionado e com a senha injetada pelo shell, IDE ou orquestrador; sobrescrever URL e usuário quando os defaults locais não forem adequados.
 
