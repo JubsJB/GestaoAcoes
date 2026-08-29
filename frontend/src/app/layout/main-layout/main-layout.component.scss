@@ -1,0 +1,81 @@
+:host {
+  display: grid;
+  min-height: 100dvh;
+  grid-template-rows: auto 1fr;
+}
+
+.skip-link {
+  position: fixed;
+  top: 0.5rem;
+  left: 0.5rem;
+  z-index: 1000;
+  padding: 0.75rem 1rem;
+  border-radius: 0.25rem;
+  color: var(--mat-sys-on-primary);
+  background: var(--mat-sys-primary);
+  transform: translateY(-150%);
+
+  &:focus {
+    transform: translateY(0);
+  }
+}
+
+.app-toolbar {
+  position: relative;
+  z-index: 2;
+  min-height: 4rem;
+  color: var(--mat-sys-on-primary-container);
+  background: var(--mat-sys-primary-container);
+  box-shadow: var(--mat-sys-level2);
+}
+
+.menu-button {
+  margin-right: 0.5rem;
+  font-size: 1.5rem;
+}
+
+.app-title {
+  font: var(--mat-sys-title-large);
+  font-weight: 600;
+}
+
+.shell-container {
+  min-height: 0;
+}
+
+.app-sidenav {
+  width: 16rem;
+  border-radius: 0;
+  border-right: 1px solid var(--mat-sys-outline-variant);
+  background: var(--mat-sys-surface-container-low);
+}
+
+.active-navigation-item {
+  position: relative;
+  font-weight: 700;
+  background: var(--mat-sys-secondary-container);
+
+  &::before {
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: 0.25rem;
+    background: var(--mat-sys-primary);
+    content: '';
+  }
+}
+
+.main-content {
+  min-height: 100%;
+  padding: 1.5rem;
+  background: var(--mat-sys-surface);
+}
+
+@media (max-width: 959.98px) {
+  .app-toolbar {
+    min-height: 3.5rem;
+  }
+
+  .main-content {
+    padding: 1rem;
+  }
+}

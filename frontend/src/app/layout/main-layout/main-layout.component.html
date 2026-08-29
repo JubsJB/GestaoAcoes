@@ -1,0 +1,52 @@
+<a class="skip-link" href="#main-content" (click)="focusMainContent()">Pular para o conteúdo</a>
+
+<mat-toolbar class="app-toolbar">
+  @if (isCompact()) {
+    <button
+      matIconButton
+      type="button"
+      class="menu-button"
+      aria-label="Abrir ou fechar menu principal"
+      aria-controls="primary-navigation"
+      [attr.aria-expanded]="compactDrawerOpened()"
+      (click)="toggleDrawer()"
+    >
+      <span aria-hidden="true">☰</span>
+    </button>
+  }
+
+  <span class="app-title">Gestão de Ações</span>
+</mat-toolbar>
+
+<mat-sidenav-container class="shell-container" (backdropClick)="closeCompactDrawer()">
+  <mat-sidenav
+    #drawer
+    id="primary-navigation"
+    class="app-sidenav"
+    [mode]="isCompact() ? 'over' : 'side'"
+    [opened]="!isCompact() || compactDrawerOpened()"
+    [disableClose]="!isCompact()"
+    (keydown.escape)="closeCompactDrawer()"
+  >
+    <nav aria-label="Navegação principal">
+      <mat-nav-list>
+        @for (item of navigationItems; track item.route) {
+          <a
+            mat-list-item
+            [routerLink]="item.route"
+            routerLinkActive="active-navigation-item"
+            ariaCurrentWhenActive="page"
+          >
+            <span matListItemTitle>{{ item.label }}</span>
+          </a>
+        }
+      </mat-nav-list>
+    </nav>
+  </mat-sidenav>
+
+  <mat-sidenav-content>
+    <main #mainContent id="main-content" class="main-content" tabindex="-1">
+      <router-outlet />
+    </main>
+  </mat-sidenav-content>
+</mat-sidenav-container>
