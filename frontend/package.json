@@ -1,0 +1,41 @@
+{
+  "name": "frontend",
+  "version": "0.0.0",
+  "scripts": {
+    "ng": "ng",
+    "start": "ng serve",
+    "build": "ng build",
+    "watch": "ng build --watch --configuration development",
+    "test": "ng test"
+  },
+  "private": true,
+  "packageManager": "npm@11.17.0",
+  "allowScripts": {
+    "@parcel/watcher": false,
+    "esbuild@0.28.2": true,
+    "fsevents": false,
+    "lmdb": false,
+    "msgpackr-extract": false
+  },
+  "engines": {
+    "node": "^22.22.3 || ^24.15.0 || ^26.0.0"
+  },
+  "dependencies": {
+    "@angular/common": "22.1.4",
+    "@angular/compiler": "22.1.4",
+    "@angular/core": "22.1.4",
+    "@angular/forms": "22.1.4",
+    "@angular/platform-browser": "22.1.4",
+    "@angular/router": "22.1.4",
+    "rxjs": "~7.8.0",
+    "tslib": "^2.3.0"
+  },
+  "devDependencies": {
+    "@angular/build": "22.1.4",
+    "@angular/cli": "22.1.4",
+    "@angular/compiler-cli": "22.1.4",
+    "jsdom": "^28.0.0",
+    "typescript": "~6.0.2",
+    "vitest": "^4.0.8"
+  }
+}
