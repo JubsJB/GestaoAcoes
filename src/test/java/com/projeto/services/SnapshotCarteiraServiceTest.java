@@ -13,6 +13,8 @@ import com.projeto.repositories.SnapshotCarteiraRepository;
 import com.projeto.services.exceptions.ObjectNotFoundException;
 import com.projeto.services.exceptions.ApiException;
 import com.projeto.services.exceptions.ErrorCodes;
+import com.projeto.services.exceptions.ConstraintNameExtractor;
+import org.hibernate.exception.ConstraintViolationException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
@@ -30,6 +32,7 @@ import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Optional;
+import java.sql.SQLException;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -63,7 +66,8 @@ class SnapshotCarteiraServiceTest {
                 agregador,
                 snapshotRepository,
                 componenteRepository,
-                new SnapshotCarteiraMapper()
+                new SnapshotCarteiraMapper(),
+                new ConstraintNameExtractor()
         );
     }
 
@@ -120,7 +124,7 @@ class SnapshotCarteiraServiceTest {
         when(posicaoService.listarPorCarteira(1L)).thenReturn(List.of());
         when(carteiraRepository.getReferenceById(1L)).thenReturn(carteira);
         when(agregador.agregar(List.of())).thenReturn(List.of());
-        when(snapshotRepository.saveAndFlush(any())).thenThrow(new DataIntegrityViolationException(
+        when(snapshotRepository.saveAndFlush(any())).thenThrow(integrity(
                 "uk_snapshot_carteira_carteira_data_hora"
         ));
 
@@ -136,10 +140,19 @@ class SnapshotCarteiraServiceTest {
         when(posicaoService.listarPorCarteira(1L)).thenReturn(List.of());
         when(carteiraRepository.getReferenceById(1L)).thenReturn(carteira);
         when(agregador.agregar(List.of())).thenReturn(List.of());
-        DataIntegrityViolationException failure = new DataIntegrityViolationException("outra_constraint");
-        when(snapshotRepository.saveAndFlush(any())).thenThrow(failure);
+        DataIntegrityViolationException failure = integrity("uk_snapshot_carteira_moeda_snapshot_moeda");
+        DataIntegrityViolationException unknown = integrity("outra_constraint");
+        DataIntegrityViolationException messageOnly = new DataIntegrityViolationException(
+                "uk_snapshot_carteira_carteira_data_hora only in message"
+        );
+        when(snapshotRepository.saveAndFlush(any()))
+                .thenThrow(failure)
+                .thenThrow(unknown)
+                .thenThrow(messageOnly);
 
         assertEquals(failure, assertThrows(DataIntegrityViolationException.class, () -> service.criar(1L)));
+        assertEquals(unknown, assertThrows(DataIntegrityViolationException.class, () -> service.criar(1L)));
+        assertEquals(messageOnly, assertThrows(DataIntegrityViolationException.class, () -> service.criar(1L)));
     }
 
     @Test
@@ -152,12 +165,17 @@ class SnapshotCarteiraServiceTest {
         assertTrue(!transactional.readOnly());
         assertEquals(
                 List.of("clock", "carteiraRepository", "posicaoService", "agregador", "snapshotRepository",
-                        "componenteRepository", "mapper"),
+                        "componenteRepository", "mapper", "constraintNameExtractor"),
                 java.util.Arrays.stream(SnapshotCarteiraService.class.getDeclaredFields())
                         .filter(field -> !java.lang.reflect.Modifier.isStatic(field.getModifiers()))
                         .map(java.lang.reflect.Field::getName)
                         .toList()
         );
+    }
+
+    private DataIntegrityViolationException integrity(String name) {
+        return new DataIntegrityViolationException("integrity",
+                new ConstraintViolationException("native", new SQLException("sql"), name));
     }
 
     private SnapshotCarteira identified(SnapshotCarteira snapshot, long id) {

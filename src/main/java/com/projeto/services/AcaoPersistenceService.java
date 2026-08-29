@@ -7,6 +7,7 @@ import com.projeto.repositories.AcaoRepository;
 import com.projeto.repositories.HistoricoCotacaoRepository;
 import com.projeto.services.exceptions.ApiException;
 import com.projeto.services.exceptions.ErrorCodes;
+import com.projeto.services.exceptions.ConstraintNameExtractor;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -18,15 +19,20 @@ import java.util.Map;
 @Service
 public class AcaoPersistenceService {
 
+    private static final String UNIQUE_TICKER_MERCADO = "uk_acao_ticker_mercado";
+
     private final AcaoRepository repository;
     private final HistoricoCotacaoRepository historicoRepository;
+    private final ConstraintNameExtractor constraintNameExtractor;
 
     public AcaoPersistenceService(
             AcaoRepository repository,
-            HistoricoCotacaoRepository historicoRepository
+            HistoricoCotacaoRepository historicoRepository,
+            ConstraintNameExtractor constraintNameExtractor
     ) {
         this.repository = repository;
         this.historicoRepository = historicoRepository;
+        this.constraintNameExtractor = constraintNameExtractor;
     }
 
     @Transactional(readOnly = true)
@@ -46,7 +52,12 @@ public class AcaoPersistenceService {
         try {
             persisted = repository.saveAndFlush(acao);
         } catch (DataIntegrityViolationException exception) {
-            throw duplicate(acao.getTicker(), acao.getMercado());
+            if (constraintNameExtractor.extractConstraintName(exception)
+                    .filter(UNIQUE_TICKER_MERCADO::equalsIgnoreCase)
+                    .isPresent()) {
+                throw duplicate(acao.getTicker(), acao.getMercado());
+            }
+            throw exception;
         }
 
         historicoRepository.saveAndFlush(new HistoricoCotacao(

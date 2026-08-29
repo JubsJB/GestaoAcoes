@@ -4,6 +4,7 @@ import com.projeto.entities.Corretora;
 import com.projeto.repositories.CorretoraRepository;
 import com.projeto.services.exceptions.ApiException;
 import com.projeto.services.exceptions.ErrorCodes;
+import com.projeto.services.exceptions.ConstraintNameExtractor;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -12,10 +13,17 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class CorretoraPersistenceService {
 
-    private final CorretoraRepository repository;
+    private static final String UNIQUE_CNPJ = "uk_corretora_cnpj";
 
-    public CorretoraPersistenceService(CorretoraRepository repository) {
+    private final CorretoraRepository repository;
+    private final ConstraintNameExtractor constraintNameExtractor;
+
+    public CorretoraPersistenceService(
+            CorretoraRepository repository,
+            ConstraintNameExtractor constraintNameExtractor
+    ) {
         this.repository = repository;
+        this.constraintNameExtractor = constraintNameExtractor;
     }
 
     @Transactional(readOnly = true)
@@ -34,7 +42,12 @@ public class CorretoraPersistenceService {
         try {
             return repository.saveAndFlush(corretora);
         } catch (DataIntegrityViolationException exception) {
-            throw duplicateCnpj();
+            if (constraintNameExtractor.extractConstraintName(exception)
+                    .filter(UNIQUE_CNPJ::equalsIgnoreCase)
+                    .isPresent()) {
+                throw duplicateCnpj();
+            }
+            throw exception;
         }
     }
 

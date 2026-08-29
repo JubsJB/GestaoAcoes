@@ -4,6 +4,8 @@ import com.projeto.services.exceptions.ApiException;
 import com.projeto.services.exceptions.ErrorCodes;
 import com.projeto.services.exceptions.ObjectNotFoundException;
 import jakarta.servlet.http.HttpServletRequest;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -18,6 +20,8 @@ import java.util.Map;
 
 @ControllerAdvice
 public class ResourceExceptionHandler {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(ResourceExceptionHandler.class);
 
     @ExceptionHandler(ApiException.class)
     public ResponseEntity<StandardError> handleApiException(ApiException ex, HttpServletRequest request) {
@@ -71,11 +75,12 @@ public class ResourceExceptionHandler {
             DataIntegrityViolationException ex,
             HttpServletRequest request
     ) {
+        LOGGER.error("Violação de integridade de dados não classificada no path {}", request.getRequestURI(), ex);
         StandardError error = createError(
                 HttpStatus.CONFLICT,
-                "Já existe uma corretora cadastrada com este CNPJ",
+                "A operação viola uma regra de integridade dos dados.",
                 request.getRequestURI(),
-                ErrorCodes.CORRETORA_DUPLICADA,
+                ErrorCodes.INTEGRIDADE_DADOS_VIOLADA,
                 Map.of()
         );
         return ResponseEntity.status(HttpStatus.CONFLICT).body(error);

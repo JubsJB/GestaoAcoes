@@ -8,6 +8,7 @@ public final class ErrorCodes {
     public static final String CEP_INVALIDO = "CEP_INVALIDO";
     public static final String CEP_INEXISTENTE = "CEP_INEXISTENTE";
     public static final String CORRETORA_DUPLICADA = "CORRETORA_DUPLICADA";
+    public static final String INTEGRIDADE_DADOS_VIOLADA = "INTEGRIDADE_DADOS_VIOLADA";
     public static final String DADOS_EXTERNOS_INCOMPLETOS = "DADOS_EXTERNOS_INCOMPLETOS";
     public static final String SITUACAO_CADASTRAL_NAO_ATIVA = "SITUACAO_CADASTRAL_NAO_ATIVA";
     public static final String LIMITE_REQUISICOES_EXCEDIDO = "LIMITE_REQUISICOES_EXCEDIDO";

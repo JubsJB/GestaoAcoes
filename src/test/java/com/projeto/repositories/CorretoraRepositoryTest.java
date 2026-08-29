@@ -41,6 +41,11 @@ class CorretoraRepositoryTest {
     }
 
     @Test
+    void returnsEmptyWhenNormalizedCnpjDoesNotExist() {
+        assertTrue(repository.findByCnpj("04252011000110").isEmpty());
+    }
+
+    @Test
     void persistsOptionalFieldsAsNull() {
         Corretora saved = repository.saveAndFlush(new Corretora(
                 "04252011000110", "Corretora Sem Opcionais S.A.", null, null, null,

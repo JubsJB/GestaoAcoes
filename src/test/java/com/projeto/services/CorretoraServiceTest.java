@@ -21,6 +21,12 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.repository.Lock;
+import org.springframework.http.HttpStatus;
+import org.springframework.transaction.annotation.Isolation;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.lang.reflect.Method;
 
 import java.time.Clock;
 import java.time.Instant;
@@ -274,6 +280,71 @@ class CorretoraServiceTest {
         assertEquals("Corretora não encontrada para o id: 99", exception.getMessage());
         verify(repository).findById(99L);
         verifyNoInteractions(cnpjProvider, cepProvider, persistenceService);
+    }
+
+    @Test
+    void findsBrokerByMaskedOrUnmaskedCnpjUsingOneNormalizedRepositoryQuery() {
+        Corretora corretora = broker(CNPJ, "Corretora Consultada S.A.", true);
+        when(repository.findByCnpj(CNPJ)).thenReturn(Optional.of(corretora));
+
+        CorretoraResponse masked = service.buscarPorCnpj("11.222.333/0001-81");
+        CorretoraResponse unmasked = service.buscarPorCnpj(CNPJ);
+
+        assertEquals(masked, unmasked);
+        assertEquals(CNPJ, masked.cnpj());
+        assertEquals("Corretora Consultada S.A.", masked.razaoSocial());
+        assertEquals("Nome Fantasia", masked.nomeFantasia());
+        assertEquals(OffsetDateTime.ofInstant(NOW, ZoneOffset.UTC), masked.dataCadastro());
+        verify(repository, times(2)).findByCnpj(CNPJ);
+        verifyNoInteractions(cnpjProvider, cepProvider, persistenceService);
+    }
+
+    @Test
+    void rejectsEveryInvalidCnpjBeforeRepositoryOrExternalDependencies() {
+        List<String> invalidValues = java.util.Arrays.asList(
+                null,
+                "",
+                "   ",
+                "11.222.333/0001-8A",
+                "1122233300018",
+                "11111111111111",
+                "11.222.333/0001-82"
+        );
+
+        for (String invalidValue : invalidValues) {
+            ApiException exception = assertThrows(
+                    ApiException.class,
+                    () -> service.buscarPorCnpj(invalidValue)
+            );
+            assertEquals(HttpStatus.BAD_REQUEST, exception.getStatus());
+            assertEquals(ErrorCodes.CNPJ_INVALIDO, exception.getCode());
+        }
+
+        verifyNoInteractions(repository, cnpjProvider, cepProvider, persistenceService);
+    }
+
+    @Test
+    void throwsObjectNotFoundForValidMissingCnpjWithoutExternalCallsOrWrites() {
+        when(repository.findByCnpj(CNPJ)).thenReturn(Optional.empty());
+
+        ObjectNotFoundException exception = assertThrows(
+                ObjectNotFoundException.class,
+                () -> service.buscarPorCnpj("11.222.333/0001-81")
+        );
+
+        assertEquals("Corretora não encontrada para o CNPJ: " + CNPJ, exception.getMessage());
+        verify(repository).findByCnpj(CNPJ);
+        verifyNoInteractions(cnpjProvider, cepProvider, persistenceService);
+    }
+
+    @Test
+    void cnpjLookupIsReadOnlyWithDefaultIsolationAndNoLockAnnotation() throws Exception {
+        Method method = CorretoraService.class.getMethod("buscarPorCnpj", String.class);
+        Transactional transactional = method.getAnnotation(Transactional.class);
+
+        assertTrue(transactional.readOnly());
+        assertEquals(Isolation.DEFAULT, transactional.isolation());
+        assertNull(method.getAnnotation(Lock.class));
     }
 
     private CorretoraCreateRequest request(String cnpj, boolean confirmation) {

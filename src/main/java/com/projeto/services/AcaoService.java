@@ -107,6 +107,22 @@ public class AcaoService {
         return mapper.toResponse(acao);
     }
 
+    @Transactional(readOnly = true)
+    public AcaoResponse buscarPorTickerEMercado(String ticker, Mercado mercado) {
+        String tickerNormalizado = tickerNormalizer.normalizeAndValidate(ticker);
+        if (mercado == null) {
+            throw invalidRequest();
+        }
+
+        Acao acao = repository.findByTickerAndMercado(tickerNormalizado, mercado)
+                .orElseThrow(() -> new ObjectNotFoundException(
+                        "Ação não encontrada para o ticker e mercado: "
+                                + tickerNormalizado + " / " + mercado
+                ));
+
+        return mapper.toResponse(acao);
+    }
+
     public AcaoResponse atualizarCotacao(Long id) {
         Acao acao = repository.findById(id)
                 .orElseThrow(() -> new ObjectNotFoundException(

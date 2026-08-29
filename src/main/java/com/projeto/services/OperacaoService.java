@@ -15,6 +15,7 @@ import com.projeto.repositories.OperacaoRepository;
 import com.projeto.services.exceptions.ApiException;
 import com.projeto.services.exceptions.ErrorCodes;
 import com.projeto.services.exceptions.ObjectNotFoundException;
+import com.projeto.services.exceptions.ConstraintNameExtractor;
 import com.projeto.validation.TickerNormalizer;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Sort;
@@ -31,7 +32,6 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 
 @Service
@@ -43,7 +43,7 @@ public class OperacaoService {
     private static final int TOTAL_SCALE = 12;
     private static final ZoneId BRAZIL_ZONE = ZoneId.of("America/Sao_Paulo");
     private static final ZoneId USA_ZONE = ZoneId.of("America/New_York");
-    private static final String ORDER_CONSTRAINT = "UK_OPERACAO_CARTEIRA_ACAO_DATA_ORDEM";
+    private static final String ORDER_CONSTRAINT = "uk_operacao_carteira_acao_data_ordem";
     private static final Sort QUERY_ORDER = Sort.by(
             Sort.Order.asc("dataOperacao"),
             Sort.Order.asc("ordemNoDia"),
@@ -62,6 +62,7 @@ public class OperacaoService {
     private final OperacaoMapper mapper;
     private final Clock clock;
     private final CalculadoraPosicao calculadoraPosicao;
+    private final ConstraintNameExtractor constraintNameExtractor;
 
     public OperacaoService(
             OperacaoRepository operacaoRepository,
@@ -71,7 +72,8 @@ public class OperacaoService {
             TickerNormalizer tickerNormalizer,
             OperacaoMapper mapper,
             Clock clock,
-            CalculadoraPosicao calculadoraPosicao
+            CalculadoraPosicao calculadoraPosicao,
+            ConstraintNameExtractor constraintNameExtractor
     ) {
         this.operacaoRepository = operacaoRepository;
         this.carteiraRepository = carteiraRepository;
@@ -81,6 +83,7 @@ public class OperacaoService {
         this.mapper = mapper;
         this.clock = clock;
         this.calculadoraPosicao = calculadoraPosicao;
+        this.constraintNameExtractor = constraintNameExtractor;
     }
 
     @Transactional
@@ -321,15 +324,9 @@ public class OperacaoService {
     }
 
     private boolean isOrderConstraintViolation(Throwable throwable) {
-        Throwable current = throwable;
-        while (current != null) {
-            String message = current.getMessage();
-            if (message != null && message.toUpperCase(Locale.ROOT).contains(ORDER_CONSTRAINT)) {
-                return true;
-            }
-            current = current.getCause();
-        }
-        return false;
+        return constraintNameExtractor.extractConstraintName(throwable)
+                .filter(ORDER_CONSTRAINT::equalsIgnoreCase)
+                .isPresent();
     }
 
     private ApiException invalidRequest(String field, String message) {

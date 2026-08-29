@@ -1,17 +1,27 @@
 package com.projeto.resources.exceptions;
 
+import io.swagger.v3.oas.annotations.media.Schema;
+
 import java.io.Serializable;
 import java.util.Map;
 
+@Schema(name = "StandardError", description = "Resposta pública padronizada de erro")
 public class StandardError implements Serializable {
     private static final long serialVersionUID = 1L;
 
+    @Schema(description = "Timestamp Unix em milissegundos", example = "1788004800000")
     private Long timeStamp;
+    @Schema(description = "Status HTTP", example = "409")
     private Integer status;
+    @Schema(description = "Reason phrase HTTP", example = "Conflict")
     private String error;
+    @Schema(description = "Mensagem pública segura", example = "A operação viola uma regra de integridade dos dados.")
     private String message;
+    @Schema(description = "Path da requisição", example = "/carteiras/1")
     private String path;
+    @Schema(description = "Código público estável do erro", example = "INTEGRIDADE_DADOS_VIOLADA", nullable = true)
     private String code;
+    @Schema(description = "Detalhes públicos adicionais, sem informações internas", example = "{}")
     private Map<String, Object> details;
 
     public StandardError() {

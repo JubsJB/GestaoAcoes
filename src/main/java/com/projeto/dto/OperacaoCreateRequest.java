@@ -3,6 +3,7 @@ package com.projeto.dto;
 import com.fasterxml.jackson.annotation.JsonAnySetter;
 import com.projeto.entities.Mercado;
 import com.projeto.entities.TipoOperacao;
+import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Digits;
 import jakarta.validation.constraints.NotBlank;
@@ -14,33 +15,42 @@ import java.time.LocalDate;
 
 public class OperacaoCreateRequest {
 
+    @Schema(description = "Identificador da carteira", example = "1")
     @NotNull(message = "Carteira é obrigatória")
     private Long carteiraId;
 
+    @Schema(description = "Ticker da ação", example = "PETR4", maxLength = 30)
     @NotBlank(message = "Ticker é obrigatório")
     private String ticker;
 
+    @Schema(description = "Mercado da ação", example = "BRASIL", allowableValues = {"BRASIL", "EUA"})
     @NotNull(message = "Mercado é obrigatório")
     private Mercado mercado;
 
+    @Schema(description = "Identificador opcional da corretora", example = "1", nullable = true)
     private Long corretoraId;
 
+    @Schema(description = "Tipo da operação", example = "COMPRA", allowableValues = {"COMPRA", "VENDA"})
     @NotNull(message = "Tipo é obrigatório")
     private TipoOperacao tipo;
 
+    @Schema(description = "Quantidade negociada, com escala máxima de 6 casas", example = "100.000000")
     @NotNull(message = "Quantidade é obrigatória")
     @DecimalMin(value = "0", inclusive = false, message = "Quantidade deve ser maior que zero")
     @Digits(integer = 13, fraction = 6, message = "Quantidade deve possuir precisão máxima 19 e escala máxima 6")
     private BigDecimal quantidade;
 
+    @Schema(description = "Preço unitário na moeda da ação, com escala máxima de 6 casas", example = "32.150000")
     @NotNull(message = "Preço unitário é obrigatório")
     @DecimalMin(value = "0", inclusive = false, message = "Preço unitário deve ser maior que zero")
     @Digits(integer = 13, fraction = 6, message = "Preço unitário deve possuir precisão máxima 19 e escala máxima 6")
     private BigDecimal precoUnitario;
 
+    @Schema(description = "Data efetiva da operação", example = "2026-08-29", format = "date")
     @NotNull(message = "Data da operação é obrigatória")
     private LocalDate dataOperacao;
 
+    @Schema(description = "Desempate cronológico entre operações na mesma data", example = "1", minimum = "1")
     @NotNull(message = "Ordem no dia é obrigatória")
     @Positive(message = "Ordem no dia deve ser maior que zero")
     private Integer ordemNoDia;

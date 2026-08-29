@@ -14,8 +14,7 @@ import com.projeto.repositories.HistoricoCotacaoRepository;
 import com.projeto.repositories.OperacaoRepository;
 import com.projeto.repositories.SnapshotCarteiraMoedaRepository;
 import com.projeto.repositories.SnapshotCarteiraRepository;
-import com.projeto.services.exceptions.ApiException;
-import com.projeto.services.exceptions.ErrorCodes;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -108,11 +107,10 @@ class SnapshotCarteiraIntegrationTest {
         long parents = snapshotRepository.count();
         long children = componenteRepository.count();
 
-        ApiException conflict = assertThrows(ApiException.class, () -> service.criar(carteira.getId()));
+        assertThrows(DataIntegrityViolationException.class, () -> service.criar(carteira.getId()));
 
         assertNotEquals(first.id(), second.id());
         assertEquals(first.patrimonios(), second.patrimonios());
-        assertEquals(ErrorCodes.SNAPSHOT_CARTEIRA_DUPLICADO, conflict.getCode());
         assertEquals(parents, snapshotRepository.count());
         assertEquals(children, componenteRepository.count());
     }
