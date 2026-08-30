@@ -4,6 +4,16 @@ export const ACOES_ROUTES: Routes = [
   {
     path: '',
     loadComponent: () =>
-      import('./acoes-placeholder.component').then((module) => module.AcoesPlaceholderComponent)
+      import('./pages/acoes-list-page.component').then((module) => module.AcoesListPageComponent)
+  },
+  {
+    path: 'nova',
+    loadComponent: () =>
+      import('./pages/acao-create-page.component').then((module) => module.AcaoCreatePageComponent)
+  },
+  {
+    path: ':id',
+    loadComponent: () =>
+      import('./pages/acao-detail-page.component').then((module) => module.AcaoDetailPageComponent)
   }
 ];

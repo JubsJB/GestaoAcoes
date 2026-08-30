@@ -1,0 +1,23 @@
+import { ChangeDetectionStrategy, Component, DestroyRef, inject, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
+import { MatButtonModule } from '@angular/material/button';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatInputModule } from '@angular/material/input';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { MatSelectModule } from '@angular/material/select';
+import { MatSnackBar } from '@angular/material/snack-bar';
+import { Router, RouterLink } from '@angular/router';
+import { finalize } from 'rxjs';
+
+import { NormalizedHttpError } from '../../../core/errors/normalized-http-error';
+import { AcoesService } from '../acoes.service';
+import { Mercado, normalizeTicker } from '../models/acao';
+
+@Component({selector:'app-acao-create-page',imports:[MatButtonModule,MatFormFieldModule,MatInputModule,MatProgressSpinnerModule,MatSelectModule,ReactiveFormsModule,RouterLink],template:`<section class="page" aria-labelledby="create-title"><a mat-button routerLink="/acoes">← Voltar para ações</a><div><h1 id="create-title">Cadastrar ação</h1><p>Informe ticker e mercado. O backend consultará os dados e a última cotação disponível.</p></div><form [formGroup]="form" (ngSubmit)="submit()" novalidate><mat-form-field appearance="outline"><mat-label>Ticker</mat-label><input matInput formControlName="ticker" maxlength="30" aria-describedby="ticker-hint"/><mat-hint id="ticker-hint">Até 30 caracteres; espaços externos e letras minúsculas serão normalizados.</mat-hint>@if(form.controls.ticker.invalid&&form.controls.ticker.touched){<mat-error>Ticker é obrigatório e deve ter até 30 caracteres.</mat-error>}</mat-form-field><mat-form-field appearance="outline"><mat-label>Mercado</mat-label><mat-select formControlName="mercado" aria-describedby="mercado-hint"><mat-option value="BRASIL">Brasil</mat-option><mat-option value="EUA">EUA</mat-option></mat-select><mat-hint id="mercado-hint">Selecione Brasil ou EUA.</mat-hint>@if(form.controls.mercado.invalid&&form.controls.mercado.touched){<mat-error>Mercado é obrigatório.</mat-error>}</mat-form-field>@if(error();as currentError){<div role="alert" class="error"><p>{{currentError.message}}</p>@if(detailEntries(currentError).length){<dl>@for(entry of detailEntries(currentError);track entry[0]){<dt>{{entry[0]}}</dt><dd>{{entry[1]}}</dd>}</dl>}</div>}<div class="actions"><button mat-flat-button type="submit" [disabled]="submitting()" [attr.aria-busy]="submitting()">Cadastrar ação</button><a mat-button routerLink="/acoes">Cancelar</a></div>@if(submitting()){<div role="status" aria-live="polite" class="progress"><mat-spinner diameter="28"/>Processando cadastro…</div>}</form></section>`,styles:[`.page{max-width:42rem;display:grid;gap:1.25rem}h1{margin-bottom:.25rem}form{display:grid;gap:1rem}.actions,.progress{display:flex;align-items:center;gap:.75rem;flex-wrap:wrap}.error{color:var(--mat-sys-error)}dl{display:grid;grid-template-columns:auto 1fr;gap:.25rem .75rem}dd{margin:0}@media(max-width:36rem){.actions{display:grid}.actions>*{width:100%}}`],changeDetection:ChangeDetectionStrategy.OnPush})
+export class AcaoCreatePageComponent{
+  private readonly service=inject(AcoesService);private readonly snackBar=inject(MatSnackBar);private readonly router=inject(Router);private readonly destroyRef=inject(DestroyRef);
+  protected readonly submitting=signal(false);protected readonly error=signal<NormalizedHttpError|null>(null);protected readonly form=new FormGroup({ticker:new FormControl('',{nonNullable:true,validators:[Validators.required,Validators.maxLength(30)]}),mercado:new FormControl<Mercado|null>(null,{validators:[Validators.required]})});
+  protected submit():void{this.form.markAllAsTouched();const mercado=this.form.controls.mercado.value;if(this.form.invalid||!mercado||this.submitting())return;this.submitting.set(true);this.error.set(null);this.service.criar({ticker:normalizeTicker(this.form.controls.ticker.value),mercado}).pipe(finalize(()=>this.submitting.set(false)),takeUntilDestroyed(this.destroyRef)).subscribe({next:acao=>{this.snackBar.open('Ação cadastrada com sucesso.','Fechar',{duration:5000});void this.router.navigate(['/acoes',acao.id],{info:{acao}});},error:(error:NormalizedHttpError)=>this.error.set(error)});}
+  protected detailEntries(error:NormalizedHttpError):[string,string][]{return Object.entries(error.details).map(([key,value])=>[key,typeof value==='string'?value:JSON.stringify(value)]);}
+}

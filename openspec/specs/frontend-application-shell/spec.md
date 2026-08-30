@@ -71,7 +71,7 @@ O shell SHALL adaptar a navegação ao viewport. Em largura igual ou superior a 
 - **THEN** o drawer é fechado sem alterar o destino resolvido
 
 ### Requirement: Destinos estruturais carregados sob demanda
-Cada área principal SHALL constituir um limite independente de carregamento sob demanda. Enquanto uma área não possuir capability funcional aprovada, ela SHALL apresentar somente um placeholder estrutural. Uma capability posterior explicitamente aprovada MAY substituir o placeholder de sua própria área por comportamento funcional, preservando o shell e o limite lazy sem tornar funcionais as demais áreas.
+Cada área principal SHALL constituir um limite independente de carregamento sob demanda. Enquanto uma área não possuir capability funcional aprovada, ela SHALL apresentar somente um placeholder estrutural. Capabilities posteriores explicitamente aprovadas MAY substituir os placeholders de suas próprias áreas por comportamento funcional, preservando o shell e cada limite lazy sem tornar funcionais as demais áreas. As capabilities `frontend-broker-management` e `frontend-stock-management` SHALL fornecer respectivamente o comportamento funcional de Corretoras e Ações, sem transferir essas responsabilidades de domínio ao shell.
 
 #### Scenario: Resolução por limite lazy
 - **WHEN** o usuário navega para uma das cinco áreas principais
@@ -86,8 +86,8 @@ Cada área principal SHALL constituir um limite independente de carregamento sob
 - **THEN** nenhuma requisição HTTP é realizada e nenhum contrato ou service de domínio é necessário
 
 #### Scenario: Evolução funcional aprovada
-- **WHEN** uma capability aprovada introduz comportamento funcional para uma área principal
-- **THEN** somente o placeholder dessa área é substituído, mantendo o limite lazy, o shell e os placeholders das áreas ainda não implementadas
+- **WHEN** as capabilities aprovadas de Corretoras e Ações introduzem comportamento funcional em suas áreas
+- **THEN** somente esses placeholders são substituídos, mantendo os limites lazy, o shell e os placeholders de Dashboard, Carteiras e Operações
 
 ### Requirement: Tratamento de rota desconhecida
 A aplicação SHALL apresentar um estado técnico de página não encontrada para URLs desconhecidas dentro do shell. A aplicação MUST NOT redirecionar silenciosamente uma URL desconhecida para o dashboard.
