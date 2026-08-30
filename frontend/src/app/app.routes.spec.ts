@@ -1,4 +1,5 @@
 import { BreakpointObserver, BreakpointState } from '@angular/cdk/layout';
+import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter, Router } from '@angular/router';
@@ -6,6 +7,7 @@ import { RouterTestingHarness } from '@angular/router/testing';
 import { of } from 'rxjs';
 
 import { routes } from './app.routes';
+import { provideApiConfig } from './core/config/api.config';
 
 const desktopBreakpointObserver = {
   observe: () => of<BreakpointState>({ matches: false, breakpoints: {} })
@@ -18,7 +20,9 @@ describe('application routes', () => {
     TestBed.configureTestingModule({
       providers: [
         provideRouter(routes),
+        provideHttpClient(),
         provideHttpClientTesting(),
+        provideApiConfig(),
         { provide: BreakpointObserver, useValue: desktopBreakpointObserver }
       ]
     });
@@ -46,11 +50,10 @@ describe('application routes', () => {
     expect(lazyPaths).toEqual(['dashboard', 'corretoras', 'acoes', 'carteiras', 'operacoes']);
   });
 
-  it('resolves every structural placeholder without an HTTP request', async () => {
+  it('resolves the broker feature and the remaining structural placeholders', async () => {
     const harness = await RouterTestingHarness.create('/dashboard');
     const destinations = [
       ['/dashboard', 'Dashboard'],
-      ['/corretoras', 'Corretoras'],
       ['/acoes', 'Ações'],
       ['/carteiras', 'Carteiras'],
       ['/operacoes', 'Operações']
@@ -60,6 +63,10 @@ describe('application routes', () => {
       await harness.navigateByUrl(url);
       expect(harness.routeNativeElement?.querySelector('h1')?.textContent).toBe(heading);
     }
+
+    await harness.navigateByUrl('/corretoras');
+    httpTesting.expectOne('/api/corretoras').flush([]);
+    expect(harness.routeNativeElement?.querySelector('h1')?.textContent).toBe('Corretoras');
   });
 
   it('renders NotFound inside the shell and preserves an unknown URL', async () => {

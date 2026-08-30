@@ -71,19 +71,23 @@ O shell SHALL adaptar a navegação ao viewport. Em largura igual ou superior a 
 - **THEN** o drawer é fechado sem alterar o destino resolvido
 
 ### Requirement: Destinos estruturais carregados sob demanda
-Cada área principal SHALL constituir um limite independente de carregamento sob demanda e SHALL apresentar somente um placeholder estrutural nesta change. Os placeholders MUST NOT implementar comportamento de negócio, consumir o backend, expor forms ou tabelas de negócio, nem depender de services ou DTOs de domínio.
+Cada área principal SHALL constituir um limite independente de carregamento sob demanda. Enquanto uma área não possuir capability funcional aprovada, ela SHALL apresentar somente um placeholder estrutural. Uma capability posterior explicitamente aprovada MAY substituir o placeholder de sua própria área por comportamento funcional, preservando o shell e o limite lazy sem tornar funcionais as demais áreas.
 
 #### Scenario: Resolução por limite lazy
 - **WHEN** o usuário navega para uma das cinco áreas principais
-- **THEN** a rota é resolvida pelo limite lazy configurado para a área e seu placeholder é exibido dentro do shell
+- **THEN** a rota é resolvida pelo limite lazy configurado para a área e seu conteúdo é exibido dentro do shell
 
 #### Scenario: Placeholder identificável
-- **WHEN** um placeholder é exibido
-- **THEN** ele apresenta um título principal que identifica a área sem simular funcionalidade de negócio
+- **WHEN** uma área ainda não possui capability funcional aprovada
+- **THEN** ela apresenta um título principal que identifica a área sem simular funcionalidade de negócio
 
 #### Scenario: Placeholder sem integração
-- **WHEN** qualquer placeholder é criado ou renderizado
+- **WHEN** um destino permanece apenas como placeholder
 - **THEN** nenhuma requisição HTTP é realizada e nenhum contrato ou service de domínio é necessário
+
+#### Scenario: Evolução funcional aprovada
+- **WHEN** uma capability aprovada introduz comportamento funcional para uma área principal
+- **THEN** somente o placeholder dessa área é substituído, mantendo o limite lazy, o shell e os placeholders das áreas ainda não implementadas
 
 ### Requirement: Tratamento de rota desconhecida
 A aplicação SHALL apresentar um estado técnico de página não encontrada para URLs desconhecidas dentro do shell. A aplicação MUST NOT redirecionar silenciosamente uma URL desconhecida para o dashboard.

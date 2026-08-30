@@ -4,6 +4,16 @@ export const CORRETORAS_ROUTES: Routes = [
   {
     path: '',
     loadComponent: () =>
-      import('./corretoras-placeholder.component').then((module) => module.CorretorasPlaceholderComponent)
+      import('./pages/corretoras-list-page.component').then((module) => module.CorretorasListPageComponent)
+  },
+  {
+    path: 'nova',
+    loadComponent: () =>
+      import('./pages/corretora-create-page.component').then((module) => module.CorretoraCreatePageComponent)
+  },
+  {
+    path: ':id',
+    loadComponent: () =>
+      import('./pages/corretora-detail-page.component').then((module) => module.CorretoraDetailPageComponent)
   }
 ];
