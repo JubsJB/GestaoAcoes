@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg">
+  <symbol id="dashboard" viewBox="0 0 24 24"><path d="M4 4h6v7H4zm10 0h6v4h-6zM4 15h6v5H4zm10-3h6v8h-6z"/></symbol>
+  <symbol id="broker" viewBox="0 0 24 24"><path d="M3 9 12 4l9 5v2H3zm2 4h2v5h3v-5h4v5h3v-5h2v7H5z"/></symbol>
+  <symbol id="stock" viewBox="0 0 24 24"><path d="M4 19h16v2H2V5h2zm3-3-2-2 5-5 3 3 5-6 2 2-7 8-3-3z"/></symbol>
+  <symbol id="portfolio" viewBox="0 0 24 24"><path d="M8 5V3h8v2h4a2 2 0 0 1 2 2v4H2V7a2 2 0 0 1 2-2zm6 0V4h-4v1zm8 8v6a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-6h8v2h4v-2z"/></symbol>
+  <symbol id="operation" viewBox="0 0 24 24"><path d="m7 7 3-3H4v6zm10 10-3 3h6v-6zM6 13h12v2H6zm0-4h12v2H6z"/></symbol>
+  <symbol id="wallet" viewBox="0 0 24 24"><path d="M4 5h14a2 2 0 0 1 2 2v2h1a1 1 0 0 1 1 1v6a1 1 0 0 1-1 1h-1v2H4a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2m14 12v-2h-3a3 3 0 0 1 0-6h3V7H4v10zm-3-6a1 1 0 1 0 0 2h5v-2z"/></symbol>
+  <symbol id="identity" viewBox="0 0 24 24"><path d="M4 5h16v14H4zm2 2v10h12V7zm2 2h4v4H8zm5 0h3v2h-3zm0 4h3v2h-3z"/></symbol>
+  <symbol id="location" viewBox="0 0 24 24"><path d="M12 2a7 7 0 0 1 7 7c0 5-7 13-7 13S5 14 5 9a7 7 0 0 1 7-7m0 4a3 3 0 1 0 0 6 3 3 0 0 0 0-6"/></symbol>
+  <symbol id="status" viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 1 0 20 10 10 0 0 1 0-20m-1 13.2 6-6-1.4-1.4-4.6 4.6-2.6-2.6L7 11.2z"/></symbol>
+  <symbol id="quote" viewBox="0 0 24 24"><path d="M4 18h16v2H4zm2-3 4-4 3 3 5-7 2 1-7 9-3-3-3 3z"/></symbol>
+  <symbol id="search" viewBox="0 0 24 24"><path d="M10 3a7 7 0 1 1-4.9 12l-3.6 3.5L3 20l3.5-3.6A7 7 0 0 1 10 3m0 2a5 5 0 1 0 0 10 5 5 0 0 0 0-10"/></symbol>
+  <symbol id="empty" viewBox="0 0 24 24"><path d="M4 4h16v16H4zm2 2v12h12V6zm2 3h8v2H8zm0 4h5v2H8z"/></symbol>
+  <symbol id="success" viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 1 0 20 10 10 0 0 1 0-20m-1 13.2 6-6-1.4-1.4-4.6 4.6-2.6-2.6L7 11.2z"/></symbol>
+  <symbol id="info" viewBox="0 0 24 24"><path d="M11 10h2v7h-2zm0-4h2v2h-2zm1-4a10 10 0 1 1 0 20 10 10 0 0 1 0-20" fill-rule="evenodd"/></symbol>
+  <symbol id="warning" viewBox="0 0 24 24"><path d="M12 2 1 21h22zm-1 7h2v6h-2zm0 8h2v2h-2z"/></symbol>
+  <symbol id="error" viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 1 0 20 10 10 0 0 1 0-20m-4 7.4L10.6 12 8 14.6 9.4 16l2.6-2.6 2.6 2.6 1.4-1.4-2.6-2.6L16 9.4 14.6 8 12 10.6 9.4 8z"/></symbol>
+</svg>

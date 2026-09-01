@@ -1,4 +1,5 @@
 import { Mercado, Moeda } from './models/acao';
+import { formatOffsetDateTime } from '../../shared/formatters/offset-date-time.formatter';
 
 export function formatMercado(mercado: Mercado): string {
   return mercado === 'BRASIL' ? 'Brasil' : 'EUA';
@@ -9,8 +10,5 @@ export function formatCotacao(value: number, moeda: Moeda): string {
 }
 
 export function formatDataHora(value: string): string {
-  const date = new Date(value);
-  return Number.isNaN(date.getTime())
-    ? value
-    : new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeStyle: 'short' }).format(date);
+  return formatOffsetDateTime(value);
 }

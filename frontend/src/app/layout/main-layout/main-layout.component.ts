@@ -8,6 +8,7 @@ import { MatToolbarModule } from '@angular/material/toolbar';
 import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { filter, map } from 'rxjs';
 
+import { AppIconComponent } from '../../shared/app-icon/app-icon.component';
 import { NAVIGATION_ITEMS } from '../navigation-items';
 
 const COMPACT_VIEWPORT = '(max-width: 959.98px)';
@@ -21,7 +22,8 @@ const COMPACT_VIEWPORT = '(max-width: 959.98px)';
     MatToolbarModule,
     RouterLink,
     RouterLinkActive,
-    RouterOutlet
+    RouterOutlet,
+    AppIconComponent
   ],
   templateUrl: './main-layout.component.html',
   styleUrl: './main-layout.component.scss',

@@ -19,3 +19,16 @@ export function formatCep(value: string): string {
 export function displayOptional(value: string | null): string {
   return value ?? 'Não informado';
 }
+
+export type CorretoraStatusVariant = 'positive' | 'warning' | 'error' | 'neutral';
+
+const WARNING_STATUSES = new Set(['SUSPENSA', 'PENDENTE', 'NÃO ATIVA', 'NAO ATIVA']);
+const ERROR_STATUSES = new Set(['BAIXADA', 'INAPTA', 'INATIVA', 'NULA', 'CANCELADA']);
+
+export function corretoraStatusVariant(value: string): CorretoraStatusVariant {
+  const normalized = value.trim().toLocaleUpperCase('pt-BR');
+  if (normalized === 'ATIVA') return 'positive';
+  if (WARNING_STATUSES.has(normalized)) return 'warning';
+  if (ERROR_STATUSES.has(normalized)) return 'error';
+  return 'neutral';
+}

@@ -34,9 +34,16 @@ describe('CorretoraDetailPageComponent', () => {
     expect(text).toContain('CEP 01001-000');
     expect(text).toContain('SUSPENSA');
     expect(text).toContain('Validação ainda não realizada');
-    expect(text).toContain('Aug 29, 2026');
+    expect(text).toMatch(/29\/08\/2026 às \d{2}:\d{2}/);
     expect(fixture.nativeElement.querySelectorAll('mat-card')).toHaveLength(3);
     expect(fixture.nativeElement.querySelector('table')).toBeNull();
+  });
+
+  it('mantém a ação de retorno navegável na estrutura sticky do workspace', async () => {
+    const { fixture } = await create(BROKER);
+    const back = fixture.nativeElement.querySelector('a.app-back-action') as HTMLAnchorElement;
+    expect(back).toBeTruthy();
+    expect(back.getAttribute('href')).toBe('/corretoras');
   });
 
   it('representa todos os campos opcionais nulos sem inventar valores', async () => {

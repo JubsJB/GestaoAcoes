@@ -1,10 +1,10 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { MatDialog } from '@angular/material/dialog';
-import { MatSnackBar } from '@angular/material/snack-bar';
 import { provideRouter, Router } from '@angular/router';
 import { of, Subject, throwError } from 'rxjs';
 
 import { NormalizedHttpError } from '../../../core/errors/normalized-http-error';
+import { SuccessToastService } from '../../../shared/success-toast/success-toast.service';
 import { Corretora } from '../models/corretora';
 import { CorretorasService } from '../corretoras.service';
 import { CorretoraCreatePageComponent } from './corretora-create-page.component';
@@ -16,13 +16,13 @@ describe('CorretoraCreatePageComponent', () => {
   let fixture: ComponentFixture<CorretoraCreatePageComponent>;
   let service: { cadastrar: ReturnType<typeof vi.fn> };
   let dialog: { open: ReturnType<typeof vi.fn> };
-  let snackBar: { open: ReturnType<typeof vi.fn> };
+  let successToast: { show: ReturnType<typeof vi.fn> };
 
   beforeEach(async () => {
     service = { cadastrar: vi.fn().mockReturnValue(of(BROKER)) };
     dialog = { open: vi.fn() };
-    snackBar = { open: vi.fn() };
-    await TestBed.configureTestingModule({ imports: [CorretoraCreatePageComponent], providers: [provideRouter([]), { provide: CorretorasService, useValue: service }, { provide: MatDialog, useValue: dialog }, { provide: MatSnackBar, useValue: snackBar }] }).compileComponents();
+    successToast = { show: vi.fn() };
+    await TestBed.configureTestingModule({ imports: [CorretoraCreatePageComponent], providers: [provideRouter([]), { provide: CorretorasService, useValue: service }, { provide: MatDialog, useValue: dialog }, { provide: SuccessToastService, useValue: successToast }] }).compileComponents();
     vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
     fixture = TestBed.createComponent(CorretoraCreatePageComponent);
     fixture.detectChanges();
@@ -41,6 +41,29 @@ describe('CorretoraCreatePageComponent', () => {
     expect(fixture.nativeElement.textContent).not.toContain('confirmarSituacaoCadastralNaoAtiva');
     submit();
     expect(service.cadastrar).toHaveBeenCalledWith({ cnpj: '11222333000181' });
+  });
+
+  it('preenche somente CNPJ por info válido sem disparar qualquer chamada', () => {
+    fixture.destroy();
+    const router = TestBed.inject(Router);
+    vi.spyOn(router, 'currentNavigation').mockReturnValue({ extras: { info: { cnpj: '11222333000181' } } } as never);
+    fixture = TestBed.createComponent(CorretoraCreatePageComponent);
+    fixture.detectChanges();
+    expect((fixture.nativeElement.querySelector('input') as HTMLInputElement).value).toBe('11.222.333/0001-81');
+    expect(fixture.nativeElement.querySelectorAll('input')).toHaveLength(1);
+    expect(service.cadastrar).not.toHaveBeenCalled();
+  });
+
+  it('ignora info inválido e acesso direto ou refresh começa vazio', () => {
+    expect((fixture.nativeElement.querySelector('input') as HTMLInputElement).value).toBe('');
+    fixture.destroy();
+    const router = TestBed.inject(Router);
+    vi.spyOn(router, 'currentNavigation').mockReturnValue({ extras: { info: { cnpj: 'inválido', razaoSocial: 'Não usar' } } } as never);
+    fixture = TestBed.createComponent(CorretoraCreatePageComponent);
+    fixture.detectChanges();
+    expect((fixture.nativeElement.querySelector('input') as HTMLInputElement).value).toBe('');
+    expect(fixture.nativeElement.textContent).not.toContain('Não usar');
+    expect(service.cadastrar).not.toHaveBeenCalled();
   });
 
   it('associa label, orientação e erro acessível ao único campo', () => {
@@ -64,9 +87,16 @@ describe('CorretoraCreatePageComponent', () => {
   it('anuncia sucesso, reutiliza o DTO e navega sem solicitar detalhe', () => {
     const router = TestBed.inject(Router);
     submit();
-    expect(snackBar.open).toHaveBeenCalledWith('Corretora cadastrada com sucesso.', 'Fechar', { duration: 5000 });
+    expect(successToast.show).toHaveBeenCalledWith('Corretora cadastrada com sucesso.');
     expect(router.navigate).toHaveBeenCalledWith(['/corretoras', 2], { info: { corretora: BROKER } });
     expect(service.cadastrar).toHaveBeenCalledTimes(1);
+  });
+
+  it('mantém a ação de retorno navegável na estrutura sticky do workspace', () => {
+    const back = fixture.nativeElement.querySelector('a.app-back-action') as HTMLAnchorElement;
+    expect(back).toBeTruthy();
+    expect(back.hasAttribute('href')).toBe(true);
+    expect(back.textContent).toContain('Voltar para corretoras');
   });
 
   it('cancela o 409 específico sem segundo POST', () => {

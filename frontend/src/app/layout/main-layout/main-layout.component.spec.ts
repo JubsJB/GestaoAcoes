@@ -73,6 +73,28 @@ describe('MainLayoutComponent', () => {
       '/carteiras',
       '/operacoes'
     ]);
+    expect(fixture.nativeElement.querySelectorAll('nav a app-icon')).toHaveLength(5);
+    expect(Array.from(fixture.nativeElement.querySelectorAll('nav a app-icon svg')).every((icon) => (icon as SVGElement).getAttribute('aria-hidden') === 'true')).toBe(true);
+    expect(Array.from(navigationLinks).every((link) => {
+      const icon = (link as HTMLElement).querySelector('app-icon');
+      const label = (link as HTMLElement).querySelector('[matlistitemtitle]');
+      return Boolean(icon && label && (icon.compareDocumentPosition(label) & Node.DOCUMENT_POSITION_FOLLOWING));
+    })).toBe(true);
+    expect(Array.from(navigationLinks).every((link) => (link as HTMLElement).querySelector('app-icon')?.getAttribute('aria-label') === null)).toBe(true);
+    expect(fixture.nativeElement.querySelector('.app-brand__mark app-icon')).toBeTruthy();
+  });
+
+  it('keeps toolbar outside the bounded workspace and exposes one main scroll region', async () => {
+    await createLayout();
+    const toolbar = fixture.nativeElement.querySelector('mat-toolbar') as HTMLElement;
+    const container = fixture.nativeElement.querySelector('mat-sidenav-container') as HTMLElement;
+    const workspace = fixture.nativeElement.querySelector('mat-sidenav-content.workspace') as HTMLElement;
+    const main = fixture.nativeElement.querySelector('main.main-content') as HTMLElement;
+
+    expect(toolbar.compareDocumentPosition(container) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(workspace.contains(main)).toBe(true);
+    expect(main.getAttribute('tabindex')).toBe('-1');
+    expect(fixture.nativeElement.querySelectorAll('main')).toHaveLength(1);
   });
 
   it('keeps the sidenav opened in side mode on desktop', async () => {

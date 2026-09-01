@@ -1,0 +1,32 @@
+@use '@angular/material' as mat;
+
+@mixin apply-theme() {
+  @include mat.theme((
+    color: (
+      primary: mat.$green-palette,
+      tertiary: mat.$orange-palette,
+      theme-type: light
+    ),
+    typography: (
+      plain-family: ('Segoe UI', Arial, sans-serif),
+      brand-family: ('Segoe UI', Arial, sans-serif)
+    ),
+    density: 0
+  ));
+
+  @include mat.strong-focus-indicators();
+
+  // Public Material system tokens keep components aligned with the approved
+  // olive identity while the palette still supplies complete tonal ramps.
+  --mat-sys-primary: var(--app-brand-primary);
+  --mat-sys-on-primary: var(--app-on-brand-primary);
+  --mat-sys-primary-container: var(--app-surface-selected);
+  --mat-sys-on-primary-container: var(--app-text-primary);
+  --mat-sys-secondary: var(--app-brand-primary);
+  --mat-sys-on-secondary: var(--app-on-brand-primary);
+  --mat-sys-secondary-container: var(--app-surface-selected);
+  --mat-sys-on-secondary-container: var(--app-text-primary);
+  --mat-sys-tertiary: var(--app-accent);
+  --mat-sys-on-tertiary: var(--app-text-primary);
+  --mat-sys-error: var(--app-error);
+}

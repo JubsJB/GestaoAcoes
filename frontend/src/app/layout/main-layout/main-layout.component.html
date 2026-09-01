@@ -1,21 +1,26 @@
 <a class="skip-link" href="#main-content" (click)="focusMainContent()">Pular para o conteúdo</a>
 
 <mat-toolbar class="app-toolbar">
-  @if (isCompact()) {
-    <button
-      matIconButton
-      type="button"
-      class="menu-button"
-      aria-label="Abrir ou fechar menu principal"
-      aria-controls="primary-navigation"
-      [attr.aria-expanded]="compactDrawerOpened()"
-      (click)="toggleDrawer()"
-    >
-      <span aria-hidden="true">☰</span>
-    </button>
-  }
+  <div class="toolbar-content">
+    @if (isCompact()) {
+      <button
+        matIconButton
+        type="button"
+        class="menu-button"
+        aria-label="Abrir ou fechar menu principal"
+        aria-controls="primary-navigation"
+        [attr.aria-expanded]="compactDrawerOpened()"
+        (click)="toggleDrawer()"
+      >
+        <span aria-hidden="true">☰</span>
+      </button>
+    }
 
-  <span class="app-title">Gestão de Ações</span>
+    <span class="app-brand" aria-label="Gestão de Ações">
+      <span class="app-brand__mark" aria-hidden="true"><app-icon name="wallet" /></span>
+      <span class="app-brand__copy"><strong>Gestão de Ações</strong><small>Investimentos com clareza</small></span>
+    </span>
+  </div>
 </mat-toolbar>
 
 <mat-sidenav-container class="shell-container" (backdropClick)="closeCompactDrawer()">
@@ -37,6 +42,7 @@
             routerLinkActive="active-navigation-item"
             ariaCurrentWhenActive="page"
           >
+            <app-icon matListItemIcon class="navigation-icon" [name]="item.icon" />
             <span matListItemTitle>{{ item.label }}</span>
           </a>
         }
@@ -44,9 +50,11 @@
     </nav>
   </mat-sidenav>
 
-  <mat-sidenav-content>
+  <mat-sidenav-content class="workspace">
     <main #mainContent id="main-content" class="main-content" tabindex="-1">
-      <router-outlet />
+      <div class="main-content__container">
+        <router-outlet />
+      </div>
     </main>
   </mat-sidenav-content>
 </mat-sidenav-container>
