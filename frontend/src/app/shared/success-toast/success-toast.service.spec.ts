@@ -34,7 +34,7 @@ describe('SuccessToastService', () => {
     vi.useRealTimers();
   });
 
-  it('posiciona o pane real do overlay no topo direito do desktop e descarta em seis segundos', () => {
+  it('posiciona o pane real do overlay no topo direito do desktop e descarta em oito segundos', () => {
     vi.useFakeTimers();
     service.show('Operação concluída.');
 
@@ -49,6 +49,7 @@ describe('SuccessToastService', () => {
     expect(pane.style.marginBottom).toBe('');
     expect(pane.textContent).toContain('Operação concluída.');
     expect(pane.querySelector('[role="status"]')?.getAttribute('aria-live')).toBe('polite');
+    expect(SUCCESS_TOAST_DURATION_MS).toBe(8000);
 
     vi.advanceTimersByTime(SUCCESS_TOAST_DURATION_MS - 1);
     expect(overlayContainer.getContainerElement().querySelector('.app-success-toast-overlay')).toBeTruthy();

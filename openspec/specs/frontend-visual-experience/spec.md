@@ -82,7 +82,7 @@ A aplicação SHALL oferecer feedback contextual nas variantes `success`, `info`
 
 #### Scenario: Toast de sucesso transitório
 - **WHEN** uma operação conclui com sucesso transitório
-- **THEN** a infraestrutura Material existente apresenta toast curto com semântica de sucesso, descarte automático próximo de dez segundos (`10000 ms`) e posicionamento superior responsivo, sem se tornar a única comunicação de informação persistente relevante
+- **THEN** a infraestrutura Material existente apresenta toast curto com semântica de sucesso, descarte automático em oito segundos (`8000 ms`) e posicionamento superior responsivo, sem se tornar a única comunicação de informação persistente relevante
 
 ### Requirement: Hierarquia consistente de ações e formulários
 A aplicação SHALL diferenciar ação principal, busca/atualização/retry e ações de cancelar/limpar/voltar por peso visual coerente. Uma ação textual de retorno SHALL permanecer disponível sem sobrepor toolbar ou conteúdo, SHALL navegar ao destino previsto e SHALL preservar operação por teclado e nome acessível completo. Formulários SHALL preservar Typed Reactive Forms, campos fluidos, superfície própria, largura confortável entre `40rem` e `44rem` como referência e agrupamento responsivo de ações, inclusive quando apresentados em dialog contextual.

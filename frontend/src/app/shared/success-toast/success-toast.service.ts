@@ -6,7 +6,7 @@ import { Injectable, Injector, inject } from '@angular/core';
 import { SuccessToastComponent } from './success-toast.component';
 import { SUCCESS_TOAST_DATA, SuccessToastRef } from './success-toast.tokens';
 
-export const SUCCESS_TOAST_DURATION_MS = 10000;
+export const SUCCESS_TOAST_DURATION_MS = 8000;
 export const SUCCESS_TOAST_MOBILE_QUERY = '(max-width: 36rem)';
 export const SUCCESS_TOAST_DESKTOP_TOP = '4.75rem';
 export const SUCCESS_TOAST_MOBILE_TOP = '4.25rem';
