@@ -4,6 +4,16 @@ export const OPERACOES_ROUTES: Routes = [
   {
     path: '',
     loadComponent: () =>
-      import('./operacoes-placeholder.component').then((module) => module.OperacoesPlaceholderComponent)
+      import('./pages/operacoes-list-page.component').then((module) => module.OperacoesListPageComponent)
+  },
+  {
+    path: 'nova',
+    loadComponent: () =>
+      import('./pages/operacao-form-page.component').then((module) => module.OperacaoFormPageComponent)
+  },
+  {
+    path: ':id',
+    loadComponent: () =>
+      import('./pages/operacao-detail-page.component').then((module) => module.OperacaoDetailPageComponent)
   }
 ];

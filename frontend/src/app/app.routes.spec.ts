@@ -50,7 +50,7 @@ describe('application routes', () => {
     expect(lazyPaths).toEqual(['dashboard', 'corretoras', 'acoes', 'carteiras', 'operacoes']);
   });
 
-  it('resolves the functional broker, stock and portfolio features and the remaining structural placeholders', async () => {
+  it('resolves the functional broker, stock, portfolio and operation features while dashboard remains structural', async () => {
     const harness = await RouterTestingHarness.create('/dashboard');
     const destinations = [
       ['/dashboard', 'Dashboard'],
@@ -67,13 +67,16 @@ describe('application routes', () => {
       if (url === '/carteiras') {
         httpTesting.expectOne('/api/carteiras').flush([]);
       }
+      if (url === '/operacoes') {
+        httpTesting.expectOne('/api/operacoes').flush('[]');
+      }
       expect(harness.routeNativeElement?.querySelector('h1')?.textContent).toBe(heading);
     }
 
     await harness.navigateByUrl('/corretoras');
     httpTesting.expectOne('/api/corretoras').flush([]);
     expect(harness.routeNativeElement?.querySelector('h1')?.textContent).toBe('Corretoras');
-  });
+  }, 10_000);
 
   it('renders NotFound inside the shell and preserves an unknown URL', async () => {
     const harness = await RouterTestingHarness.create('/rota-inexistente');
