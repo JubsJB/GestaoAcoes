@@ -1,7 +1,6 @@
 package com.projeto.services;
 import com.projeto.dto.*;
 import com.projeto.entities.*;
-import com.projeto.integrations.cotacao.*;
 import com.projeto.mappers.OperacaoMapper;
 import com.projeto.repositories.*;
 import com.projeto.services.exceptions.*;
@@ -13,8 +12,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.*;
 import java.time.*;
 import java.util.*;
-import java.util.function.Function;
-import java.util.stream.Collectors;
 
 @Service
 public class OperacaoService {
@@ -23,14 +20,12 @@ public class OperacaoService {
  private static final Sort QUERY_ORDER=Sort.by(Sort.Order.asc("dataOperacao"),Sort.Order.asc("ordemNoDia"),Sort.Order.asc("id"));
  private final OperacaoRepository operacoes; private final CarteiraRepository carteiras; private final AcaoRepository acoes;
  private final CorretoraRepository corretoras; private final TickerNormalizer tickers; private final OperacaoMapper mapper;
- private final Clock clock; private final OperacaoPersistenceService persistence; private final Map<Mercado,CotacaoHistoricaProvider> providers;
+ private final Clock clock; private final OperacaoPersistenceService persistence; private final FechamentoHistoricoService fechamentoHistorico;
  public OperacaoService(OperacaoRepository operacoes,CarteiraRepository carteiras,AcaoRepository acoes,
   CorretoraRepository corretoras,TickerNormalizer tickers,OperacaoMapper mapper,Clock clock,
-  OperacaoPersistenceService persistence,List<CotacaoHistoricaProvider> providers){
+  OperacaoPersistenceService persistence,FechamentoHistoricoService fechamentoHistorico){
   this.operacoes=operacoes;this.carteiras=carteiras;this.acoes=acoes;this.corretoras=corretoras;this.tickers=tickers;
-  this.mapper=mapper;this.clock=clock;this.persistence=persistence;
-  try{this.providers=providers.stream().collect(Collectors.toUnmodifiableMap(CotacaoHistoricaProvider::mercado,Function.identity()));}
-  catch(IllegalStateException e){throw new IllegalStateException("Mais de um provider histórico para o mesmo mercado",e);}
+  this.mapper=mapper;this.clock=clock;this.persistence=persistence;this.fechamentoHistorico=fechamentoHistorico;
  }
  public OperacaoResponse cadastrar(OperacaoCreateRequest request){
   if(request==null)throw invalid("request","Corpo da requisição é obrigatório");
@@ -47,16 +42,9 @@ public class OperacaoService {
   BigDecimal price;
   if(request instanceof OperacaoVendaCreateRequest sale)price=operand(sale.getPrecoUnitario(),"precoUnitario","Preço unitário");
   else if(request instanceof OperacaoCompraCreateRequest){
-   CotacaoHistoricaProvider provider=providers.get(request.getMercado());
-   if(provider==null)throw com.projeto.integrations.ExternalApiErrorMapper.unavailable("cotação histórica");
-   CotacaoHistoricaData quote=provider.consultarFechamento(ticker,request.getDataOperacao());
-   price=validateQuote(quote,ticker,request.getDataOperacao());
+   price=fechamentoHistorico.consultar(ticker,request.getMercado(),request.getDataOperacao());
   }else throw invalid("tipo","Tipo de operação inválido");
   return persistence.persistir(new OperacaoPersistenceCommand(request.getCarteiraId(),ticker,request.getMercado(),request.getCorretoraId(),request.getTipo(),quantity,price,request.getDataOperacao()));
- }
- private BigDecimal validateQuote(CotacaoHistoricaData q,String ticker,LocalDate date){
-  if(q==null||!ticker.equals(q.ticker())||!date.equals(q.dataPregao()))throw com.projeto.integrations.ExternalApiErrorMapper.invalidResponse("cotação histórica");
-  try{return operand(q.close(),"precoUnitario","Fechamento histórico");}catch(ApiException e){throw com.projeto.integrations.ExternalApiErrorMapper.invalidResponse("cotação histórica");}
  }
  private BigDecimal operand(BigDecimal value,String field,String label){
   if(value==null)throw invalid(field,label+" é obrigatório");if(value.signum()<=0)throw invalid(field,label+" deve ser maior que zero");

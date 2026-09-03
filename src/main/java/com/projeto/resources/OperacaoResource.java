@@ -2,8 +2,11 @@ package com.projeto.resources;
 
 import com.projeto.dto.OperacaoCreateRequest;
 import com.projeto.dto.OperacaoResponse;
+import com.projeto.dto.PreviaPrecoCompraResponse;
 import com.projeto.resources.exceptions.StandardError;
 import com.projeto.services.OperacaoService;
+import com.projeto.services.PrecoOperacaoService;
+import com.projeto.entities.Mercado;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.ArraySchema;
@@ -19,11 +22,13 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import java.net.URI;
 import java.util.List;
+import java.time.LocalDate;
 
 @RestController
 @RequestMapping("/operacoes")
@@ -31,9 +36,11 @@ import java.util.List;
 public class OperacaoResource {
 
     private final OperacaoService service;
+    private final PrecoOperacaoService precoService;
 
-    public OperacaoResource(OperacaoService service) {
+    public OperacaoResource(OperacaoService service, PrecoOperacaoService precoService) {
         this.service = service;
+        this.precoService = precoService;
     }
 
     @PostMapping
@@ -63,6 +70,29 @@ public class OperacaoResource {
     @ApiResponse(responseCode = "200", description = "Operações registradas", content = @Content(array = @ArraySchema(schema = @Schema(implementation = OperacaoResponse.class))))
     public ResponseEntity<List<OperacaoResponse>> listar() {
         return ResponseEntity.ok(service.listar());
+    }
+
+    @GetMapping("/previa-compra")
+    @Operation(
+            summary = "Consultar prévia do preço de COMPRA",
+            description = "Retorna o fechamento histórico bruto da data exata para exibição somente leitura. A prévia é informativa: POST /operacoes consulta novamente o provider e continua sem aceitar precoUnitario em COMPRA."
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Fechamento histórico exato", content = @Content(schema = @Schema(implementation = PreviaPrecoCompraResponse.class))),
+            @ApiResponse(responseCode = "400", description = "REQUEST_INVALIDO", content = @Content(schema = @Schema(implementation = StandardError.class))),
+            @ApiResponse(responseCode = "404", description = "Ação não cadastrada ou TICKER_INEXISTENTE", content = @Content(schema = @Schema(implementation = StandardError.class))),
+            @ApiResponse(responseCode = "422", description = "COTACAO_HISTORICA_INDISPONIVEL ou HISTORICO_COTACAO_FORA_DO_ALCANCE", content = @Content(schema = @Schema(implementation = StandardError.class))),
+            @ApiResponse(responseCode = "429", description = "LIMITE_REQUISICOES_EXCEDIDO", content = @Content(schema = @Schema(implementation = StandardError.class))),
+            @ApiResponse(responseCode = "502", description = "RESPOSTA_EXTERNA_INVALIDA", content = @Content(schema = @Schema(implementation = StandardError.class))),
+            @ApiResponse(responseCode = "503", description = "SERVICO_EXTERNO_INDISPONIVEL", content = @Content(schema = @Schema(implementation = StandardError.class))),
+            @ApiResponse(responseCode = "504", description = "SERVICO_EXTERNO_TIMEOUT", content = @Content(schema = @Schema(implementation = StandardError.class)))
+    })
+    public ResponseEntity<PreviaPrecoCompraResponse> consultarPreviaCompra(
+            @Parameter(description = "Ticker da Ação", example = "PETR4", required = true) @RequestParam String ticker,
+            @Parameter(description = "Mercado da Ação", example = "BRASIL", required = true) @RequestParam Mercado mercado,
+            @Parameter(description = "Data civil exata do fechamento", example = "2026-08-20", required = true) @RequestParam LocalDate dataOperacao
+    ) {
+        return ResponseEntity.ok(precoService.consultarPreviaCompra(ticker, mercado, dataOperacao));
     }
 
     @GetMapping("/{id}")

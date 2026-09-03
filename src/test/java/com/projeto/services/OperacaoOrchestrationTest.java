@@ -25,7 +25,7 @@ class OperacaoOrchestrationTest {
  @BeforeEach void setup(){
   lenient().when(brasil.mercado()).thenReturn(Mercado.BRASIL);lenient().when(eua.mercado()).thenReturn(Mercado.EUA);
   service=new OperacaoService(operacoes,carteiras,acoes,corretoras,new TickerNormalizer(),new OperacaoMapper(),
-   Clock.fixed(Instant.parse("2026-08-30T12:00:00Z"),ZoneOffset.UTC),persistence,List.of(brasil,eua));
+   Clock.fixed(Instant.parse("2026-08-30T12:00:00Z"),ZoneOffset.UTC),persistence,new FechamentoHistoricoService(List.of(brasil,eua)));
   clearInvocations(brasil,eua);
   lenient().when(carteiras.findById(1L)).thenReturn(Optional.of(mock(Carteira.class)));
   lenient().when(acoes.findByTickerAndMercado("PETR4",Mercado.BRASIL)).thenReturn(Optional.of(mock(Acao.class)));
@@ -53,7 +53,7 @@ class OperacaoOrchestrationTest {
  }
  @Test void missingProviderFailsBeforeTransactionalCollaborator(){
   OperacaoService withoutBrazil=new OperacaoService(operacoes,carteiras,acoes,corretoras,new TickerNormalizer(),new OperacaoMapper(),
-   Clock.fixed(Instant.parse("2026-08-30T12:00:00Z"),ZoneOffset.UTC),persistence,List.of(eua));
+   Clock.fixed(Instant.parse("2026-08-30T12:00:00Z"),ZoneOffset.UTC),persistence,new FechamentoHistoricoService(List.of(eua)));
   ApiException error=assertThrows(ApiException.class,()->withoutBrazil.cadastrar(
    new OperacaoCompraCreateRequest(1L,"PETR4",Mercado.BRASIL,null,BigDecimal.ONE,LocalDate.of(2026,8,20))));
   assertEquals(com.projeto.services.exceptions.ErrorCodes.SERVICO_EXTERNO_INDISPONIVEL,error.getCode());

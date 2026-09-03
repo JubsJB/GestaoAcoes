@@ -619,7 +619,7 @@ class OperacaoServiceTest {
                 new OperacaoMapper(),
                 clock,
                 persistence,
-                List.of(brasil, usa)
+                new FechamentoHistoricoService(List.of(brasil, usa))
         );
     }
 

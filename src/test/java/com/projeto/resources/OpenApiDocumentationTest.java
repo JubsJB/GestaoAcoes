@@ -41,6 +41,7 @@ class OpenApiDocumentationTest {
             Map.entry("/carteiras", Set.of("get", "post")),
             Map.entry("/carteiras/{id}", Set.of("get", "patch", "delete")),
             Map.entry("/carteiras/{carteiraId}/operacoes", Set.of("get")),
+            Map.entry("/carteiras/{carteiraId}/operacoes/sugestao-preco-venda", Set.of("get")),
             Map.entry("/carteiras/{carteiraId}/posicoes", Set.of("get")),
             Map.entry("/carteiras/{carteiraId}/resultados-realizados", Set.of("get")),
             Map.entry("/carteiras/{carteiraId}/patrimonio", Set.of("get")),
@@ -48,6 +49,7 @@ class OpenApiDocumentationTest {
             Map.entry("/carteiras/{carteiraId}/snapshots", Set.of("post")),
             Map.entry("/carteiras/{carteiraId}/evolucao-patrimonial", Set.of("get")),
             Map.entry("/operacoes", Set.of("get", "post")),
+            Map.entry("/operacoes/previa-compra", Set.of("get")),
             Map.entry("/operacoes/{id}", Set.of("get"))
     );
 
@@ -75,13 +77,13 @@ class OpenApiDocumentationTest {
     }
 
     @Test
-    void documentsExactlyEighteenFunctionalPathsAndTwentyFourOperations() throws Exception {
+    void documentsExactlyTwentyFunctionalPathsAndTwentySixOperations() throws Exception {
         JsonNode paths = openApiDocument().path("paths");
         Map<String, Set<String>> functionalOperations = collectFunctionalOperations(paths);
 
         assertThat(functionalOperations).isEqualTo(EXPECTED_OPERATIONS);
-        assertThat(functionalOperations).hasSize(18);
-        assertThat(functionalOperations.values().stream().mapToInt(Set::size).sum()).isEqualTo(24);
+        assertThat(functionalOperations).hasSize(20);
+        assertThat(functionalOperations.values().stream().mapToInt(Set::size).sum()).isEqualTo(26);
     }
 
     @Test
@@ -93,6 +95,10 @@ class OpenApiDocumentationTest {
         assertParameter(paths, "/acoes/por-ticker", "get", "mercado", "query");
         assertParameter(paths, "/carteiras/{carteiraId}/posicoes", "get", "carteiraId", "path");
         assertParameter(paths, "/operacoes/{id}", "get", "id", "path");
+        assertParameter(paths, "/operacoes/previa-compra", "get", "ticker", "query");
+        assertParameter(paths, "/operacoes/previa-compra", "get", "mercado", "query");
+        assertParameter(paths, "/operacoes/previa-compra", "get", "dataOperacao", "query");
+        assertParameter(paths, "/carteiras/{carteiraId}/operacoes/sugestao-preco-venda", "get", "carteiraId", "path");
 
         assertThat(paths.path("/corretoras").path("post").path("requestBody").path("content")
                 .path("application/json").path("schema").path("$ref").asText())
@@ -124,6 +130,8 @@ class OpenApiDocumentationTest {
         assertThat(schemas.has("CorretoraResponse")).isTrue();
         assertThat(schemas.has("AcaoResponse")).isTrue();
         assertThat(schemas.has("OperacaoResponse")).isTrue();
+        assertThat(schemas.has("PreviaPrecoCompraResponse")).isTrue();
+        assertThat(schemas.has("SugestaoPrecoVendaResponse")).isTrue();
         assertThat(schemas.has("EvolucaoPatrimonialResponse")).isTrue();
     }
 
@@ -159,6 +167,31 @@ class OpenApiDocumentationTest {
             assertThat(responses.has(status)).isTrue();
         }
         assertThat(document.at("/paths/~1operacoes/post/description").asText()).contains("COMPRA");
+    }
+
+    @Test
+    void documentsPurchasePreviewAndSaleSuggestionSemanticsAndResponses() throws Exception {
+        JsonNode document = openApiDocument();
+        JsonNode preview = document.at("/paths/~1operacoes~1previa-compra/get");
+        assertThat(preview.path("description").asText())
+                .contains("fechamento histórico bruto", "data exata", "informativa", "consulta novamente")
+                .contains("sem aceitar precoUnitario");
+        for (String status : List.of("200", "400", "404", "422", "429", "502", "503", "504")) {
+            assertThat(preview.path("responses").has(status)).isTrue();
+        }
+        assertThat(preview.at("/responses/200/content/*~1*/schema").toString())
+                .contains("PreviaPrecoCompraResponse");
+
+        JsonNode suggestion = document.at("/paths/~1carteiras~1{carteiraId}~1operacoes~1sugestao-preco-venda/get");
+        assertThat(suggestion.path("description").asText())
+                .contains("última COMPRA", "null", "livremente editável", "não representa preço médio", "recomendação financeira");
+        assertThat(suggestion.path("responses").has("200")).isTrue();
+        assertThat(suggestion.path("responses").has("400")).isTrue();
+        assertThat(suggestion.path("responses").has("404")).isTrue();
+        assertThat(suggestion.at("/responses/200/content/*~1*/schema").toString())
+                .contains("SugestaoPrecoVendaResponse");
+        assertThat(document.at("/components/schemas/SugestaoPrecoVendaResponse/properties/precoUnitarioSugerido/type")
+                .toString()).contains("number", "null");
     }
 
     @Test

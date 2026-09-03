@@ -11,6 +11,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
@@ -112,6 +113,21 @@ public class ResourceExceptionHandler {
                 request.getRequestURI(),
                 ErrorCodes.REQUEST_INVALIDO,
                 Map.of()
+        );
+        return ResponseEntity.badRequest().body(error);
+    }
+
+    @ExceptionHandler(MissingServletRequestParameterException.class)
+    public ResponseEntity<StandardError> handleMissingRequestParameter(
+            MissingServletRequestParameterException ex,
+            HttpServletRequest request
+    ) {
+        StandardError error = createError(
+                HttpStatus.BAD_REQUEST,
+                "Parâmetro obrigatório ausente",
+                request.getRequestURI(),
+                ErrorCodes.REQUEST_INVALIDO,
+                Map.of(ex.getParameterName(), "Parâmetro é obrigatório")
         );
         return ResponseEntity.badRequest().body(error);
     }
