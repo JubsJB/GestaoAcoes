@@ -34,18 +34,53 @@ describe('OperacaoFormPageComponent', () => {
     return { fixture, component: fixture.componentInstance as unknown as TestComponent, operations };
   }
 
-  it.each([['AAPL|EUA', 'USD', 'US$'], ['PETR4|BRASIL', 'BRL', 'R$']] as const)('COMPRA mostra preço readonly em %s/%s e omite preço/ordem no POST', async (action, moeda, prefix) => {
-    const preview = of({ ...PREVIEW, ticker: action.split('|')[0], mercado: action.split('|')[1], moeda }); const { fixture, component, operations } = await create({ preview: preview as never }); setContext(component, 'COMPRA', action); fixture.detectChanges();
-    const input = fixture.nativeElement.querySelector('[formcontrolname="precoUnitario"]') as HTMLInputElement; expect(input.readOnly).toBe(true); expect(input.getAttribute('aria-readonly')).toBe('true'); expect(input.value).toBe('42.30'); expect(fixture.nativeElement.textContent).toContain(prefix);
-    component.submit(); const payload = operations.cadastrar.mock.calls[0][0]; expect(payload.tipo).toBe('COMPRA'); expect(payload).not.toHaveProperty('precoUnitario'); expect(payload).not.toHaveProperty('ordemNoDia');
+  it.each([['AAPL|EUA', 'USD', 'US$ 48,20', 'US$ 24,10'], ['PETR4|BRASIL', 'BRL', 'R$ 48,20', 'R$ 48,20']] as const)('COMPRA formata preço readonly em %s/%s e omite preço, total e ordem no POST', async (action, moeda, formatted, estimated) => {
+    const preview = of({ ...PREVIEW, ticker: action.split('|')[0], mercado: action.split('|')[1], moeda, precoUnitario: '48.200000' }); const { fixture, component, operations } = await create({ preview: preview as never }); setContext(component, 'COMPRA', action); fixture.detectChanges();
+    const input = fixture.nativeElement.querySelector('input[readonly]') as HTMLInputElement; expect(input.readOnly).toBe(true); expect(input.getAttribute('aria-readonly')).toBe('true'); expect(input.value).toBe(formatted); expect(component.form.controls['precoUnitario'].value).toBe('48.200000'); expect(fixture.nativeElement.querySelector('[data-testid="estimated-total"]').textContent).toContain(estimated);
+    component.submit(); const payload = operations.cadastrar.mock.calls[0][0]; expect(payload.tipo).toBe('COMPRA'); expect(payload).not.toHaveProperty('precoUnitario'); expect(payload).not.toHaveProperty('valorTotal'); expect(payload).not.toHaveProperty('ordemNoDia');
+  });
+
+  it('calcula total estimado da COMPRA e acompanha a quantidade sem alterar o preço lossless', async () => {
+    const preview = of({ ...PREVIEW, ticker: 'PETR4', mercado: 'BRASIL', moeda: 'BRL', precoUnitario: '48.200000' }); const { fixture, component } = await create({ preview: preview as never }); setContext(component, 'COMPRA', 'PETR4|BRASIL'); component.form.controls['quantidade'].setValue('5'); fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('[data-testid="estimated-total"]').textContent).toContain('R$ 241,00');
+    component.form.controls['quantidade'].setValue('2'); fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('[data-testid="estimated-total"]').textContent).toContain('R$ 96,40');
+    expect(component.form.controls['precoUnitario'].value).toBe('48.200000');
+  });
+
+  it('VENDA mantém preço bruto editável e atualiza a estimativa com a edição', async () => {
+    const suggestion = of({ precoUnitarioSugerido: '48.200000' }); const { fixture, component, operations } = await create({ suggestion: suggestion as never }); setContext(component, 'VENDA', 'PETR4|BRASIL'); component.form.controls['quantidade'].setValue('2'); fixture.detectChanges();
+    const input = fixture.nativeElement.querySelector('[formcontrolname="precoUnitario"]') as HTMLInputElement; expect(input.readOnly).toBe(false); expect(input.value).toBe('48,20'); expect(fixture.nativeElement.querySelector('[data-testid="estimated-total"]').textContent).toContain('R$ 96,40');
+    component.form.controls['precoUnitario'].setValue('50'); fixture.detectChanges(); expect(input.value).toBe('50'); expect(fixture.nativeElement.querySelector('[data-testid="estimated-total"]').textContent).toContain('R$ 100,00');
+    component.submit(); expect(operations.cadastrar.mock.calls[0][0]).toEqual(expect.objectContaining({ tipo: 'VENDA', precoUnitario: '50' })); expect(operations.cadastrar.mock.calls[0][0]).not.toHaveProperty('valorTotal');
+  });
+
+  it('apresenta sugestão 40.000000 como 40,00 e envia a edição final exata', async () => {
+    const suggestion = of({ precoUnitarioSugerido: '40.000000' }); const { fixture, component, operations } = await create({ suggestion: suggestion as never }); setContext(component, 'VENDA', 'PETR4|BRASIL'); component.form.controls['quantidade'].setValue('5'); fixture.detectChanges();
+    const input = fixture.nativeElement.querySelector('[formcontrolname="precoUnitario"]') as HTMLInputElement; expect(input.value).toBe('40,00'); expect(fixture.nativeElement.querySelector('[data-testid="estimated-total"]').textContent).toContain('R$ 200,00');
+    component.form.controls['precoUnitario'].setValue('45,50'); fixture.detectChanges(); expect(input.value).toBe('45,50'); expect(fixture.nativeElement.querySelector('[data-testid="estimated-total"]').textContent).toContain('R$ 227,50');
+    component.submit(); expect(operations.cadastrar.mock.calls[0][0]).toEqual(expect.objectContaining({ tipo: 'VENDA', precoUnitario: '45.50' })); expect(operations.cadastrar.mock.calls[0][0]).not.toHaveProperty('valorTotal');
+  });
+
+  it.each(['', 'inválido', '0'])('VENDA com preço %j não apresenta total válido', async price => {
+    const { fixture, component } = await create({ suggestion: of({ precoUnitarioSugerido: null }) as never }); setContext(component, 'VENDA', 'PETR4|BRASIL'); component.form.controls['quantidade'].setValue('2'); component.form.controls['precoUnitario'].setValue(price); fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('[data-testid="estimated-total"]').textContent).toContain('—');
   });
 
   it('COMPRA invalida no loading/data e ignora resposta atrasada', async () => {
-    const first = new Subject<PreviaPrecoCompraResponse>(); const second = new Subject<PreviaPrecoCompraResponse>(); const { component, operations } = await create(); operations.obterPreviaCompra.mockReturnValueOnce(first).mockReturnValueOnce(second); setContext(component, 'COMPRA'); expect(component.submitBlocked()).toBe(true); component.form.controls['dataOperacao'].setValue('2026-08-30'); first.next({ ...PREVIEW, precoUnitario: '1' }); expect(component.form.controls['precoUnitario'].value).toBe(''); second.next({ ...PREVIEW, precoUnitario: '2' }); second.complete(); expect(component.form.controls['precoUnitario'].value).toBe('2'); expect(component.submitBlocked()).toBe(false);
+    const first = new Subject<PreviaPrecoCompraResponse>(); const second = new Subject<PreviaPrecoCompraResponse>(); const { fixture, component, operations } = await create(); operations.obterPreviaCompra.mockReturnValueOnce(first).mockReturnValueOnce(second); setContext(component, 'COMPRA'); fixture.detectChanges(); expect(component.submitBlocked()).toBe(true); expect(fixture.nativeElement.querySelector('[data-testid="estimated-total"]').textContent).toContain('—'); component.form.controls['dataOperacao'].setValue('2026-08-30'); first.next({ ...PREVIEW, precoUnitario: '1' }); expect(component.form.controls['precoUnitario'].value).toBe(''); second.next({ ...PREVIEW, precoUnitario: '2' }); second.complete(); expect(component.form.controls['precoUnitario'].value).toBe('2'); expect(component.submitBlocked()).toBe(false);
+  });
+
+  it('limpa a estimativa ao mudar data, ação e tipo nos dois sentidos', async () => {
+    const preview = new Subject<PreviaPrecoCompraResponse>(); const { fixture, component } = await create({ preview }); setContext(component, 'COMPRA', 'PETR4|BRASIL'); component.form.controls['quantidade'].setValue('5'); preview.next({ ...PREVIEW, ticker: 'PETR4', mercado: 'BRASIL', moeda: 'BRL', precoUnitario: '48.200000' }); fixture.detectChanges(); expect(fixture.nativeElement.querySelector('[data-testid="estimated-total"]').textContent).toContain('R$ 241,00');
+    component.form.controls['dataOperacao'].setValue('2026-08-30'); fixture.detectChanges(); expect(fixture.nativeElement.querySelector('[data-testid="estimated-total"]').textContent).toContain('—');
+    component.form.controls['acaoKey'].setValue('AAPL|EUA'); fixture.detectChanges(); expect(fixture.nativeElement.querySelector('[data-testid="estimated-total"]').textContent).toContain('—');
+    component.form.controls['tipo'].setValue('VENDA'); fixture.detectChanges(); expect(fixture.nativeElement.querySelector('[data-testid="estimated-total"]').textContent).not.toContain('R$ 241,00');
+    component.form.controls['tipo'].setValue('COMPRA'); fixture.detectChanges(); expect(fixture.nativeElement.querySelector('[data-testid="estimated-total"]').textContent).toContain('—');
   });
 
   it.each([['REQUEST_INVALIDO', 'Backend'], ['COTACAO_HISTORICA_INDISPONIVEL', 'Não foi encontrado fechamento'], ['HISTORICO_COTACAO_FORA_DO_ALCANCE', 'fora do histórico disponível'], ['TICKER_INEXISTENTE', 'ticker informado'], ['LIMITE_REQUISICOES_EXCEDIDO', 'limite de requisições']] as const)('erro %s bloqueia COMPRA e preserva formulário', async (code, message) => {
-    const error = { status: 422, code, message: 'Backend', details: {} } as NormalizedHttpError; const { fixture, component, operations } = await create(); operations.obterPreviaCompra.mockReturnValueOnce(throwError(() => error)); setContext(component, 'COMPRA'); fixture.detectChanges(); expect(fixture.nativeElement.textContent).toContain(message); expect(component.form.controls['quantidade'].value).toBe('0,5'); expect(component.submitBlocked()).toBe(true);
+    const error = { status: 422, code, message: 'Backend', details: {} } as NormalizedHttpError; const { fixture, component, operations } = await create(); operations.obterPreviaCompra.mockReturnValueOnce(throwError(() => error)); setContext(component, 'COMPRA'); fixture.detectChanges(); expect(fixture.nativeElement.textContent).toContain(message); expect(component.form.controls['quantidade'].value).toBe('0,5'); expect(component.submitBlocked()).toBe(true); expect(fixture.nativeElement.querySelector('[data-testid="estimated-total"]').textContent).toContain('—');
   });
 
   it.each([502, 503, 504])('mantém erro técnico %i e bloqueia COMPRA', async status => {
@@ -53,7 +88,7 @@ describe('OperacaoFormPageComponent', () => {
   });
 
   it('VENDA aplica sugestão editável, aceita maior/menor e envia valor final', async () => {
-    const { fixture, component, operations } = await create(); setContext(component, 'VENDA'); fixture.detectChanges(); const input = fixture.nativeElement.querySelector('[formcontrolname="precoUnitario"]') as HTMLInputElement; expect(input.readOnly).toBe(false); expect(input.value).toBe('10'); component.form.controls['precoUnitario'].setValue('12'); component.submit(); expect(operations.cadastrar.mock.calls[0][0].precoUnitario).toBe('12');
+    const { fixture, component, operations } = await create(); setContext(component, 'VENDA'); fixture.detectChanges(); const input = fixture.nativeElement.querySelector('[formcontrolname="precoUnitario"]') as HTMLInputElement; expect(input.readOnly).toBe(false); expect(input.value).toBe('10,00'); component.form.controls['precoUnitario'].setValue('12'); component.submit(); expect(operations.cadastrar.mock.calls[0][0].precoUnitario).toBe('12');
   });
 
   it('sugestão nula deixa VENDA vazia, editável e required', async () => {
@@ -69,7 +104,7 @@ describe('OperacaoFormPageComponent', () => {
   });
 
   it('troca tipos sem reutilizar preço e preserva validators/double-submit', async () => {
-    const post = new Subject<OperacaoResponse>(); const { fixture, component, operations } = await create({ post }); setContext(component, 'COMPRA'); expect(component.form.controls['precoUnitario'].value).toBe('42.30'); component.form.controls['tipo'].setValue('VENDA'); expect(component.form.controls['precoUnitario'].value).toBe('10'); component.form.controls['precoUnitario'].setValue('12345678901234'); expect(component.form.controls['precoUnitario'].hasError('integerDigits')).toBe(true); component.form.controls['precoUnitario'].setValue('10'); component.submit(); component.submit(); expect(operations.cadastrar).toHaveBeenCalledTimes(1); post.error({}); component.form.controls['tipo'].setValue('COMPRA'); fixture.detectChanges(); expect(component.form.controls['precoUnitario'].value).toBe('42.30'); expect((fixture.nativeElement.querySelector('[formcontrolname="precoUnitario"]') as HTMLInputElement).readOnly).toBe(true);
+    const post = new Subject<OperacaoResponse>(); const { fixture, component, operations } = await create({ post }); setContext(component, 'COMPRA'); expect(component.form.controls['precoUnitario'].value).toBe('42.30'); component.form.controls['tipo'].setValue('VENDA'); expect(component.form.controls['precoUnitario'].value).toBe('10,00'); component.form.controls['precoUnitario'].setValue('12345678901234'); expect(component.form.controls['precoUnitario'].hasError('integerDigits')).toBe(true); component.form.controls['precoUnitario'].setValue('10'); component.submit(); component.submit(); expect(operations.cadastrar).toHaveBeenCalledTimes(1); post.error({}); component.form.controls['tipo'].setValue('COMPRA'); fixture.detectChanges(); expect(component.form.controls['precoUnitario'].value).toBe('42.30'); expect((fixture.nativeElement.querySelector('input[readonly]') as HTMLInputElement).readOnly).toBe(true);
   });
 
   it('reutiliza carteira contextual em sugestão e payloads', async () => {

@@ -22,7 +22,7 @@ import { CarteirasService } from '../../carteiras/carteiras.service';
 import { Corretora } from '../../corretoras/models/corretora';
 import { CorretorasService } from '../../corretoras/corretoras.service';
 import { OperacaoCreateRequest, OperacaoResponse, TipoOperacao } from '../models/operacao';
-import { civilDateValidator, normalizeDecimal, positiveDecimalValidator, quantityValidator } from '../operacao-validators';
+import { civilDateValidator, formatEditableDecimal, formatMoney, multiplyDecimals, normalizeDecimal, positiveDecimalValidator, quantityValidator } from '../operacao-validators';
 import { OperacoesService } from '../operacoes.service';
 
 export interface OperacaoFormDialogData { carteira: CarteiraResponse; }
@@ -48,8 +48,9 @@ export interface OperacaoFormDialogData { carteira: CarteiraResponse; }
           <mat-form-field appearance="outline"><mat-label>Corretora</mat-label><mat-select formControlName="corretoraId"><mat-option [value]="null">Sem corretora</mat-option>@for(item of corretoras();track item.id){<mat-option [value]="item.id">{{brokerName(item)}}</mat-option>}</mat-select><mat-hint>A corretora é opcional.</mat-hint></mat-form-field>
           <mat-form-field appearance="outline"><mat-label>Tipo</mat-label><mat-select formControlName="tipo"><mat-option value="COMPRA">Compra</mat-option><mat-option value="VENDA">Venda</mat-option></mat-select>@if(touchedInvalid('tipo')){<mat-error>Selecione COMPRA ou VENDA.</mat-error>}</mat-form-field>
           <mat-form-field appearance="outline"><mat-label>Quantidade</mat-label><input matInput inputmode="decimal" formControlName="quantidade" aria-describedby="quantity-hint"/><mat-hint id="quantity-hint">{{ selectedMarket() === 'BRASIL' ? 'Brasil: somente unidades inteiras.' : 'EUA: até 6 casas decimais.' }}</mat-hint>@if(touchedInvalid('quantidade')){<mat-error>{{quantityError()}}</mat-error>}</mat-form-field>
-          @if(form.controls.tipo.value){<mat-form-field appearance="outline"><mat-label>Preço unitário</mat-label>@if(priceCurrency()){<span matTextPrefix>{{ priceCurrency() === 'BRL' ? 'R$' : 'US$' }}&nbsp;</span>}<input matInput inputmode="decimal" formControlName="precoUnitario" [readonly]="form.controls.tipo.value === 'COMPRA'" [attr.aria-readonly]="form.controls.tipo.value === 'COMPRA'" aria-describedby="price-hint price-status"/><mat-hint id="price-hint">{{form.controls.tipo.value === 'COMPRA' ? 'Fechamento histórico exato, somente informativo.' : 'Valor editável; até 13 inteiros e 6 decimais.'}}</mat-hint>@if(touchedInvalid('precoUnitario')){<mat-error>Informe um preço positivo com até 13 inteiros e 6 decimais.</mat-error>}</mat-form-field>}
+          @if(form.controls.tipo.value){<mat-form-field appearance="outline"><mat-label>Preço unitário</mat-label>@if(form.controls.tipo.value === 'COMPRA'){<input matInput [value]="purchasePriceDisplay()" readonly aria-readonly="true" aria-describedby="price-hint price-status"/>}@if(form.controls.tipo.value === 'VENDA'){<span matTextPrefix>{{ estimatedCurrency() === 'BRL' ? 'R$' : 'US$' }}&nbsp;</span>}@if(form.controls.tipo.value === 'VENDA'){<input matInput inputmode="decimal" formControlName="precoUnitario" aria-readonly="false" aria-describedby="price-hint price-status"/>}<mat-hint id="price-hint">{{form.controls.tipo.value === 'COMPRA' ? 'Fechamento histórico exato, somente informativo.' : 'Valor editável; até 13 inteiros e 6 decimais.'}}</mat-hint>@if(touchedInvalid('precoUnitario')){<mat-error>Informe um preço positivo com até 13 inteiros e 6 decimais.</mat-error>}</mat-form-field>}
           <mat-form-field appearance="outline"><mat-label>Data da operação</mat-label><input matInput type="date" formControlName="dataOperacao"/>@if(touchedInvalid('dataOperacao')){<mat-error>Informe uma data válida, não futura no mercado.</mat-error>}</mat-form-field>
+          @if(form.controls.tipo.value){<div class="estimated-total" aria-live="polite" aria-atomic="true"><span>Valor estimado da {{form.controls.tipo.value === 'COMPRA' ? 'compra' : 'venda'}}</span><strong data-testid="estimated-total">{{estimatedTotal() ?? '—'}}</strong></div>}
           <div id="price-status" class="price-status" aria-live="polite">@if(priceLoading()){<span role="status">Consultando preço…</span>}@if(priceError()){<app-feedback-alert variant="error" [message]="priceErrorMessage()" [details]="priceError()!.details" />}@if(form.controls.tipo.value === 'COMPRA' && previewReady()){<span>Fechamento de {{previewDate()}} em {{priceCurrency()}}. O backend confirmará o valor ao registrar.</span>}</div>
           @if (corretoras().length === 0) { <p class="optional-note">Nenhuma corretora cadastrada. Você pode continuar sem corretora.</p> }
           <div class="app-actions app-actions--stack-compact"><button mat-flat-button type="submit" [disabled]="submitBlocked()" [attr.aria-busy]="submitting()">Registrar operação</button>@if(isDialog){<button mat-button type="button" (click)="cancel()">Cancelar</button>}@else{<a mat-button routerLink="/operacoes">Cancelar</a>}</div>
@@ -58,7 +59,7 @@ export interface OperacaoFormDialogData { carteira: CarteiraResponse; }
       }
     </section>`,
   styles: [`
-    .operation-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1.1rem;max-width:56rem}.operation-form>*{min-width:0}.context,.optional-note,.price-status,.app-actions,.progress{grid-column:1/-1}.context{display:grid;gap:.25rem;padding:1rem;border-radius:.75rem;background:var(--app-surface-selected)}.context small,.optional-note,.price-status{color:var(--app-text-secondary)}.price-status:empty{display:none}.progress{display:flex;align-items:center;gap:.75rem}.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0)}@media(max-width:42rem){.operation-form{grid-template-columns:1fr}.context,.optional-note,.price-status,.app-actions,.progress{grid-column:auto}}
+    .operation-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1.1rem;max-width:56rem}.operation-form>*{min-width:0}.context,.optional-note,.price-status,.estimated-total,.app-actions,.progress{grid-column:1/-1}.context{display:grid;gap:.25rem;padding:1rem;border-radius:.75rem;background:var(--app-surface-selected)}.context small,.optional-note,.price-status,.estimated-total span{color:var(--app-text-secondary)}.price-status:empty{display:none}.estimated-total{display:flex;align-items:baseline;justify-content:space-between;gap:1rem;padding:1rem;border:1px solid var(--app-border-subtle);border-radius:.75rem}.estimated-total strong{font-size:1.25rem}.progress{display:flex;align-items:center;gap:.75rem}.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0)}@media(max-width:42rem){.operation-form{grid-template-columns:1fr}.context,.optional-note,.price-status,.estimated-total,.app-actions,.progress{grid-column:auto}}
   `],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
@@ -85,6 +86,7 @@ export class OperacaoFormPageComponent {
   protected readonly previewReady = signal(false);
   protected readonly priceCurrency = signal<'BRL' | 'USD' | null>(null);
   protected readonly previewDate = signal('');
+  protected readonly estimatedTotal = signal<string | null>(null);
   protected readonly submitting = signal(false);
   private manualPriceVersion = 0;
   protected readonly form = new FormGroup({
@@ -101,7 +103,9 @@ export class OperacaoFormPageComponent {
     this.form.controls.tipo.valueChanges.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => this.typeChanged());
     this.form.controls.precoUnitario.valueChanges.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => {
       if (this.form.controls.tipo.value === 'VENDA') this.manualPriceVersion++;
+      this.updateEstimatedTotal();
     });
+    this.form.controls.quantidade.valueChanges.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => this.updateEstimatedTotal());
     this.setupPricePipeline();
     this.loadReferences();
   }
@@ -143,8 +147,11 @@ export class OperacaoFormPageComponent {
         this.priceCurrency.set(result.value.moeda);
         this.previewDate.set(result.value.dataCotacao);
         this.previewReady.set(true);
+        this.updateEstimatedTotal();
       } else if (result.editVersion === this.manualPriceVersion) {
-        this.form.controls.precoUnitario.setValue(result.value.precoUnitarioSugerido ?? '', { emitEvent: false });
+        const suggestion = result.value.precoUnitarioSugerido;
+        this.form.controls.precoUnitario.setValue(suggestion ? formatEditableDecimal(suggestion) ?? suggestion : '', { emitEvent: false });
+        this.updateEstimatedTotal();
       }
     });
   }
@@ -156,6 +163,7 @@ export class OperacaoFormPageComponent {
     this.previewReady.set(false);
     this.priceCurrency.set(null);
     this.previewDate.set('');
+    this.estimatedTotal.set(null);
   }
 
   private loadReferences(): void {
@@ -169,6 +177,8 @@ export class OperacaoFormPageComponent {
   protected actionKey(item: AcaoResponse): string { return `${item.ticker}|${item.mercado}`; }
   protected selectedAction(): AcaoResponse | null { return this.acoes().find(action => this.actionKey(action) === this.form.controls.acaoKey.value) ?? null; }
   protected selectedMarket(): Mercado | null { return this.selectedAction()?.mercado ?? null; }
+  protected estimatedCurrency(): 'BRL' | 'USD' | null { return this.priceCurrency() ?? this.selectedAction()?.moeda ?? null; }
+  protected purchasePriceDisplay(): string { const currency = this.priceCurrency(); const price = this.form.controls.precoUnitario.value; return currency && price ? formatMoney(price, currency) : ''; }
   protected marketChanged(): void { this.form.controls.quantidade.updateValueAndValidity(); this.form.controls.dataOperacao.updateValueAndValidity(); }
   protected typeChanged(): void {
     const price = this.form.controls.precoUnitario;
@@ -176,6 +186,17 @@ export class OperacaoFormPageComponent {
     if (this.form.controls.tipo.value === 'VENDA') price.setValidators([Validators.required, positiveDecimalValidator()]);
     else price.clearValidators();
     price.updateValueAndValidity();
+    this.updateEstimatedTotal();
+  }
+  private updateEstimatedTotal(): void {
+    const tipo = this.form.controls.tipo.value;
+    const currency = this.estimatedCurrency();
+    const price = this.form.controls.precoUnitario;
+    const purchaseReady = tipo === 'COMPRA' && this.previewReady();
+    const saleReady = tipo === 'VENDA' && price.valid && !!price.value.trim();
+    if (this.form.controls.quantidade.invalid || !currency || (!purchaseReady && !saleReady)) { this.estimatedTotal.set(null); return; }
+    const total = multiplyDecimals(this.form.controls.quantidade.value, price.value);
+    this.estimatedTotal.set(total ? formatMoney(total, currency) : null);
   }
   protected brokerName(item: Corretora): string { return item.nomeFantasia || item.razaoSocial; }
   protected touchedInvalid(name: keyof typeof this.form.controls): boolean { const control = this.form.controls[name]; return control.touched && control.invalid; }

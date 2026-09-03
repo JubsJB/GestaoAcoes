@@ -8,6 +8,7 @@ O frontend parcial de Operações já foi alinhado ao POST discriminado, mas o b
 - Modelar a criação como união discriminada: COMPRA sem `precoUnitario` e VENDA com `precoUnitario` obrigatório; nenhum request de criação contém `ordemNoDia`.
 - Manter `precoUnitario`, `ordemNoDia` e `valorTotal` somente como dados autoritativos do response.
 - Exibir um único campo visual de preço: somente leitura em COMPRA, preenchido por `GET /operacoes/previa-compra`, e editável/obrigatório em VENDA, inicialmente preenchido por `GET /carteiras/{carteiraId}/operacoes/sugestao-preco-venda` quando houver sugestão.
+- Exibir no formulário um total estimado, calculado textualmente apenas como quantidade × preço para orientação visual, sem enviá-lo no request nem substituir o `valorTotal` autoritativo do backend.
 - Invalidar imediatamente preços de contextos anteriores e impedir respostas assíncronas atrasadas de sobrescrever ação, mercado, carteira, data ou tipo atuais.
 - Bloquear o POST de COMPRA enquanto a prévia estiver carregando, ausente ou inválida, sem incluir o preço exibido no payload e sem consultar providers diretamente.
 - Preservar quantidade por mercado, data civil `YYYY-MM-DD`, Corretora opcional, precisão decimal lossless e ausência de cálculos financeiros no frontend.
@@ -29,6 +30,6 @@ O frontend parcial de Operações já foi alinhado ao POST discriminado, mas o b
 
 ## Impact
 
-- Afeta somente o frontend Angular de Operações, a integração visual no detalhe de Carteira e seus testes.
+- Afeta o frontend Angular de Operações, a integração visual no detalhe de Carteira, seus testes e a compatibilidade do adapter histórico BRAPI com o contrato real do provider.
 - Consome também `GET /operacoes/previa-compra` e `GET /carteiras/{carteiraId}/operacoes/sugestao-preco-venda`, além dos endpoints já planejados.
 - Não altera backend, banco, OpenAPI, dependências, regras financeiras, providers externos, archives ou specs promovidas diretamente.

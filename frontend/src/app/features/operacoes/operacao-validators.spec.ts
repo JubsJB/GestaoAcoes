@@ -1,11 +1,18 @@
 import { FormControl } from '@angular/forms';
-import { civilDateValidator, currentCivilDate, decimalError, formatCivilDate, formatDecimal, normalizeDecimal, quantityValidator } from './operacao-validators';
+import { civilDateValidator, currentCivilDate, decimalError, formatCivilDate, formatDecimal, formatEditableDecimal, multiplyDecimals, normalizeDecimal, quantityValidator } from './operacao-validators';
 
 describe('operation validators', () => {
   it('normaliza vírgula e ponto sem coerção binária', () => {
     expect(normalizeDecimal(' 123,4500 ')).toBe('123.4500');
     expect(normalizeDecimal('123.4500')).toBe('123.4500');
     expect(normalizeDecimal('1x')).toBeNull();
+  });
+
+  it('formata sugestão para edição sem arredondar nem perder precisão', () => {
+    expect(formatEditableDecimal('40.000000')).toBe('40,00');
+    expect(formatEditableDecimal('48.200000')).toBe('48,20');
+    expect(formatEditableDecimal('48.123400')).toBe('48,1234');
+    expect(formatEditableDecimal('9999999999999.123456')).toBe('9999999999999,123456');
   });
 
   it('valida positividade, 13 inteiros e 6 decimais lexicalmente', () => {
@@ -49,5 +56,12 @@ describe('operation validators', () => {
 
   it('formata decimais longos sem arredondar ou truncar', () => {
     expect(formatDecimal('12345678901234567890123456.123456789012')).toBe('12.345.678.901.234.567.890.123.456,123456789012');
+  });
+
+  it('multiplica decimais textualmente sem coerção para number', () => {
+    expect(multiplyDecimals('5', '48.200000')).toBe('241.000000');
+    expect(multiplyDecimals('2', '48,20')).toBe('96.40');
+    expect(multiplyDecimals('9999999999999.123456', '9999999999999.654321')).toBe('99999999999987777770000000.303002853376');
+    expect(multiplyDecimals('inválido', '1')).toBeNull();
   });
 });

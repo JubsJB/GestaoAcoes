@@ -9,6 +9,14 @@ export function normalizeDecimal(value: string): string | null {
   return DECIMAL.test(text) ? text.replace(',', '.') : null;
 }
 
+export function formatEditableDecimal(value: string): string | null {
+  const normalized = normalizeDecimal(value);
+  if (!normalized) return null;
+  const [integer, fraction = ''] = normalized.split('.');
+  const significantFraction = fraction.replace(/0+$/, '');
+  return `${integer},${significantFraction.padEnd(2, '0')}`;
+}
+
 export function decimalError(value: string, maxPrecision = 19, maxScale = 6): ValidationErrors | null {
   const normalized = normalizeDecimal(value);
   if (!normalized) return { decimal: true };
@@ -73,4 +81,39 @@ export function formatDecimal(value: string): string {
   const [integer, fraction] = value.split('.');
   const grouped = integer.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
   return fraction === undefined ? grouped : `${grouped},${fraction}`;
+}
+
+export function formatOperationQuantity(value: string, market: Mercado): string {
+  const [integer, fraction] = value.split('.');
+  if (market === 'BRASIL' && (!fraction || /^0+$/.test(fraction))) return formatDecimal(integer);
+  return formatDecimal(value);
+}
+
+export function formatMoney(value: string, currency: 'BRL' | 'USD'): string {
+  const match = /^(-?)(\d+)(?:\.(\d+))?$/.exec(value);
+  if (!match) return `${value} ${currency}`;
+  const sign = match[1];
+  const integer = match[2];
+  const fraction = match[3] ?? '';
+  const cents = (fraction + '00').slice(0, 2);
+  let minorUnits = BigInt(integer + cents);
+  if ((fraction[2] ?? '0') >= '5') minorUnits += 1n;
+  const padded = minorUnits.toString().padStart(3, '0');
+  const whole = padded.slice(0, -2).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  const decimal = padded.slice(-2);
+  const symbol = currency === 'BRL' ? 'R$' : 'US$';
+  return `${sign}${symbol} ${whole},${decimal}`;
+}
+
+export function multiplyDecimals(left: string, right: string): string | null {
+  const normalizedLeft = normalizeDecimal(left);
+  const normalizedRight = normalizeDecimal(right);
+  if (!normalizedLeft || !normalizedRight) return null;
+  const [leftInteger, leftFraction = ''] = normalizedLeft.split('.');
+  const [rightInteger, rightFraction = ''] = normalizedRight.split('.');
+  const scale = leftFraction.length + rightFraction.length;
+  const product = BigInt(leftInteger + leftFraction) * BigInt(rightInteger + rightFraction);
+  const digits = product.toString().padStart(scale + 1, '0');
+  if (scale === 0) return digits;
+  return `${digits.slice(0, -scale)}.${digits.slice(-scale)}`;
 }

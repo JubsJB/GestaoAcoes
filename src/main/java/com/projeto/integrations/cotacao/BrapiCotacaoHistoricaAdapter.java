@@ -5,21 +5,26 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.projeto.entities.Mercado;
 import com.projeto.integrations.ExternalApiErrorMapper;
 import com.projeto.services.exceptions.ApiException;
+import com.projeto.services.exceptions.ErrorCodes;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 import org.springframework.context.annotation.Profile;
 import org.springframework.web.client.*;
 import java.math.BigDecimal;
+import java.time.DateTimeException;
+import java.time.Instant;
 import java.time.LocalDate;
-import java.time.format.DateTimeParseException;
-import java.util.Locale;
+import java.time.ZoneId;
+import java.util.*;
 
 @Component
 @Profile("!test")
 public class BrapiCotacaoHistoricaAdapter implements CotacaoHistoricaProvider {
     private static final String PROVIDER = "BRAPI";
+    private static final ZoneId MARKET_ZONE = ZoneId.of("America/Sao_Paulo");
     private final RestClient restClient;
     private final String apiKey;
     private final ObjectMapper objectMapper = new ObjectMapper();
@@ -52,17 +57,37 @@ public class BrapiCotacaoHistoricaAdapter implements CotacaoHistoricaProvider {
         JsonNode result = results.get(0);
         String symbol = text(result, "symbol");
         if (symbol == null || !expectedTicker.equals(symbol.trim().toUpperCase(Locale.ROOT))) throw invalid();
-        JsonNode prices = result.get("historicalDataPrice");
-        if (prices == null || !prices.isArray() || prices.size() != 1) throw invalid();
-        JsonNode candle = prices.get(0);
-        String rawDate = text(candle, "date");
-        if (rawDate == null) throw invalid();
-        LocalDate date;
-        try { date = LocalDate.parse(rawDate); } catch (DateTimeParseException e) { throw invalid(); }
-        if (!expectedDate.equals(date)) throw invalid();
-        BigDecimal close = decimal(candle.get("close"));
-        if (close == null || close.signum() <= 0) throw invalid();
-        return new CotacaoHistoricaData(expectedTicker, date, close);
+        JsonNode data = result.get("data");
+        if (data == null || !data.isObject()) throw invalid();
+        JsonNode prices = data.get("historicalDataPrice");
+        if (prices == null || !prices.isArray()) throw invalid();
+        if (prices.isEmpty()) throw historical(ErrorCodes.COTACAO_HISTORICA_INDISPONIVEL,
+                "CotaÃ§Ã£o histÃ³rica indisponÃ­vel para a data solicitada");
+
+        Map<LocalDate, BigDecimal> candles = new HashMap<>();
+        for (JsonNode candle : prices) {
+            LocalDate date = marketDate(candle == null ? null : candle.get("date"));
+            if (candles.containsKey(date)) throw invalid();
+            BigDecimal close = decimal(candle.get("close"));
+            if (close == null || close.signum() <= 0) throw invalid();
+            candles.put(date, close);
+        }
+
+        BigDecimal exact = candles.get(expectedDate);
+        if (exact != null) return new CotacaoHistoricaData(expectedTicker, expectedDate, exact);
+        LocalDate min = Collections.min(candles.keySet());
+        LocalDate max = Collections.max(candles.keySet());
+        if (!expectedDate.isBefore(min) && !expectedDate.isAfter(max)) {
+            throw historical(ErrorCodes.COTACAO_HISTORICA_INDISPONIVEL,
+                    "CotaÃ§Ã£o histÃ³rica indisponÃ­vel para a data solicitada");
+        }
+        throw historical(ErrorCodes.HISTORICO_COTACAO_FORA_DO_ALCANCE,
+                "Data fora do alcance do histÃ³rico de cotaÃ§Ã£o disponÃ­vel");
+    }
+    private LocalDate marketDate(JsonNode node) {
+        if (node == null || !node.isIntegralNumber() || !node.canConvertToLong()) throw invalid();
+        try { return Instant.ofEpochSecond(node.longValue()).atZone(MARKET_ZONE).toLocalDate(); }
+        catch (DateTimeException | ArithmeticException e) { throw invalid(); }
     }
     private String text(JsonNode node, String field) {
         JsonNode value = node == null ? null : node.get(field);
@@ -73,6 +98,9 @@ public class BrapiCotacaoHistoricaAdapter implements CotacaoHistoricaProvider {
         try { return new BigDecimal(node.asText().trim()); } catch (RuntimeException e) { return null; }
     }
     private ApiException invalid() { return ExternalApiErrorMapper.invalidResponse(PROVIDER); }
+    private ApiException historical(String code, String message) {
+        return new ApiException(HttpStatus.UNPROCESSABLE_CONTENT, code, message);
+    }
     private ApiException tickerNotFound() {
         return new ApiException(org.springframework.http.HttpStatus.NOT_FOUND,
                 com.projeto.services.exceptions.ErrorCodes.TICKER_INEXISTENTE, "Ticker inexistente");

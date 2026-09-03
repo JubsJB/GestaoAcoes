@@ -13,6 +13,7 @@ O response continua contendo `precoUnitario`, `ordemNoDia` e `valorTotal`. Quant
 - manter fluxos global e contextual sem duplicação;
 - preservar double-submit lock apenas durante o POST pendente.
 - tornar visível o preço de COMPRA antes do registro e preencher inicialmente o preço de VENDA sem transferir autoridade financeira ao frontend;
+- apresentar quantidade × preço como estimativa visual lossless no formulário, sem integrar o request ou substituir o total calculado pelo backend;
 - impedir preço obsoleto ou resposta fora de ordem em toda mudança de contexto.
 
 **Non-Goals:**
@@ -21,7 +22,7 @@ O response continua contendo `precoUnitario`, `ordemNoDia` e `valorTotal`. Quant
 - buscar ou calcular fechamento histórico no frontend;
 - oferecer preço manual de fallback para COMPRA;
 - introduzir ordem/hora manual, idempotency key ou detecção de duplicidade por payload;
-- calcular total, preço médio, posição ou resultados no frontend;
+- calcular preço médio, posição, resultados ou patrimônio no frontend, ou tratar a estimativa visual de quantidade × preço como `valorTotal` autoritativo;
 - editar/excluir Operações ou realizar redesign amplo.
 
 ## Decisions
@@ -68,11 +69,13 @@ O signal de submissão continuará bloqueando novo clique enquanto o POST estive
 
 ### D9 — Listagem, detalhe e contexto de Carteira
 
-Listagem, detalhe e histórico contextual continuarão exibindo preço, ordem e total retornados, sem recalculá-los. O dialog contextual reutilizará o mesmo formulário discriminado com `carteiraId` pré-selecionado e fixo. Após sucesso, o DTO retornado será inserido no histórico e ordenado para apresentação por `dataOperacao`, `ordemNoDia`, `id`.
+Listagem e histórico contextual continuarão usando preço, ordem e total retornados, sem recalculá-los. O detalhe exibirá preço e total autoritativos formatados, mantendo `ordemNoDia` no response e na ordenação, mas sem expô-la ao usuário. O dialog contextual reutilizará o mesmo formulário discriminado com `carteiraId` pré-selecionado e fixo. Após sucesso, o DTO retornado será inserido no histórico e ordenado para apresentação por `dataOperacao`, `ordemNoDia`, `id`.
+
+O formulário poderá apresentar um total estimado como multiplicação decimal textual de quantidade por preço. Essa informação será identificada como estimativa, não será enviada no POST e não participará de preço médio, posição, resultados ou patrimônio.
 
 ### D10 — Estratégia de testes
 
-Atualizar testes de models, lossless, service e formulário para os dois GETs. Cobrir campo único, moedas, loading, erro, null, reconsulta, descarte imediato, respostas fora de ordem, alternância, payloads exatos, double-submit e fluxo contextual. Manter os testes compatíveis de validators, rotas, lista, detalhe e shell.
+Atualizar testes de models, lossless, service e formulário para os dois GETs. Cobrir campo único, moedas, total estimado apenas visual, loading, erro, null, reconsulta, descarte imediato, respostas fora de ordem, alternância, payloads exatos, double-submit e fluxo contextual. Manter os testes compatíveis de validators, rotas, lista, detalhe e shell.
 
 ## Risks / Trade-offs
 

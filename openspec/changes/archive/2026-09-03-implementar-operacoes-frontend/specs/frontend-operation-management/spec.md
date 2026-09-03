@@ -126,7 +126,7 @@ Quando `tipo=VENDA`, o formulário SHALL exibir `precoUnitario` editável, obrig
 - **THEN** o frontend envia exatamente o texto `YYYY-MM-DD`
 
 ### Requirement: Precisão lossless e valores autoritativos
-Os campos decimais `quantidade`, `precoUnitario`, `precoUnitarioSugerido` e `valorTotal` dos responses SHALL ser preservados sem perda de precisão. O frontend MUST NOT inventar preço de COMPRA, recalcular `valorTotal`, preço médio, posição ou resultado financeiro e MUST NOT introduzir nova biblioteca decimal.
+Os campos decimais `quantidade`, `precoUnitario`, `precoUnitarioSugerido` e `valorTotal` dos responses SHALL ser preservados sem perda de precisão. O frontend MUST NOT inventar preço de COMPRA, substituir ou enviar `valorTotal`, calcular preço médio, posição ou resultado financeiro e MUST NOT introduzir nova biblioteca decimal. O formulário MAY multiplicar textualmente quantidade por preço somente para exibir um total explicitamente estimado, separado do `valorTotal` autoritativo do response e sem coerção binária.
 
 #### Scenario: Response com decimal longo
 - **WHEN** o backend retorna números além da precisão segura de JavaScript
@@ -135,6 +135,10 @@ Os campos decimais `quantidade`, `precoUnitario`, `precoUnitarioSugerido` e `val
 #### Scenario: Valores somente autoritativos
 - **WHEN** uma criação retorna com sucesso
 - **THEN** a interface usa exclusivamente preço, ordem e total presentes no response
+
+#### Scenario: Total estimado no formulário
+- **WHEN** quantidade e preço válidos estão disponíveis durante o cadastro
+- **THEN** o formulário pode exibir quantidade × preço como estimativa visual em BRL ou USD, sem enviar `valorTotal` ou realizar outro cálculo financeiro
 
 ### Requirement: Erros históricos e externos acionáveis
 A feature SHALL preservar o erro normalizado dos GETs e do POST e acrescentar orientação específica sem ocultar `message` e `details`. `COTACAO_HISTORICA_INDISPONIVEL`, `HISTORICO_COTACAO_FORA_DO_ALCANCE`, `TICKER_INEXISTENTE` e `LIMITE_REQUISICOES_EXCEDIDO` SHALL possuir feedback apropriado, sem preço manual ou troca automática de data. Erros `502`, `503` e `504` SHALL usar o tratamento técnico central existente. O caminho real de `HttpErrorResponse` até a mensagem SHALL ser integrado à normalização central.
@@ -178,7 +182,7 @@ O frontend MUST NOT calcular saldo, preço médio, lucro, elegibilidade de VENDA
 - **THEN** a interface explica a posição insuficiente, preserva a entrada e não apresenta sucesso
 
 ### Requirement: Detalhe fiel
-O detalhe SHALL apresentar todos os campos do `OperacaoResponse`, incluindo preço, ordem e total, mostrar “Sem corretora” quando aplicável, permitir retorno ao contexto de origem e MUST NOT exibir cotação, posição, preço médio, resultados, edição ou exclusão.
+O detalhe SHALL apresentar os dados relevantes do `OperacaoResponse`, incluindo preço e total autoritativos formatados, mostrar “Sem corretora” quando aplicável, permitir retorno ao contexto de origem e MUST NOT exibir `ordemNoDia`, cotação, posição, preço médio, resultados, edição ou exclusão. `ordemNoDia` SHALL permanecer no contrato e continuar disponível para ordenação interna.
 
 #### Scenario: Estado transitório ou reload
 - **WHEN** há response transitório compatível ou a rota é recarregada
