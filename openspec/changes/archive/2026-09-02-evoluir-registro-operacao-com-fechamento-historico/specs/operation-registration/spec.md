@@ -1,10 +1,4 @@
-# operation-registration Specification
-
-## Purpose
-
-Definir o registro REST atômico de compras e vendas de Ações em uma Carteira, preservando o preço efetivamente negociado e a consistência cronológica do histórico financeiro.
-
-## Requirements
+## MODIFIED Requirements
 
 ### Requirement: Contrato REST de criação de Operação
 O sistema SHALL expor `POST /operacoes` com contrato discriminado pelo campo `tipo`. COMPRA SHALL aceitar exclusivamente `carteiraId`, `ticker`, `mercado`, `corretoraId`, `tipo=COMPRA`, `quantidade` e `dataOperacao`; `precoUnitario` e `ordemNoDia` MUST ser proibidos. VENDA SHALL aceitar os mesmos campos com `tipo=VENDA` e SHALL exigir `precoUnitario`; `ordemNoDia` MUST ser proibido. `corretoraId` SHALL aceitar omissão ou valor nulo; quando informado, SHALL referenciar uma Corretora existente. Qualquer campo desconhecido ou controlado pela aplicação SHALL ser rejeitado.
@@ -60,17 +54,6 @@ Uma criação concluída SHALL responder `201 Created`, incluir `Location: /oper
 - **WHEN** uma VENDA válida é persistida
 - **THEN** o response contém o preço informado, a ordem gerada e o total calculado
 
-### Requirement: Associação obrigatória com Carteira existente
-O sistema SHALL exigir `carteiraId`, SHALL localizar a Carteira persistida antes da criação e SHALL associar a Operação exatamente ao registro encontrado. Carteira inexistente SHALL produzir `404 Not Found` no formato `StandardError` vigente. O registro MUST NOT modificar nome, data de criação ou qualquer outro estado da Carteira.
-
-#### Scenario: Carteira existente
-- **WHEN** `carteiraId` identifica uma Carteira persistida
-- **THEN** a nova Operação referencia exatamente essa Carteira sem alterar seus dados
-
-#### Scenario: Carteira inexistente
-- **WHEN** `carteiraId` não identifica Carteira persistida
-- **THEN** o sistema responde `404 Not Found` no formato padronizado e não persiste Operação
-
 ### Requirement: Seleção obrigatória de Ação por ticker e mercado
 O sistema SHALL normalizar o ticker pela regra vigente, localizar uma Ação persistida pela combinação exata de ticker e `Mercado` e aceitar somente `BRASIL` e `EUA`. O cliente MUST NOT informar `acaoId`; o registro MUST NOT cadastrar ou modificar Ação. A consulta histórica de COMPRA SHALL ocorrer somente depois de confirmar preliminarmente que Carteira, Ação e Corretora opcional existem; VENDA MUST NOT consultar provider.
 
@@ -89,51 +72,6 @@ O sistema SHALL normalizar o ticker pela regra vigente, localizar uma Ação per
 #### Scenario: Ação não cadastrada
 - **WHEN** nenhuma Ação corresponde ao ticker normalizado e mercado
 - **THEN** o sistema responde `404 Not Found`, não consulta provider e não cadastra Ação
-
-### Requirement: Associação opcional com Corretora existente
-Quando `corretoraId` estiver ausente ou nulo, o sistema SHALL permitir a criação e persistir a associação como nula. Quando informado, o sistema SHALL localizar e associar a Corretora persistida ou responder `404 Not Found` no formato vigente quando o ID não existir. O fluxo MUST NOT consultar BrasilAPI, ViaCEP ou modificar a Corretora.
-
-#### Scenario: Corretora omitida
-- **WHEN** uma Operação válida omite ou informa `corretoraId=null`
-- **THEN** o sistema persiste a Operação com Corretora nula
-
-#### Scenario: Corretora existente
-- **WHEN** `corretoraId` identifica uma Corretora persistida
-- **THEN** a Operação referencia exatamente essa Corretora sem revalidá-la externamente
-
-#### Scenario: Corretora inexistente
-- **WHEN** `corretoraId` é informado e não identifica Corretora persistida
-- **THEN** o sistema responde `404 Not Found` e não persiste Operação
-
-### Requirement: Tipo de Operação restrito
-O campo `tipo` SHALL aceitar exclusivamente o enum `TipoOperacao` com os valores textuais `COMPRA` e `VENDA`. Valor ausente, nulo ou diferente desses valores SHALL produzir `400 Bad Request` com código `REQUEST_INVALIDO`.
-
-#### Scenario: Tipos válidos
-- **WHEN** o cliente informa `COMPRA` ou `VENDA`
-- **THEN** o sistema interpreta e persiste exatamente o tipo informado
-
-#### Scenario: Tipo inválido
-- **WHEN** o cliente informa outro texto, enum ordinal, valor nulo ou omite `tipo`
-- **THEN** o sistema responde `400 Bad Request` e não persiste Operação
-
-### Requirement: Quantidade positiva e válida para o mercado
-`quantidade` SHALL usar `BigDecimal`, SHALL ser obrigatória, maior que zero e exatamente representável em `NUMERIC(19,6)`. Para `BRASIL`, o valor SHALL ser matematicamente inteiro e qualquer componente fracionário diferente de zero SHALL ser rejeitado. Para `EUA`, o sistema SHALL aceitar quantidades inteiras ou fracionárias com até seis casas decimais. O sistema MUST NOT usar `float` ou `double`, arredondar, truncar ou converter silenciosamente valores fora desses limites.
-
-#### Scenario: Quantidade inteira
-- **WHEN** o cliente informa `quantidade=100` para `BRASIL` ou `EUA`
-- **THEN** o sistema aceita o valor matematicamente inteiro como quantidade exata da Operação
-
-#### Scenario: Quantidade fracionária no Brasil
-- **WHEN** o cliente informa para `BRASIL` uma quantidade com componente fracionário diferente de zero
-- **THEN** o sistema responde `400 Bad Request` com `REQUEST_INVALIDO`, identifica `quantidade` nos detalhes e não persiste Operação
-
-#### Scenario: Quantidade fracionária nos EUA
-- **WHEN** o cliente informa para `EUA` uma quantidade positiva com até seis casas decimais e dentro da precisão aprovada
-- **THEN** o sistema preserva exatamente a quantidade fracionária informada
-
-#### Scenario: Quantidade inválida
-- **WHEN** a quantidade é ausente, zero, negativa ou excede precisão 19 ou escala 6
-- **THEN** o sistema responde `400 Bad Request` com `REQUEST_INVALIDO`, identifica `quantidade` nos detalhes e não persiste Operação
 
 ### Requirement: Valor total calculado com exatidão
 O cliente MUST NOT informar `valorTotal`. O sistema SHALL calcular `valorTotal = quantidade × precoUnitario` com aritmética decimal exata e sem arredondamento ou truncamento, usando o fechamento obtido em COMPRA ou o preço informado em VENDA. O resultado SHALL caber em precisão 38 e escala 12.
@@ -154,21 +92,6 @@ O cliente MUST NOT informar `valorTotal`. O sistema SHALL calcular `valorTotal =
 - **WHEN** o produto não pode ser representado exatamente nos limites aprovados
 - **THEN** a criação é rejeitada sem persistência parcial
 
-### Requirement: Data da Operação sem horário fabricado
-`dataOperacao` SHALL usar `LocalDate`/SQL `DATE`, SHALL ser obrigatória e representar somente a data civil conhecida da negociação, sem horário ou offset inventados. O sistema SHALL aceitar datas passadas e a data civil corrente do mercado da Ação e SHALL rejeitar datas futuras com `400 Bad Request` e `REQUEST_INVALIDO`. A referência de mercado SHALL ser `America/Sao_Paulo` para `BRASIL` e `America/New_York` para `EUA`, calculada a partir de um `Clock` testável. O sistema MUST NOT comparar a entrada somente com uma data UTC global nem confundi-la com data de cadastro, `Acao.dataHoraCotacao` ou referência histórica.
-
-#### Scenario: Operação passada
-- **WHEN** o cliente informa uma data válida anterior à data corrente
-- **THEN** o sistema preserva exatamente essa data na Operação
-
-#### Scenario: Operação no dia corrente
-- **WHEN** o cliente informa a data corrente determinada pelo mesmo instante do `Clock` na zona correspondente ao mercado da Ação
-- **THEN** o sistema permite o registro sem acrescentar horário
-
-#### Scenario: Operação futura
-- **WHEN** o cliente informa data posterior à data civil corrente em `America/Sao_Paulo` para `BRASIL` ou `America/New_York` para `EUA`
-- **THEN** o sistema responde `400 Bad Request` e não persiste Operação
-
 ### Requirement: Registro de COMPRA sem consolidação financeira
 Uma COMPRA válida SHALL obter o fechamento histórico bruto da data exata antes da transação curta, persistir somente os dados da própria Operação e aumentar a quantidade cronologicamente disponível para validações subsequentes. A falha externa MUST impedir a nova COMPRA antes de qualquer persistência. A chamada de rede MUST NOT manter lock pessimista nem alterar cotação corrente, histórico de cotação corrente, dados existentes ou consolidações persistidas. Nesta change, a COMPRA MUST NOT persistir posição, recalcular ou armazenar preço médio, custo consolidado, resultado, rentabilidade, patrimônio ou snapshot.
 
@@ -187,25 +110,6 @@ Uma COMPRA válida SHALL obter o fechamento histórico bruto da data exata antes
 #### Scenario: Falha externa antes da transação
 - **WHEN** a consulta histórica da COMPRA falha
 - **THEN** nenhuma Operação é persistida e nenhum lock de Carteira permanece aberto durante rede ou timeout
-
-### Requirement: VENDA limitada pela posição cronologicamente disponível
-Antes de persistir uma VENDA, o sistema SHALL reproduzir todas as Operações da mesma Carteira e Ação, incluindo a candidata em sua posição cronológica, somando COMPRA e subtraindo VENDA. A criação SHALL ser permitida somente quando o saldo permanecer maior ou igual a zero em todos os pontos da sequência; caso contrário, SHALL responder `409 Conflict` com código `POSICAO_INSUFICIENTE` e não persistir a candidata. Operações de outras Carteiras ou Ações MUST NOT participar do saldo.
-
-#### Scenario: Venda dentro da posição
-- **WHEN** a quantidade vendida não torna negativo nenhum saldo cronológico
-- **THEN** a VENDA é persistida com o preço unitário efetivamente informado
-
-#### Scenario: Venda exatamente igual à posição
-- **WHEN** a quantidade vendida é exatamente igual ao saldo disponível naquele ponto
-- **THEN** a VENDA é persistida e o saldo derivado passa a zero
-
-#### Scenario: Venda acima da posição
-- **WHEN** a quantidade vendida excede o saldo disponível naquele ponto
-- **THEN** o sistema responde `409 Conflict` com `POSICAO_INSUFICIENTE` e não persiste a VENDA
-
-#### Scenario: Isolamento por Carteira e Ação
-- **WHEN** existem compras da mesma Ação em outra Carteira ou de outra Ação na mesma Carteira
-- **THEN** essas Operações não aumentam a posição disponível para a VENDA avaliada
 
 ### Requirement: Inserção retroativa preserva toda a sequência
 O sistema SHALL aceitar Operação retroativa somente quando todo o replay da mesma Carteira e Ação permanecer sem saldo negativo. Uma nova Operação em data que já contém Operações SHALL ser anexada ao final daquele dia por `MAX(ordemNoDia)+1`; não haverá inserção entre ordens existentes, reordenação manual ou `horaOperacao`. O usuário SHALL cadastrar Operações do mesmo dia na sequência real desejada.
@@ -237,17 +141,6 @@ A consulta externa de COMPRA SHALL preceder a transação curta. Dentro da trans
 - **WHEN** geração de ordem, replay, integridade ou persistência falha
 - **THEN** nenhuma Operação parcial é persistida e registros relacionados permanecem inalterados
 
-### Requirement: Persistência relacional sem cascade delete
-A Operação SHALL possuir identificador próprio, referências obrigatórias a Carteira e Ação, referência anulável a Corretora e os demais campos do contrato. As referências MUST preservar integridade no banco e MUST NOT usar cascade delete. A capability MUST NOT criar coleção bidirecional obrigatória nos agregados existentes, tabela de posição, histórico de cotação, snapshot ou campos financeiros consolidados.
-
-#### Scenario: Corretora nula na persistência
-- **WHEN** uma Operação é criada sem Corretora
-- **THEN** somente a foreign key de Corretora permanece nula e as referências a Carteira e Ação continuam obrigatórias
-
-#### Scenario: Tentativa de remover entidade referenciada
-- **WHEN** uma Operação persistida referencia Carteira, Ação ou Corretora
-- **THEN** a integridade relacional impede que a Operação seja apagada por cascade a partir dessas entidades
-
 ### Requirement: Separação dos conceitos de preço
 O sistema SHALL tratar `Acao.cotacaoAtual` como a última cotação corrente conhecida, `HistoricoCotacao` como observações dessa cotação corrente e `Operacao.precoUnitario` como o valor financeiro persistido da Operação. Para nova COMPRA, `Operacao.precoUnitario` SHALL ser preenchido exclusivamente pelo fechamento histórico bruto da data exata; para VENDA, SHALL ser o preço informado pelo cliente. Somente o `precoUnitario` persistido na Operação SHALL participar de `valorTotal`, custo, preço médio e resultado. Cotação corrente e `HistoricoCotacao` MUST NOT substituir o fechamento externo da COMPRA nem ser alterados por ela.
 
@@ -277,6 +170,8 @@ A evolução SHALL preservar entidade, colunas NOT NULL, precisão, constraint c
 #### Scenario: Dados anteriores
 - **WHEN** existem Operações persistidas antes da evolução
 - **THEN** elas permanecem válidas e inalteradas
+
+## ADDED Requirements
 
 ### Requirement: Preço unitário conforme o tipo da Operação
 Para COMPRA, o sistema SHALL obter `precoUnitario` exclusivamente do `close` bruto do candle exatamente correspondente a `dataOperacao`; o cliente MUST NOT informá-lo e o sistema MUST NOT usar `adjustedClose`, cotação atual, `HistoricoCotacao`, `GLOBAL_QUOTE`, pregão anterior ou preço manual como fallback. Para VENDA, `precoUnitario` SHALL ser obrigatório, informado pelo cliente, positivo e exatamente representável com precisão máxima 19 e escala máxima 6, sem consulta histórica.
@@ -330,3 +225,20 @@ Para COMPRA, o sistema SHALL obter `precoUnitario` exclusivamente do `close` bru
 #### Scenario: Operações existentes preservadas
 - **WHEN** a nova regra entra em vigor
 - **THEN** preços e ordens existentes não são recalculados, consultados ou renumerados
+
+## REMOVED Requirements
+
+### Requirement: Preço unitário efetivamente negociado
+**Reason**: O contrato universal de preço informado pelo cliente foi substituído por fontes distintas: fechamento histórico bruto obrigatório para COMPRA e preço informado para VENDA.
+
+**Migration**: Consumidores devem omitir `precoUnitario` em COMPRA e continuar informando-o em VENDA; o novo requirement `Preço unitário conforme o tipo da Operação` define o contrato substituto.
+
+### Requirement: Ordem cronológica explícita dentro do dia
+**Reason**: `ordemNoDia` deixou de ser uma decisão do cliente e passou a ser gerada atomicamente pelo backend.
+
+**Migration**: Consumidores devem remover `ordemNoDia` de COMPRA e VENDA; o novo requirement `Ordem cronológica gerada dentro do dia` define a sequência substituta.
+
+### Requirement: Cotação histórica desacoplada do registro
+**Reason**: A decisão anterior que proibia providers no POST e permitia registrar COMPRA sem histórico foi substituída pela consulta obrigatória do fechamento histórico em novas COMPRAS.
+
+**Migration**: Novas COMPRAS dependem do fechamento histórico exato e falham quando ele não pode ser obtido; VENDA e consultas continuam sem provider conforme `Cotação histórica integrada somente à COMPRA`.

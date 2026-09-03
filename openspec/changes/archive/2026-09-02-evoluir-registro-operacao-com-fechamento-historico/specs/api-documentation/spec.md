@@ -1,46 +1,4 @@
-# api-documentation Specification
-
-## Purpose
-
-Disponibilizar uma descrição OpenAPI navegável, segura e fiel aos contratos REST existentes para orientar consumidores da API sem modificar seu comportamento funcional.
-
-## Requirements
-
-### Requirement: Documento OpenAPI derivado da API real
-O sistema SHALL disponibilizar, por integração code-first com springdoc, uma descrição OpenAPI gerada a partir das 24 operações REST implementadas em 18 paths funcionais distintos. A descrição MUST refletir métodos, paths, parâmetros, request bodies, respostas, status de sucesso e schemas públicos reais, e MUST NOT declarar endpoints ou comportamentos inexistentes. Endpoints e assets técnicos do springdoc MUST NOT integrar essa contagem funcional.
-
-#### Scenario: Consulta da descrição JSON
-- **WHEN** um consumidor acessa `/v3/api-docs` em qualquer profile do MVP
-- **THEN** o sistema responde com um documento OpenAPI válido que contém as 24 operações públicas nos 18 paths funcionais implementados
-
-#### Scenario: Consulta da descrição YAML
-- **WHEN** um consumidor acessa `/v3/api-docs.yaml` em qualquer profile do MVP
-- **THEN** o sistema responde com a representação YAML da mesma descrição OpenAPI
-
-#### Scenario: Ausência de contrato fictício
-- **WHEN** o documento OpenAPI é inspecionado
-- **THEN** ele não contém autenticação, versionamento `/v1`, filtros, paginação ou endpoints que não existam no backend
-
-### Requirement: Swagger UI navegável
-O sistema SHALL disponibilizar Swagger UI em todos os profiles do MVP por `/swagger-ui.html` e pelo recurso efetivo `/swagger-ui/index.html`, para permitir navegação pelos domínios, inspeção dos schemas e execução manual dos endpoints documentados.
-
-#### Scenario: Acesso à interface
-- **WHEN** um consumidor acessa a entrada padrão do Swagger UI em qualquer profile do MVP
-- **THEN** a interface carrega a descrição OpenAPI da própria aplicação e apresenta as operações agrupadas por domínio
-
-### Requirement: Metadados globais da API
-O documento SHALL identificar a API como `Sistema de Gestão e Controle de Carteira de Investimentos API`, SHALL descrevê-la como API REST para gerenciamento de corretoras, ações, carteiras, operações e indicadores, e SHALL usar a versão documental do projeto sem introduzir versionamento no path dos endpoints.
-
-#### Scenario: Inspeção dos metadados
-- **WHEN** o consumidor consulta a descrição OpenAPI
-- **THEN** título, descrição e versão documental estão presentes e nenhuma definição de segurança inexistente é declarada
-
-### Requirement: Organização por domínio
-As operações SHALL ser organizadas por tags sustentáveis correspondentes aos domínios públicos Corretoras, Ações, Carteiras, Operações e Indicadores da Carteira.
-
-#### Scenario: Navegação por tag
-- **WHEN** o consumidor abre a Swagger UI
-- **THEN** cada operação aparece em uma tag coerente com seu caso de uso sem duplicação artificial de endpoints
+## MODIFIED Requirements
 
 ### Requirement: Contratos de entrada e saída fiéis
 O documento efetivamente servido por `/v3/api-docs` SHALL representar `POST /operacoes` com `oneOf` para COMPRA/VENDA e discriminator `tipo`. O schema de COMPRA SHALL omitir `precoUnitario`; o schema de VENDA SHALL declarar `precoUnitario` em `required`. Ambas as variantes SHALL omitir `ordemNoDia`, declarar propriedades adicionais proibidas e preservar `corretoraId` opcional e anulável. O response SHALL continuar documentando `precoUnitario`, `ordemNoDia` e `valorTotal` produzidos pelo backend, além dos demais campos vigentes.

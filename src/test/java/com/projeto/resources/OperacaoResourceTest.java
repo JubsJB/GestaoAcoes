@@ -12,6 +12,7 @@ import com.projeto.integrations.cep.ViaCepAdapter;
 import com.projeto.integrations.cnpj.BrasilApiAdapter;
 import com.projeto.integrations.cotacao.AlphaVantageAdapter;
 import com.projeto.integrations.cotacao.BrapiAdapter;
+import com.projeto.integrations.cotacao.CotacaoHistoricaProvider;
 import com.projeto.repositories.AcaoRepository;
 import com.projeto.repositories.CarteiraRepository;
 import com.projeto.repositories.CorretoraRepository;
@@ -37,6 +38,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.verify;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -77,6 +79,12 @@ class OperacaoResourceTest {
     @MockitoSpyBean
     private ViaCepAdapter viaCepAdapter;
 
+    @MockitoSpyBean(name = "brapiHistoricoStub")
+    private CotacaoHistoricaProvider brapiHistorico;
+
+    @MockitoSpyBean(name = "alphaHistoricoStub")
+    private CotacaoHistoricaProvider alphaHistorico;
+
     @BeforeEach
     void cleanDatabase() {
         operacaoRepository.deleteAll();
@@ -102,21 +110,23 @@ class OperacaoResourceTest {
                 .andExpect(jsonPath("$.corretoraId").value(Matchers.nullValue()))
                 .andExpect(jsonPath("$.tipo").value("COMPRA"))
                 .andExpect(jsonPath("$.quantidade").value(100.0))
-                .andExpect(jsonPath("$.precoUnitario").value(32.47))
+                .andExpect(jsonPath("$.precoUnitario").value(32.0))
                 .andExpect(jsonPath("$.dataOperacao").value("2026-08-10"))
                 .andExpect(jsonPath("$.ordemNoDia").value(1))
-                .andExpect(jsonPath("$.valorTotal").value(3247.0))
+                .andExpect(jsonPath("$.valorTotal").value(3200.0))
                 .andExpect(jsonPath("$.acaoId").doesNotExist())
                 .andExpect(jsonPath("$.cotacaoAtual").doesNotExist())
                 .andExpect(jsonPath("$.cotacaoHistorica").doesNotExist());
 
         var saved = operacaoRepository.findAll().get(0);
         assertNull(saved.getCorretora());
-        assertEquals(new BigDecimal("32.470000"), saved.getPrecoUnitario());
-        assertEquals(new BigDecimal("3247.000000000000"), saved.getValorTotal());
+        assertEquals(new BigDecimal("32.000000"), saved.getPrecoUnitario());
+        assertEquals(new BigDecimal("3200.000000000000"), saved.getValorTotal());
         assertEquals(new BigDecimal("88.000000"), acaoRepository.findById(acao.getId()).orElseThrow().getCotacaoAtual());
         assertEquals("Carteira BR", carteiraRepository.findById(carteira.getId()).orElseThrow().getNome());
-        assertNoExternalCalls();
+        verify(brapiHistorico).consultarFechamento("PETR4", LocalDate.of(2026, 8, 10));
+        verify(alphaHistorico, never()).consultarFechamento(anyString(), org.mockito.ArgumentMatchers.any());
+        assertNoCurrentProviderCalls();
     }
 
     @Test
@@ -131,8 +141,11 @@ class OperacaoResourceTest {
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.corretoraId").value(broker.getId()))
                 .andExpect(jsonPath("$.quantidade").value(1.5))
-                .andExpect(jsonPath("$.precoUnitario").value(200.123456))
-                .andExpect(jsonPath("$.valorTotal").value(300.185184));
+                .andExpect(jsonPath("$.precoUnitario").value(32.0))
+                .andExpect(jsonPath("$.valorTotal").value(48.0));
+
+        verify(alphaHistorico).consultarFechamento("AAPL", LocalDate.of(2026, 8, 10));
+        clearInvocations(brapiHistorico, alphaHistorico);
 
         mockMvc.perform(post("/operacoes")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -142,7 +155,8 @@ class OperacaoResourceTest {
                 .andExpect(jsonPath("$.valorTotal").value(105.0));
 
         assertEquals(2, operacaoRepository.count());
-        assertNoExternalCalls();
+        assertNoHistoricalProviderCalls();
+        assertNoCurrentProviderCalls();
     }
 
     @Test
@@ -158,7 +172,38 @@ class OperacaoResourceTest {
         assertInvalidContract(base.replace("\"COMPRA\"", "\"DIVIDENDO\""));
 
         assertEquals(0, operacaoRepository.count());
-        assertNoExternalCalls();
+        assertNoHistoricalProviderCalls();
+        assertNoCurrentProviderCalls();
+    }
+
+    @Test
+    void rejectsCompleteDiscriminatorAndVariantMatrixThroughMockMvc() throws Exception {
+        Carteira carteira = carteiraRepository.saveAndFlush(portfolio("Contrato HTTP completo"));
+        acaoRepository.saveAndFlush(action("PETR4", Mercado.BRASIL, Moeda.BRL, "32.000000"));
+        String purchase = validRequest(carteira.getId(), "PETR4", "BRASIL", null,
+                "COMPRA", "1", "10", 1);
+        String sale = validRequest(carteira.getId(), "PETR4", "BRASIL", null,
+                "VENDA", "1", "10", 1);
+
+        for (String invalid : new String[]{
+                purchase.replace(",\"tipo\":\"COMPRA\"", ""),
+                purchase.replace("\"tipo\":\"COMPRA\"", "\"tipo\":null"),
+                purchase.replace("\"COMPRA\"", "\"DIVIDENDO\""),
+                purchase.replace("\"COMPRA\"", "\"compra\""),
+                addField(purchase, "\"precoUnitario\":10"),
+                addField(purchase, "\"precoUnitario\":null"),
+                addField(purchase, "\"ordemNoDia\":1"),
+                addField(sale, "\"ordemNoDia\":1"),
+                sale.replace(",\"precoUnitario\":10", ""),
+                addField(purchase, "\"campoDesconhecido\":true"),
+                addField(sale, "\"campoDesconhecido\":true")
+        }) {
+            assertInvalidContract(invalid);
+        }
+
+        assertEquals(0, operacaoRepository.count());
+        assertNoHistoricalProviderCalls();
+        assertNoCurrentProviderCalls();
     }
 
     @Test
@@ -172,7 +217,7 @@ class OperacaoResourceTest {
 
         assertEquals(1, acaoRepository.count());
         assertEquals(0, operacaoRepository.count());
-        assertNoExternalCalls();
+        assertNoCurrentProviderCalls();
     }
 
     @Test
@@ -195,17 +240,17 @@ class OperacaoResourceTest {
         mockMvc.perform(post("/operacoes")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(validRequest(carteira.getId(), "PETR4", "BRASIL", null, "COMPRA", "1", "10", 1)))
-                .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.code").value("ORDEM_OPERACAO_DUPLICADA"));
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.ordemNoDia").value(2));
 
         mockMvc.perform(post("/operacoes")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(validRequest(carteira.getId(), "PETR4", "BRASIL", null, "VENDA", "2", "11", 2)))
+                        .content(validRequest(carteira.getId(), "PETR4", "BRASIL", null, "VENDA", "3", "11", 2)))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.code").value("POSICAO_INSUFICIENTE"))
-                .andExpect(jsonPath("$.details.quantidadeDisponivel").value(1.0));
+                .andExpect(jsonPath("$.details.quantidadeDisponivel").value(2.0));
 
-        assertEquals(1, operacaoRepository.count());
+        assertEquals(2, operacaoRepository.count());
     }
 
     @Test
@@ -289,7 +334,7 @@ class OperacaoResourceTest {
                 operacaoRepository.findById(later.getId()).orElseThrow().getPrecoUnitario());
         assertEquals(new BigDecimal("350.000000000000"),
                 operacaoRepository.findById(later.getId()).orElseThrow().getValorTotal());
-        assertNoExternalCalls();
+        assertNoCurrentProviderCalls();
     }
 
     @Test
@@ -300,7 +345,7 @@ class OperacaoResourceTest {
                 .andExpect(jsonPath("$", Matchers.hasSize(0)));
 
         assertEquals(0, operacaoRepository.count());
-        assertNoExternalCalls();
+        assertNoCurrentProviderCalls();
     }
 
     @Test
@@ -329,7 +374,7 @@ class OperacaoResourceTest {
                 .andExpect(jsonPath("$.valorTotal").value(3.965833383936));
 
         assertEquals(1, operacaoRepository.count());
-        assertNoExternalCalls();
+        assertNoCurrentProviderCalls();
     }
 
     @Test
@@ -344,7 +389,7 @@ class OperacaoResourceTest {
                 .andExpect(jsonPath("$.path").value("/operacoes/" + Long.MAX_VALUE));
 
         assertEquals(0, operacaoRepository.count());
-        assertNoExternalCalls();
+        assertNoCurrentProviderCalls();
     }
 
     @Test
@@ -399,7 +444,7 @@ class OperacaoResourceTest {
         assertEquals(countBefore, operacaoRepository.count());
         assertEquals("Carteira selecionada",
                 carteiraRepository.findById(selected.getId()).orElseThrow().getNome());
-        assertNoExternalCalls();
+        assertNoCurrentProviderCalls();
     }
 
     @Test
@@ -438,6 +483,7 @@ class OperacaoResourceTest {
             int order
     ) {
         String broker = brokerId == null ? "" : ",\"corretoraId\":" + brokerId;
+        String unitPrice = "VENDA".equals(type) ? ",\"precoUnitario\":" + price : "";
         return "{" +
                 "\"carteiraId\":" + portfolioId +
                 ",\"ticker\":\"" + ticker + "\"" +
@@ -445,9 +491,8 @@ class OperacaoResourceTest {
                 broker +
                 ",\"tipo\":\"" + type + "\"" +
                 ",\"quantidade\":" + quantity +
-                ",\"precoUnitario\":" + price +
+                unitPrice +
                 ",\"dataOperacao\":\"2026-08-10\"" +
-                ",\"ordemNoDia\":" + order +
                 "}";
     }
 
@@ -509,10 +554,19 @@ class OperacaoResourceTest {
         );
     }
 
-    private void assertNoExternalCalls() {
+    private void assertNoCurrentProviderCalls() {
         verify(brapiAdapter, never()).consultar(anyString());
         verify(alphaVantageAdapter, never()).consultar(anyString());
         verify(brasilApiAdapter, never()).consultar(anyString());
         verify(viaCepAdapter, never()).consultar(anyString());
+    }
+
+    private String addField(String json, String field) {
+        return json.substring(0, json.length() - 1) + "," + field + "}";
+    }
+
+    private void assertNoHistoricalProviderCalls() {
+        verify(brapiHistorico, never()).consultarFechamento(anyString(), org.mockito.ArgumentMatchers.any());
+        verify(alphaHistorico, never()).consultarFechamento(anyString(), org.mockito.ArgumentMatchers.any());
     }
 }

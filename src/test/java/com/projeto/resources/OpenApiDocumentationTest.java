@@ -13,6 +13,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.List;
 import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -124,6 +125,40 @@ class OpenApiDocumentationTest {
         assertThat(schemas.has("AcaoResponse")).isTrue();
         assertThat(schemas.has("OperacaoResponse")).isTrue();
         assertThat(schemas.has("EvolucaoPatrimonialResponse")).isTrue();
+    }
+
+    @Test
+    void documentsDiscriminatedOperationContractAndHistoricalErrors() throws Exception {
+        JsonNode document = openApiDocument();
+        JsonNode schemas = document.at("/components/schemas");
+        JsonNode base = schemas.path("OperacaoCreateRequest");
+        assertThat(base.path("oneOf").isArray()).isTrue();
+        assertThat(base.path("oneOf").size()).isEqualTo(2);
+        assertThat(base.at("/discriminator/propertyName").asText()).isEqualTo("tipo");
+
+        JsonNode purchase = schemas.path("OperacaoCompraCreateRequest");
+        JsonNode sale = schemas.path("OperacaoVendaCreateRequest");
+        assertThat(purchase.toString()).doesNotContain("precoUnitario", "ordemNoDia");
+        assertThat(sale.toString()).contains("precoUnitario").doesNotContain("ordemNoDia");
+        assertThat(sale.path("required").toString()).contains("precoUnitario");
+        assertThat(purchase.path("additionalProperties").asBoolean(true)).isFalse();
+        assertThat(sale.path("additionalProperties").asBoolean(true)).isFalse();
+        assertThat(purchase.path("description").asText()).contains("fechamento histórico", "COMPRA");
+        assertThat(sale.path("description").asText())
+                .contains("informado pelo cliente", "nenhum provider histórico")
+                .doesNotContain("consulta o fechamento histórico");
+        assertThat(sale.at("/allOf/1/properties/precoUnitario/description").asText())
+                .contains("informado", "VENDA");
+
+        JsonNode response = schemas.path("OperacaoResponse").path("properties");
+        assertThat(response.has("precoUnitario")).isTrue();
+        assertThat(response.has("ordemNoDia")).isTrue();
+        assertThat(response.has("valorTotal")).isTrue();
+        JsonNode responses = document.at("/paths/~1operacoes/post/responses");
+        for (String status : List.of("404", "422", "429", "502", "503", "504")) {
+            assertThat(responses.has(status)).isTrue();
+        }
+        assertThat(document.at("/paths/~1operacoes/post/description").asText()).contains("COMPRA");
     }
 
     @Test

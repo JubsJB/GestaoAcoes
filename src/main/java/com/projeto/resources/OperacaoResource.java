@@ -37,13 +37,17 @@ public class OperacaoResource {
     }
 
     @PostMapping
-    @Operation(summary = "Registrar operação", description = "Registra compra ou venda e valida cronologia, ordem no dia e posição disponível.")
+    @Operation(summary = "Registrar operação", description = "COMPRA consulta o fechamento histórico exato; VENDA usa o preço informado. A ordem no dia é gerada pelo backend.")
     @ApiResponses({
             @ApiResponse(responseCode = "201", description = "Operação registrada", content = @Content(schema = @Schema(implementation = OperacaoResponse.class))),
             @ApiResponse(responseCode = "400", description = "Request inválido", content = @Content(schema = @Schema(implementation = StandardError.class))),
             @ApiResponse(responseCode = "404", description = "Carteira, ação ou corretora não encontrada", content = @Content(schema = @Schema(implementation = StandardError.class))),
-            @ApiResponse(responseCode = "409", description = "ORDEM_OPERACAO_DUPLICADA ou INTEGRIDADE_DADOS_VIOLADA", content = @Content(schema = @Schema(implementation = StandardError.class))),
-            @ApiResponse(responseCode = "422", description = "Posição insuficiente, histórico inconsistente ou precisão inválida", content = @Content(schema = @Schema(implementation = StandardError.class)))
+            @ApiResponse(responseCode = "409", description = "POSICAO_INSUFICIENTE ou INTEGRIDADE_DADOS_VIOLADA", content = @Content(schema = @Schema(implementation = StandardError.class))),
+            @ApiResponse(responseCode = "422", description = "COTACAO_HISTORICA_INDISPONIVEL ou HISTORICO_COTACAO_FORA_DO_ALCANCE", content = @Content(schema = @Schema(implementation = StandardError.class))),
+            @ApiResponse(responseCode = "429", description = "LIMITE_REQUISICOES_EXCEDIDO (somente COMPRA)", content = @Content(schema = @Schema(implementation = StandardError.class))),
+            @ApiResponse(responseCode = "502", description = "RESPOSTA_EXTERNA_INVALIDA (somente COMPRA)", content = @Content(schema = @Schema(implementation = StandardError.class))),
+            @ApiResponse(responseCode = "503", description = "SERVICO_EXTERNO_INDISPONIVEL (somente COMPRA)", content = @Content(schema = @Schema(implementation = StandardError.class))),
+            @ApiResponse(responseCode = "504", description = "SERVICO_EXTERNO_TIMEOUT (somente COMPRA)", content = @Content(schema = @Schema(implementation = StandardError.class)))
     })
     public ResponseEntity<OperacaoResponse> cadastrar(@Valid @RequestBody OperacaoCreateRequest request) {
         OperacaoResponse response = service.cadastrar(request);

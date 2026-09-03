@@ -3,6 +3,8 @@ package com.projeto.repositories;
 import com.projeto.entities.Operacao;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -25,4 +27,7 @@ public interface OperacaoRepository extends JpaRepository<Operacao, Long> {
             LocalDate dataOperacao,
             Integer ordemNoDia
     );
+    @Query("select max(o.ordemNoDia) from Operacao o where o.carteira.id = :carteiraId and o.acao.id = :acaoId and o.dataOperacao = :dataOperacao")
+    Integer findMaxOrdemNoDia(@Param("carteiraId") Long carteiraId, @Param("acaoId") Long acaoId,
+                              @Param("dataOperacao") LocalDate dataOperacao);
 }

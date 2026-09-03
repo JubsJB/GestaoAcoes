@@ -2,6 +2,7 @@ package com.projeto.services;
 
 import com.projeto.GestaoacoesApplication;
 import com.projeto.dto.OperacaoCreateRequest;
+import com.projeto.TestOperacaoRequests;
 import com.projeto.dto.ResultadoRealizadoResponse;
 import com.projeto.entities.Acao;
 import com.projeto.entities.Carteira;
@@ -111,7 +112,7 @@ class ResultadoRealizadoConcurrencyTest {
             List<ResultadoRealizadoResponse> committed =
                     resultadoRealizadoService.listarPorCarteira(carteira.getId());
             assertEquals(1, committed.size());
-            assertEquals(new BigDecimal("200.000000000000"), committed.get(0).resultadoRealizado());
+            assertEquals(new BigDecimal("-680.000000000000"), committed.get(0).resultadoRealizado());
             assertEquals(2, operacaoRepository.count());
         } finally {
             executor.shutdownNow();
@@ -125,7 +126,7 @@ class ResultadoRealizadoConcurrencyTest {
             String preco,
             int ordem
     ) {
-        return new OperacaoCreateRequest(
+        return TestOperacaoRequests.request(
                 carteiraId,
                 "PETR4",
                 Mercado.BRASIL,
@@ -133,8 +134,7 @@ class ResultadoRealizadoConcurrencyTest {
                 tipo,
                 new BigDecimal(quantidade),
                 new BigDecimal(preco),
-                LocalDate.of(2026, 8, 10),
-                ordem
+                LocalDate.of(2026, 8, 10)
         );
     }
 }
