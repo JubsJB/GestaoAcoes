@@ -34,7 +34,7 @@ build/
 !**/src/test/**/build/
 
 ### VS Code ###
-.vscode/
+/.vscode/
 
 ### Angular / Node.js ###
 node_modules/
@@ -49,11 +49,14 @@ pnpm-debug.log*
 
 ### Environment / Secrets ###
 .env
+.env.local
+.env.*.local
 .env.example
 !.env.example
 
 ### Logs ###
 *.log
+*.log.*
 logs/
 
 ### Operating System ###
