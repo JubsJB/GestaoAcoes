@@ -10,6 +10,8 @@ import com.projeto.dto.PosicaoResponse;
 import com.projeto.dto.ResultadoRealizadoResponse;
 import com.projeto.dto.ResumoCarteiraResponse;
 import com.projeto.dto.SnapshotCarteiraResponse;
+import com.projeto.dto.SugestaoPrecoVendaResponse;
+import com.projeto.entities.Mercado;
 import com.projeto.resources.exceptions.StandardError;
 import com.projeto.services.CarteiraService;
 import com.projeto.services.EvolucaoPatrimonialService;
@@ -19,6 +21,7 @@ import com.projeto.services.PosicaoService;
 import com.projeto.services.ResultadoRealizadoService;
 import com.projeto.services.ResumoCarteiraService;
 import com.projeto.services.SnapshotCarteiraService;
+import com.projeto.services.PrecoOperacaoService;
 import jakarta.validation.Valid;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -35,11 +38,13 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import java.net.URI;
 import java.util.List;
+import java.time.LocalDate;
 
 @RestController
 @RequestMapping("/carteiras")
@@ -53,6 +58,7 @@ public class CarteiraResource {
     private final ResumoCarteiraService resumoCarteiraService;
     private final SnapshotCarteiraService snapshotCarteiraService;
     private final EvolucaoPatrimonialService evolucaoPatrimonialService;
+    private final PrecoOperacaoService precoOperacaoService;
 
     public CarteiraResource(
             CarteiraService service,
@@ -62,7 +68,8 @@ public class CarteiraResource {
             PatrimonioService patrimonioService,
             ResumoCarteiraService resumoCarteiraService,
             SnapshotCarteiraService snapshotCarteiraService,
-            EvolucaoPatrimonialService evolucaoPatrimonialService
+            EvolucaoPatrimonialService evolucaoPatrimonialService,
+            PrecoOperacaoService precoOperacaoService
     ) {
         this.service = service;
         this.operacaoService = operacaoService;
@@ -72,6 +79,7 @@ public class CarteiraResource {
         this.resumoCarteiraService = resumoCarteiraService;
         this.snapshotCarteiraService = snapshotCarteiraService;
         this.evolucaoPatrimonialService = evolucaoPatrimonialService;
+        this.precoOperacaoService = precoOperacaoService;
     }
 
     @PostMapping
@@ -120,6 +128,28 @@ public class CarteiraResource {
             @Parameter(description = "Identificador da carteira", example = "1", required = true) @PathVariable Long carteiraId
     ) {
         return ResponseEntity.ok(operacaoService.listarPorCarteira(carteiraId));
+    }
+
+    @GetMapping("/{carteiraId}/operacoes/sugestao-preco-venda")
+    @Operation(
+            summary = "Consultar sugestão de preço de VENDA",
+            description = "Retorna o preço da última COMPRA da mesma Ação cronologicamente aplicável até a data informada, ou null. O valor é livremente editável e não representa preço médio, cotação atual ou recomendação financeira.",
+            tags = "Operações"
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Sugestão encontrada ou ausência normal representada por null", content = @Content(schema = @Schema(implementation = SugestaoPrecoVendaResponse.class))),
+            @ApiResponse(responseCode = "400", description = "REQUEST_INVALIDO", content = @Content(schema = @Schema(implementation = StandardError.class))),
+            @ApiResponse(responseCode = "404", description = "Carteira ou Ação não encontrada", content = @Content(schema = @Schema(implementation = StandardError.class)))
+    })
+    public ResponseEntity<SugestaoPrecoVendaResponse> consultarSugestaoPrecoVenda(
+            @Parameter(description = "Identificador da carteira", example = "3", required = true) @PathVariable Long carteiraId,
+            @Parameter(description = "Ticker da Ação", example = "PETR4", required = true) @RequestParam String ticker,
+            @Parameter(description = "Mercado da Ação", example = "BRASIL", required = true) @RequestParam Mercado mercado,
+            @Parameter(description = "Data civil da nova VENDA", example = "2026-08-25", required = true) @RequestParam LocalDate dataOperacao
+    ) {
+        return ResponseEntity.ok(precoOperacaoService.consultarSugestaoVenda(
+                carteiraId, ticker, mercado, dataOperacao
+        ));
     }
 
     @GetMapping("/{carteiraId}/posicoes")

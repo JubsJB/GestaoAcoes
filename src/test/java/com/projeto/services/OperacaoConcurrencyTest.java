@@ -2,10 +2,12 @@ package com.projeto.services;
 
 import com.projeto.GestaoacoesApplication;
 import com.projeto.dto.OperacaoCreateRequest;
+import com.projeto.TestOperacaoRequests;
 import com.projeto.entities.Acao;
 import com.projeto.entities.Carteira;
 import com.projeto.entities.Mercado;
 import com.projeto.entities.Moeda;
+import com.projeto.entities.Operacao;
 import com.projeto.entities.TipoOperacao;
 import com.projeto.repositories.AcaoRepository;
 import com.projeto.repositories.HistoricoCotacaoRepository;
@@ -59,6 +61,9 @@ class OperacaoConcurrencyTest {
     @Autowired
     private CorretoraRepository corretoraRepository;
 
+    @Autowired
+    private CalculadoraPosicao calculadoraPosicao;
+
     @BeforeEach
     void cleanDatabase() {
         operacaoRepository.deleteAll();
@@ -92,7 +97,33 @@ class OperacaoConcurrencyTest {
 
             assertEquals(1, outcomes.stream().filter("CREATED"::equals).count());
             assertEquals(1, outcomes.stream().filter("POSICAO_INSUFICIENTE"::equals).count());
-            assertEquals(2, operacaoRepository.count());
+            List<Operacao> persisted = orderedHistory(carteira.getId());
+            assertEquals(2, persisted.size());
+            assertEveryPrefixValid(persisted);
+            assertTrue(calculadoraPosicao.reproduzir(persisted).valido());
+        } finally {
+            executor.shutdownNow();
+        }
+    }
+
+    @Test
+    void concurrentValidPurchasesReceiveExactlyOrdersOneAndTwo() throws Exception {
+        Carteira carteira = carteiraRepository.saveAndFlush(portfolio("Duas compras"));
+        acaoRepository.saveAndFlush(action());
+        CountDownLatch start = new CountDownLatch(1);
+        ExecutorService executor = Executors.newFixedThreadPool(2);
+        try {
+            Future<String> first = executor.submit(() -> registerAfter(start, request(carteira.getId(), TipoOperacao.COMPRA, "1", 99)));
+            Future<String> second = executor.submit(() -> registerAfter(start, request(carteira.getId(), TipoOperacao.COMPRA, "2", 99)));
+            start.countDown();
+            assertEquals("CREATED", first.get(10, TimeUnit.SECONDS));
+            assertEquals("CREATED", second.get(10, TimeUnit.SECONDS));
+            List<Operacao> saved = orderedHistory(carteira.getId());
+            assertEquals(2, saved.size());
+            assertEquals(List.of(1, 2), saved.stream().map(Operacao::getOrdemNoDia).sorted().toList());
+            assertEquals(2, saved.stream().map(Operacao::getOrdemNoDia).distinct().count());
+            assertEveryPrefixValid(saved);
+            assertTrue(calculadoraPosicao.reproduzir(saved).valido());
         } finally {
             executor.shutdownNow();
         }
@@ -157,8 +188,22 @@ class OperacaoConcurrencyTest {
         }
     }
 
+    private List<Operacao> orderedHistory(Long portfolioId) {
+        return operacaoRepository.findByCarteiraIdOrderByDataOperacaoAscOrdemNoDiaAscIdAsc(portfolioId)
+                .stream()
+                .filter(operation -> "PETR4".equals(operation.getAcao().getTicker()))
+                .toList();
+    }
+
+    private void assertEveryPrefixValid(List<Operacao> operations) {
+        for (int end = 1; end <= operations.size(); end++) {
+            assertTrue(calculadoraPosicao.validarQuantidade(operations.subList(0, end)).valido(),
+                    "Todo prefixo cronológico deve manter posição não negativa");
+        }
+    }
+
     private OperacaoCreateRequest request(Long portfolioId, TipoOperacao type, String quantity, int order) {
-        return new OperacaoCreateRequest(
+        return TestOperacaoRequests.request(
                 portfolioId,
                 "PETR4",
                 Mercado.BRASIL,
@@ -166,8 +211,7 @@ class OperacaoConcurrencyTest {
                 type,
                 new BigDecimal(quantity),
                 new BigDecimal("10"),
-                LocalDate.of(2026, 8, 10),
-                order
+                LocalDate.of(2026, 8, 10)
         );
     }
 

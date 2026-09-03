@@ -350,6 +350,52 @@ class OperacaoRepositoryTest {
         assertFalse(operacaoRepository.existsByCarteiraId(carteira.getId()));
     }
 
+    @Test
+    void findsOnlyLatestApplicablePurchaseByPortfolioActionDateOrderAndId() {
+        Carteira carteira = carteiraRepository.saveAndFlush(portfolio("Carteira"));
+        Carteira outraCarteira = carteiraRepository.saveAndFlush(portfolio("Outra"));
+        Acao petr4 = acaoRepository.saveAndFlush(action("PETR4", Mercado.BRASIL, Moeda.BRL));
+        Acao petr4Eua = acaoRepository.saveAndFlush(action("PETR4", Mercado.EUA, Moeda.USD));
+
+        operacaoRepository.saveAndFlush(operation(carteira, petr4, null, TipoOperacao.COMPRA,
+                "1", "20", "20", LocalDate.of(2026, 8, 10), 1));
+        operacaoRepository.saveAndFlush(operation(carteira, petr4, null, TipoOperacao.COMPRA,
+                "1", "24", "24", LocalDate.of(2026, 8, 15), 1));
+        Operacao expected = operacaoRepository.saveAndFlush(operation(carteira, petr4, null, TipoOperacao.COMPRA,
+                "1", "25.123456", "25.123456", LocalDate.of(2026, 8, 15), 2));
+        operacaoRepository.saveAndFlush(operation(carteira, petr4, null, TipoOperacao.VENDA,
+                "1", "99", "99", LocalDate.of(2026, 8, 16), 1));
+        operacaoRepository.saveAndFlush(operation(carteira, petr4, null, TipoOperacao.COMPRA,
+                "1", "30", "30", LocalDate.of(2026, 8, 20), 1));
+        operacaoRepository.saveAndFlush(operation(outraCarteira, petr4, null, TipoOperacao.COMPRA,
+                "1", "80", "80", LocalDate.of(2026, 8, 15), 1));
+        operacaoRepository.saveAndFlush(operation(carteira, petr4Eua, null, TipoOperacao.COMPRA,
+                "1", "70", "70", LocalDate.of(2026, 8, 15), 1));
+
+        Operacao actual = operacaoRepository
+                .findFirstByCarteiraIdAndAcaoIdAndTipoAndDataOperacaoLessThanEqualOrderByDataOperacaoDescOrdemNoDiaDescIdDesc(
+                        carteira.getId(), petr4.getId(), TipoOperacao.COMPRA, LocalDate.of(2026, 8, 15)
+                )
+                .orElseThrow();
+
+        assertEquals(expected.getId(), actual.getId());
+        assertEquals(new BigDecimal("25.123456"), actual.getPrecoUnitario());
+    }
+
+    @Test
+    void returnsEmptyWhenNoPurchaseExistsAtOrBeforeLimit() {
+        Carteira carteira = carteiraRepository.saveAndFlush(portfolio("Carteira"));
+        Acao acao = acaoRepository.saveAndFlush(action("PETR4", Mercado.BRASIL, Moeda.BRL));
+        operacaoRepository.saveAndFlush(operation(carteira, acao, null, TipoOperacao.COMPRA,
+                "1", "25", "25", LocalDate.of(2026, 8, 20), 1));
+
+        assertTrue(operacaoRepository
+                .findFirstByCarteiraIdAndAcaoIdAndTipoAndDataOperacaoLessThanEqualOrderByDataOperacaoDescOrdemNoDiaDescIdDesc(
+                        carteira.getId(), acao.getId(), TipoOperacao.COMPRA, LocalDate.of(2026, 8, 15)
+                )
+                .isEmpty());
+    }
+
     private void assertColumn(String column, int precision, int scale) {
         Integer actualPrecision = jdbcTemplate.queryForObject("""
                 SELECT NUMERIC_PRECISION FROM INFORMATION_SCHEMA.COLUMNS

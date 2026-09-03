@@ -1,6 +1,9 @@
 package com.projeto.services;
 
 import com.projeto.dto.OperacaoCreateRequest;
+import com.projeto.TestOperacaoRequests;
+import com.projeto.integrations.cotacao.CotacaoHistoricaData;
+import com.projeto.integrations.cotacao.CotacaoHistoricaProvider;
 import com.projeto.dto.OperacaoResponse;
 import com.projeto.entities.Acao;
 import com.projeto.entities.Carteira;
@@ -52,6 +55,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.times;
 
 @ExtendWith(MockitoExtension.class)
 class OperacaoServiceTest {
@@ -86,6 +90,7 @@ class OperacaoServiceTest {
         service = service(DEFAULT_CLOCK);
 
         lenient().when(carteiraRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(carteira));
+        lenient().when(carteiraRepository.findById(1L)).thenReturn(Optional.of(carteira));
         lenient().when(acaoRepository.findByTickerAndMercado("PETR4", Mercado.BRASIL))
                 .thenReturn(Optional.of(brazilianAction));
         lenient().when(acaoRepository.findByTickerAndMercado("AAPL", Mercado.EUA))
@@ -239,7 +244,7 @@ class OperacaoServiceTest {
         assertEquals(new BigDecimal("3247.000000000000"), response.valorTotal());
         assertEquals(new BigDecimal("99.123456"), brazilianAction.getCotacaoAtual());
         assertEquals("Carteira Principal", carteira.getNome());
-        verify(acaoRepository).findByTickerAndMercado("PETR4", Mercado.BRASIL);
+        verify(acaoRepository, times(2)).findByTickerAndMercado("PETR4", Mercado.BRASIL);
         verifyNoInteractions(corretoraRepository);
     }
 
@@ -267,7 +272,6 @@ class OperacaoServiceTest {
 
     @Test
     void rejectsMissingPortfolioOrActionWithoutCreatingAnything() {
-        when(carteiraRepository.findByIdForUpdate(404L)).thenReturn(Optional.empty());
         ObjectNotFoundException missingPortfolio = assertThrows(
                 ObjectNotFoundException.class,
                 () -> service.cadastrar(request(
@@ -277,7 +281,7 @@ class OperacaoServiceTest {
         );
         assertTrue(missingPortfolio.getMessage().contains("404"));
 
-        when(acaoRepository.findByTickerAndMercado("VALE3", Mercado.BRASIL)).thenReturn(Optional.empty());
+        lenient().when(acaoRepository.findByTickerAndMercado("VALE3", Mercado.BRASIL)).thenReturn(Optional.empty());
         ObjectNotFoundException missingAction = assertThrows(
                 ObjectNotFoundException.class,
                 () -> service.cadastrar(request(
@@ -340,7 +344,7 @@ class OperacaoServiceTest {
             ApiException exception = assertThrows(
                     ApiException.class,
                     () -> service.cadastrar(request(
-                            "AAPL", Mercado.EUA, TipoOperacao.COMPRA,
+                            "AAPL", Mercado.EUA, TipoOperacao.VENDA,
                             invalid, "10", LocalDate.of(2026, 8, 10), 3, null
                     ))
             );
@@ -354,15 +358,15 @@ class OperacaoServiceTest {
                 "AAPL", Mercado.EUA, TipoOperacao.COMPRA,
                 "0.500000", "32.123456", LocalDate.of(2026, 8, 10), 1, null
         ));
-        assertEquals(new BigDecimal("32.123456"), response.precoUnitario());
-        assertEquals(new BigDecimal("16.061728000000"), response.valorTotal());
+        assertEquals(new BigDecimal("32.470000"), response.precoUnitario());
+        assertEquals(new BigDecimal("16.235000000000"), response.valorTotal());
         assertEquals(new BigDecimal("224.410000"), americanAction.getCotacaoAtual());
 
         for (String invalid : List.of("0", "-1", "1.1234567", "10000000000000")) {
             ApiException exception = assertThrows(
                     ApiException.class,
                     () -> service.cadastrar(request(
-                            "AAPL", Mercado.EUA, TipoOperacao.COMPRA,
+                            "AAPL", Mercado.EUA, TipoOperacao.VENDA,
                             "1", invalid, LocalDate.of(2026, 8, 10), 2, null
                     ))
             );
@@ -409,30 +413,29 @@ class OperacaoServiceTest {
     }
 
     @Test
-    void rejectsNonPositiveOrDuplicateDailyOrder() {
-        for (int invalid : List.of(0, -1)) {
-            ApiException exception = assertThrows(
-                    ApiException.class,
-                    () -> service.cadastrar(request(
-                            "PETR4", Mercado.BRASIL, TipoOperacao.COMPRA,
-                            "1", "10", LocalDate.of(2026, 8, 10), invalid, null
-                    ))
-            );
-            assertInvalidField(exception, "ordemNoDia");
-        }
+    void generatesFirstDailyOrder() {
+        OperacaoResponse response = service.cadastrar(request(
+                "PETR4", Mercado.BRASIL, TipoOperacao.COMPRA,
+                "1", "10", LocalDate.of(2026, 8, 10), 999, null));
+        assertEquals(1, response.ordemNoDia());
+    }
 
-        when(operacaoRepository.existsByCarteiraIdAndAcaoIdAndDataOperacaoAndOrdemNoDia(
-                1L, 2L, LocalDate.of(2026, 8, 10), 1
-        )).thenReturn(true);
-        ApiException duplicate = assertThrows(
-                ApiException.class,
-                () -> service.cadastrar(request(
-                        "PETR4", Mercado.BRASIL, TipoOperacao.COMPRA,
-                        "1", "10", LocalDate.of(2026, 8, 10), 1, null
-                ))
-        );
-        assertEquals(409, duplicate.getStatus().value());
-        assertEquals(ErrorCodes.ORDEM_OPERACAO_DUPLICADA, duplicate.getCode());
+    @Test
+    void rejectsDailyOrderOverflowBeforeAdditionAndPersistence() {
+        when(operacaoRepository.findMaxOrdemNoDia(1L, 2L, LocalDate.of(2026, 8, 10)))
+                .thenReturn(Integer.MAX_VALUE);
+
+        ApiException exception = assertThrows(ApiException.class, () -> service.cadastrar(request(
+                "PETR4", Mercado.BRASIL, TipoOperacao.COMPRA,
+                "1", "10", LocalDate.of(2026, 8, 10), 1, null
+        )));
+
+        assertEquals(400, exception.getStatus().value());
+        assertEquals(ErrorCodes.REQUEST_INVALIDO, exception.getCode());
+        assertTrue(exception.getDetails().containsKey("ordemNoDia"));
+        verify(operacaoRepository, never()).saveAndFlush(any(Operacao.class));
+        verify(operacaoRepository, never())
+                .findByCarteiraIdAndAcaoIdOrderByDataOperacaoAscOrdemNoDiaAsc(anyLong(), anyLong());
     }
 
     @Test
@@ -575,7 +578,7 @@ class OperacaoServiceTest {
                         "1", "10", LocalDate.of(2026, 8, 10), 1, null
                 ))
         );
-        assertEquals(ErrorCodes.ORDEM_OPERACAO_DUPLICADA, duplicate.getCode());
+        assertEquals(ErrorCodes.INTEGRIDADE_DADOS_VIOLADA, duplicate.getCode());
 
         when(operacaoRepository.saveAndFlush(any(Operacao.class)))
                 .thenThrow(integrity("different_constraint"));
@@ -601,6 +604,12 @@ class OperacaoServiceTest {
     }
 
     private OperacaoService service(Clock clock) {
+        OperacaoPersistenceService persistence = new OperacaoPersistenceService(
+                operacaoRepository, carteiraRepository, acaoRepository, corretoraRepository,
+                new CalculadoraPosicao(), new OperacaoMapper(), new ConstraintNameExtractor()
+        );
+        CotacaoHistoricaProvider brasil = historical(Mercado.BRASIL);
+        CotacaoHistoricaProvider usa = historical(Mercado.EUA);
         return new OperacaoService(
                 operacaoRepository,
                 carteiraRepository,
@@ -609,9 +618,18 @@ class OperacaoServiceTest {
                 new TickerNormalizer(),
                 new OperacaoMapper(),
                 clock,
-                new CalculadoraPosicao(),
-                new ConstraintNameExtractor()
+                persistence,
+                new FechamentoHistoricoService(List.of(brasil, usa))
         );
+    }
+
+    private CotacaoHistoricaProvider historical(Mercado market) {
+        return new CotacaoHistoricaProvider() {
+            public Mercado mercado() { return market; }
+            public CotacaoHistoricaData consultarFechamento(String ticker, LocalDate date) {
+                return new CotacaoHistoricaData(ticker, date, new BigDecimal("32.470000"));
+            }
+        };
     }
 
     private DataIntegrityViolationException integrity(String name) {
@@ -643,7 +661,7 @@ class OperacaoServiceTest {
             Long brokerId,
             Long portfolioId
     ) {
-        return new OperacaoCreateRequest(
+        return TestOperacaoRequests.request(
                 portfolioId,
                 ticker,
                 market,
@@ -651,8 +669,7 @@ class OperacaoServiceTest {
                 type,
                 new BigDecimal(quantity),
                 new BigDecimal(price),
-                date,
-                order
+                date
         );
     }
 

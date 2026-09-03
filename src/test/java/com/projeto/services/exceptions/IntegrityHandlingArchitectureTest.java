@@ -19,7 +19,7 @@ class IntegrityHandlingArchitectureTest {
         for (String service : List.of(
                 "CorretoraPersistenceService.java",
                 "AcaoPersistenceService.java",
-                "OperacaoService.java",
+                "OperacaoPersistenceService.java",
                 "SnapshotCarteiraService.java"
         )) {
             String source = Files.readString(MAIN.resolve("services").resolve(service));
