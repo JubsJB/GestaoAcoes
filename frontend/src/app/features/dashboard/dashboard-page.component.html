@@ -1,0 +1,75 @@
+<section class="app-page dashboard" aria-labelledby="dashboard-title">
+  <app-page-header headingId="dashboard-title" eyebrow="Visão geral" icon="dashboard" title="Dashboard" description="Acompanhe os valores autoritativos de uma carteira, sempre separados por moeda." />
+
+  @if (portfoliosError()) {
+    <app-feedback-alert variant="error" [message]="portfoliosError()!.message" [details]="portfoliosError()!.details" />
+    <div class="app-state"><button mat-stroked-button type="button" (click)="loadPortfolios()">Tentar novamente</button></div>
+  } @else if (portfoliosLoading()) {
+    <div class="app-state" role="status" aria-live="polite"><mat-spinner diameter="36" /> Carregando carteiras…</div>
+  } @else if (carteiras().length === 0) {
+    <div class="app-state app-surface"><span class="app-state__icon" aria-hidden="true"><app-icon name="empty" /></span><h2>Nenhuma carteira cadastrada</h2><p>Cadastre uma carteira para visualizar seus indicadores.</p><a mat-flat-button routerLink="/carteiras/nova">Nova carteira</a></div>
+  } @else {
+    <section class="selector app-surface" aria-labelledby="portfolio-selector-title">
+      <div><h2 id="portfolio-selector-title">Carteira do Dashboard</h2><p id="portfolio-selector-hint">Selecione qual carteira deseja acompanhar.</p></div>
+      <mat-form-field appearance="outline"><mat-label>Carteira</mat-label><mat-select [value]="selected()?.id ?? null" (selectionChange)="selectPortfolio($event)" aria-describedby="portfolio-selector-hint">@for (carteira of carteiras(); track carteira.id) { <mat-option [value]="carteira.id">{{ carteira.nome }}</mat-option> }</mat-select></mat-form-field>
+    </section>
+
+    @if (invalidSelection()) {
+      <app-feedback-alert variant="warning" message="A carteira indicada na URL não está disponível. Selecione uma carteira válida." />
+    }
+
+    @if (!selected()) {
+      <div class="app-state app-surface"><h2>Selecione uma carteira</h2><p>Os indicadores são sempre apresentados no contexto de uma única carteira.</p></div>
+    } @else {
+      <div class="dashboard-actions app-actions app-actions--stack-compact">
+        <a mat-stroked-button [routerLink]="['/carteiras', selected()!.id]">Ver carteira</a>
+        <button mat-flat-button type="button" (click)="openOperationDialog()">Registrar operação</button>
+        <button mat-button type="button" (click)="reload()" [disabled]="financialLoading()">Atualizar dados</button>
+      </div>
+
+      @if (financialError()) {
+        <app-feedback-alert variant="error" [message]="financialError()!.message" [details]="financialError()!.details" />
+        <div class="app-state"><button mat-stroked-button type="button" (click)="reload()">Tentar novamente</button></div>
+      } @else if (financialLoading()) {
+        <div class="app-state" role="status" aria-live="polite"><mat-spinner diameter="36" /> Atualizando indicadores de {{ selected()!.nome }}…</div>
+      } @else if (data(); as dashboard) {
+        <p class="position-count" role="status">{{ dashboard.posicoes.length }} {{ dashboard.posicoes.length === 1 ? 'posição aberta' : 'posições abertas' }}</p>
+
+        <section aria-labelledby="summary-title"><h2 id="summary-title">Resumo por moeda</h2>
+          @if (dashboard.resumo.resumos.length === 0) { <div class="app-state app-surface"><h3>Resumo ainda indisponível</h3><p>Esta carteira não possui posições abertas.</p></div> }
+          @else { <div class="currency-groups">@for (item of dashboard.resumo.resumos; track item.moeda) {
+            <section class="currency-group" [attr.aria-labelledby]="'currency-' + item.moeda"><h3 [id]="'currency-' + item.moeda">{{ item.moeda }}</h3><div class="summary-grid">
+              <mat-card appearance="outlined"><mat-card-content><span>Patrimônio atual</span><strong>{{ money(item.patrimonioAtual, item.moeda) }}</strong></mat-card-content></mat-card>
+              <mat-card appearance="outlined"><mat-card-content><span>Custo total das posições</span><strong>{{ money(item.custoTotalPosicoes, item.moeda) }}</strong></mat-card-content></mat-card>
+              <mat-card appearance="outlined"><mat-card-content><span>Resultado não realizado</span><strong>{{ money(item.resultadoNaoRealizadoTotal, item.moeda) }}</strong><small>{{ outcome(item.resultadoNaoRealizadoTotal) }}</small></mat-card-content></mat-card>
+              <mat-card appearance="outlined"><mat-card-content><span>Rentabilidade</span><strong>{{ percent(item.rentabilidadePercentual) }}</strong><small>{{ outcome(item.rentabilidadePercentual) }}</small></mat-card-content></mat-card>
+            </div></section>
+          }</div> }
+        </section>
+
+        <section aria-labelledby="positions-title"><h2 id="positions-title">Posições abertas</h2>
+          @if (dashboard.posicoes.length === 0) { <div class="app-state app-surface"><h3>Nenhuma posição aberta</h3><p>Registre uma compra para iniciar uma posição.</p></div> }
+          @else { <div class="records" role="list">@for (position of dashboard.posicoes; track position.acaoId) {
+            <article class="record app-surface" role="listitem"><header><div><strong>{{ position.ticker }}</strong><span>{{ position.nomeEmpresa }}</span></div><span class="currency-badge">{{ position.mercado }} · {{ position.moeda }}</span></header><dl>
+              <div><dt>Quantidade</dt><dd>{{ quantity(position.quantidadeAtual, position.mercado) }}</dd></div>
+              <div><dt>Preço médio</dt><dd>{{ money(position.precoMedio, position.moeda) }}</dd></div>
+              <div><dt>Custo da posição</dt><dd>{{ money(position.custoPosicao, position.moeda) }}</dd></div>
+              <div><dt>Cotação atual</dt><dd>{{ money(position.cotacaoAtual, position.moeda) }}</dd></div>
+              <div><dt>Atualizada em</dt><dd>{{ dateTime(position.dataHoraCotacao) }}</dd></div>
+              <div><dt>Valor atual</dt><dd>{{ money(position.valorAtualPosicao, position.moeda) }}</dd></div>
+              <div><dt>Resultado não realizado</dt><dd>{{ money(position.resultadoNaoRealizado, position.moeda) }} · {{ outcome(position.resultadoNaoRealizado) }}</dd></div>
+              <div><dt>Rentabilidade</dt><dd>{{ percent(position.rentabilidadePercentual) }} · {{ outcome(position.rentabilidadePercentual) }}</dd></div>
+            </dl></article>
+          }</div> }
+        </section>
+
+        <section aria-labelledby="results-title"><h2 id="results-title">Resultados realizados por ação</h2>
+          @if (dashboard.resultados.length === 0) { <div class="app-state app-surface"><h3>Nenhum resultado realizado</h3><p>Os resultados aparecerão individualmente após vendas registradas.</p></div> }
+          @else { <div class="results" role="list">@for (result of dashboard.resultados; track result.acaoId) {
+            <article class="result app-surface" role="listitem"><div><strong>{{ result.ticker }}</strong><span>{{ result.nomeEmpresa }} · {{ result.mercado }} · {{ result.moeda }}</span></div><div><strong>{{ money(result.resultadoRealizado, result.moeda) }}</strong><span>{{ outcome(result.resultadoRealizado) }}</span></div></article>
+          }</div> }
+        </section>
+      }
+    }
+  }
+</section>

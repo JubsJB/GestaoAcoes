@@ -33,7 +33,15 @@ describe('application routes', () => {
   afterEach(() => httpTesting.verify());
 
   it('redirects the root route exactly to dashboard inside the shell', async () => {
-    const harness = await RouterTestingHarness.create('/');
+    const harness = await RouterTestingHarness.create();
+    const navigation = harness.navigateByUrl('/');
+    let requests = httpTesting.match('/api/carteiras');
+    await vi.waitFor(() => {
+      if (requests.length === 0) requests = httpTesting.match('/api/carteiras');
+      expect(requests).toHaveLength(1);
+    }, { timeout: 10_000 });
+    requests[0].flush([]);
+    await navigation;
     const router = TestBed.inject(Router);
 
     expect(router.url).toBe('/dashboard');
@@ -50,8 +58,16 @@ describe('application routes', () => {
     expect(lazyPaths).toEqual(['dashboard', 'corretoras', 'acoes', 'carteiras', 'operacoes']);
   });
 
-  it('resolves the functional broker, stock, portfolio and operation features while dashboard remains structural', async () => {
-    const harness = await RouterTestingHarness.create('/dashboard');
+  it('resolves all functional features including dashboard', async () => {
+    const harness = await RouterTestingHarness.create();
+    const firstNavigation = harness.navigateByUrl('/dashboard');
+    let requests = httpTesting.match('/api/carteiras');
+    await vi.waitFor(() => {
+      if (requests.length === 0) requests = httpTesting.match('/api/carteiras');
+      expect(requests).toHaveLength(1);
+    }, { timeout: 10_000 });
+    requests[0].flush([]);
+    await firstNavigation;
     const destinations = [
       ['/dashboard', 'Dashboard'],
       ['/acoes', 'Ações'],
@@ -61,6 +77,9 @@ describe('application routes', () => {
 
     for (const [url, heading] of destinations) {
       await harness.navigateByUrl(url);
+      if (url === '/dashboard') {
+        httpTesting.match('/api/carteiras').forEach(request => request.flush([]));
+      }
       if (url === '/acoes') {
         httpTesting.expectOne('/api/acoes').flush([]);
       }
