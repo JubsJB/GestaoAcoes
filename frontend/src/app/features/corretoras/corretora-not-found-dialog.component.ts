@@ -29,17 +29,8 @@ export interface CorretoraNotFoundDialogData {
       <span class="app-dialog-actions__item"><button mat-flat-button type="button" [mat-dialog-close]="true">Cadastrar corretora</button></span>
     </mat-dialog-actions>
   `,
-  styles: [`
-    :host{display:block;max-width:32rem;color:var(--app-text-primary)}
-    .dialog-heading{display:flex;align-items:center;gap:.875rem;padding:1.5rem 1.5rem .25rem}
-    .dialog-heading__icon{width:2.75rem;height:2.75rem;display:grid;place-items:center;flex:0 0 auto;border-radius:.875rem;color:#765537;background:var(--app-surface-warm)}
-    .dialog-heading__icon app-icon{width:1.4rem;height:1.4rem}
-    .dialog-eyebrow{display:block;color:#765537;font-size:.7rem;font-weight:750;letter-spacing:.08em;text-transform:uppercase}
-    h2[mat-dialog-title]{margin:.2rem 0 0;padding:0;font-size:1.25rem;line-height:1.25}
-    mat-dialog-content{padding-top:.75rem;color:var(--app-text-primary)}
-    mat-dialog-content p{line-height:1.55}.dialog-support{color:var(--app-text-secondary)}
-    @media(max-width:36rem){.dialog-heading{padding:1.25rem 1.25rem .25rem}.dialog-heading__icon{width:2.5rem;height:2.5rem}}
-  `],
+  styles: [`:host{display:block;max-width:32rem;color:var(--app-text-primary)}`],
+  styleUrl: '../../shared/dialog/dialog.scss',
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class CorretoraNotFoundDialogComponent {

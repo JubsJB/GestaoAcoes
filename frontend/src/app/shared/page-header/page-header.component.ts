@@ -5,7 +5,7 @@ import { AppIconComponent, AppIconName } from '../app-icon/app-icon.component';
   selector: 'app-page-header',
   imports: [AppIconComponent],
   template: `
-    <header class="page-header">
+    <header class="page-header" [class.page-header--with-icon]="icon()">
       @if (icon()) { <span class="page-header__icon" aria-hidden="true"><app-icon [name]="icon()!" /></span> }
       <div class="page-header__copy">
         @if (eyebrow()) { <p class="page-header__eyebrow">{{ eyebrow() }}</p> }

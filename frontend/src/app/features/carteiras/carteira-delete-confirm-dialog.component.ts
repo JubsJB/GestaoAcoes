@@ -18,11 +18,16 @@ import { CarteiraResponse } from './models/carteira';
       <p>Você está prestes a excluir <strong>{{ data.nome }}</strong>. Esta ação só será executada após sua confirmação.</p>
       @if (error()) { <app-feedback-alert variant="error" [message]="error()!.message" [details]="error()!.details" /> }
     </mat-dialog-content>
-    <mat-dialog-actions align="end">
+    <mat-dialog-actions class="app-dialog-actions" align="end">
       <button mat-button type="button" [disabled]="deleting()" (click)="cancel()">Cancelar</button>
-      <button mat-flat-button type="button" [disabled]="deleting()" [attr.aria-busy]="deleting()" (click)="confirm()">Excluir</button>
+      <button class="app-destructive" mat-flat-button type="button" [disabled]="deleting()" [attr.aria-busy]="deleting()" (click)="confirm()">Excluir</button>
     </mat-dialog-actions>
   `,
+  styleUrl: '../../shared/dialog/dialog.scss',
+  styles: [`
+    .app-destructive { --mat-button-filled-container-color: var(--app-destructive); --mat-button-filled-label-text-color: var(--app-on-brand-primary); }
+    .app-destructive:not(:disabled):hover { --mat-button-filled-container-color: var(--app-destructive-hover); }
+  `],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class CarteiraDeleteConfirmDialogComponent {

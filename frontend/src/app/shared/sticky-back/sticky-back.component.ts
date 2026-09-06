@@ -10,6 +10,7 @@ import { RouterLink } from '@angular/router';
       <span aria-hidden="true">&larr;</span><span class="app-back-action__label">{{ label }}</span>
     </a>
   `,
+  styles: [`.app-back-action__label{white-space:normal;overflow-wrap:anywhere}`],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class StickyBackComponent {

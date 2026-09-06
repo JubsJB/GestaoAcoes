@@ -14,19 +14,20 @@ export interface CorretoraConfirmationData {
   template: `
     <h2 mat-dialog-title>Confirmar cadastro</h2>
     <mat-dialog-content>
-      <p>A situação cadastral retornada pelo backend não é ATIVA.</p>
+      <p>A situação cadastral consultada não é ATIVA.</p>
       @if (data.situacaoCadastral) {
         <p><strong>Situação:</strong> {{ data.situacaoCadastral }}</p>
       }
       <p>{{ data.message }}</p>
     </mat-dialog-content>
-    <mat-dialog-actions align="end">
+    <mat-dialog-actions class="app-dialog-actions" align="end">
       <button mat-button type="button" [mat-dialog-close]="false">Cancelar</button>
       <button mat-flat-button type="button" color="primary" [mat-dialog-close]="true" cdkFocusInitial>
         Confirmar cadastro
       </button>
     </mat-dialog-actions>
   `,
+  styleUrl: '../../shared/dialog/dialog.scss',
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class CorretoraConfirmDialogComponent {

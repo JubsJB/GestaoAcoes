@@ -37,4 +37,17 @@ describe('PageHeaderComponent', () => {
     expect(fixture.nativeElement.querySelector('.page-header__icon app-icon svg')).toBeTruthy();
     expect(fixture.nativeElement.querySelector('.page-header__icon').getAttribute('aria-hidden')).toBe('true');
   });
+
+  it('keeps a single heading without decorative content when no icon is supplied', () => {
+    const header = TestBed.createComponent(PageHeaderComponent);
+    header.componentRef.setInput('title', 'Página não encontrada');
+    header.detectChanges();
+    expect(header.nativeElement.querySelectorAll('h1')).toHaveLength(1);
+    expect(header.nativeElement.querySelector('.page-header__icon')).toBeNull();
+    expect(header.nativeElement.querySelector('.page-header').classList.contains('page-header--with-icon')).toBe(false);
+    header.componentRef.setInput('icon', 'stock');
+    header.detectChanges();
+    expect(header.nativeElement.querySelector('.page-header__icon svg').getAttribute('aria-hidden')).toBe('true');
+    expect(header.nativeElement.querySelectorAll('h1')).toHaveLength(1);
+  });
 });

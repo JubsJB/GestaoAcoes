@@ -5,11 +5,11 @@
 .feedback-alert {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
-  gap: 0.875rem;
-  padding: 1rem 1.125rem;
+  gap: var(--app-space-3);
+  padding: var(--app-space-4);
   border: 1px solid color-mix(in srgb,currentcolor 28%,transparent);
   border-inline-start-width:.25rem;
-  border-radius: 0.875rem;
+  border-radius: var(--app-card-radius);
   color: var(--app-text-primary);
   background: var(--app-surface-card);
 }
@@ -25,28 +25,29 @@
 
 .feedback-alert__message {
   margin: 0;
+  overflow-wrap: anywhere;
   font-weight: 650;
   line-height: 1.45;
 }
 
 .feedback-alert--success {
   color: var(--app-success);
-  background: #eef7f1;
+  background: var(--app-surface-success);
 }
 
 .feedback-alert--info {
-  color: #315f72;
-  background: #eef6f8;
+  color: var(--app-info);
+  background: var(--app-surface-info);
 }
 
 .feedback-alert--warning {
-  color: #8b4513;
-  background: #fff4e8;
+  color: var(--app-warning);
+  background: var(--app-surface-warning);
 }
 
 .feedback-alert--error {
   color: var(--app-error);
-  background: #fff0f0;
+  background: var(--app-surface-error);
 }
 
 dl {

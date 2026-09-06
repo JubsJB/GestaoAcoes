@@ -18,6 +18,8 @@ body {
   color: var(--app-text-primary);
   background: var(--app-surface-app);
   font-family: 'Segoe UI', Arial, sans-serif;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.5;
 }
 
 *,
@@ -29,3 +31,6 @@ body {
 a {
   color: var(--app-brand-primary);
 }
+
+:focus-visible { outline: 2px solid var(--app-focus); outline-offset: 2px; }
+:where(button, a, input, select, textarea, [tabindex]) { scroll-margin-block: 3.5rem; }

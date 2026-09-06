@@ -16,9 +16,8 @@
 
   @include mat.strong-focus-indicators();
 
-  // Public Material system tokens keep components aligned with the approved
-  // olive identity while the palette still supplies complete tonal ramps.
-  --mat-sys-primary: var(--app-brand-primary);
+  // Public Material tokens share the app's semantic roles.
+  --mat-sys-primary: var(--app-action-primary);
   --mat-sys-on-primary: var(--app-on-brand-primary);
   --mat-sys-primary-container: var(--app-surface-selected);
   --mat-sys-on-primary-container: var(--app-text-primary);
@@ -27,6 +26,14 @@
   --mat-sys-secondary-container: var(--app-surface-selected);
   --mat-sys-on-secondary-container: var(--app-text-primary);
   --mat-sys-tertiary: var(--app-accent);
-  --mat-sys-on-tertiary: var(--app-text-primary);
+  --mat-sys-on-tertiary: var(--app-on-brand-primary);
   --mat-sys-error: var(--app-error);
+  --mat-sys-surface: var(--app-surface-card);
+  --mat-sys-surface-container: var(--app-surface-muted);
+  --mat-sys-surface-container-high: var(--app-surface-card);
+  --mat-sys-surface-container-low: var(--app-surface-app);
+  --mat-sys-on-surface: var(--app-text-primary);
+  --mat-sys-on-surface-variant: var(--app-text-secondary);
+  --mat-sys-outline: var(--app-border-control);
+  --mat-sys-outline-variant: var(--app-border-subtle);
 }
