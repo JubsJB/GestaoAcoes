@@ -1,0 +1,85 @@
+<section class="evolution" aria-labelledby="evolution-title">
+  <header class="evolution__header">
+    <div>
+      <h2 id="evolution-title">Evolução patrimonial</h2>
+      <p>Snapshots manuais da carteira, preservados por moeda. Datas e horas são exibidas no horário local.</p>
+    </div>
+    <button mat-flat-button type="button" (click)="registerSnapshot()" [disabled]="creating()">
+      {{ creating() ? 'Registrando snapshot…' : 'Registrar snapshot' }}
+    </button>
+  </header>
+
+  @if (creating()) {
+    <div class="evolution__progress" role="status" aria-live="polite"><mat-spinner diameter="22" /> Registrando snapshot de {{ carteiraNome() }}…</div>
+  }
+  @if (creationError()) {
+    <app-feedback-alert variant="error" [message]="creationError()!.message" [details]="creationError()!.details" />
+  }
+
+  @if (loading()) {
+    <div class="app-state" role="status" aria-live="polite"><mat-spinner diameter="32" /> Carregando evolução patrimonial…</div>
+  } @else if (error()) {
+    <app-feedback-alert variant="error" [message]="error()!.message" [details]="error()!.details" />
+    <div class="app-state"><button mat-stroked-button type="button" (click)="retry()">Tentar novamente a evolução</button></div>
+  } @else if (data(); as evolution) {
+    @if (evolution.pontos.length === 0) {
+      <div class="app-state app-surface"><h3>Nenhum snapshot registrado</h3><p>Registre o primeiro snapshot para iniciar a evolução patrimonial.</p></div>
+    } @else {
+      @if (evolution.pontos.length === 1) {
+        <p class="evolution__notice" role="status">Existe somente uma observação histórica; ainda não há tendência a apresentar.</p>
+      }
+
+      <div class="charts">
+        @for (chart of [brl(), usd()]; track chart?.currency) {
+          @if (chart; as series) {
+            <section class="chart app-surface" [attr.aria-labelledby]="'chart-title-' + series.currency">
+              <header><h3 [id]="'chart-title-' + series.currency">Evolução patrimonial — {{ series.currency }}</h3><span class="chart__legend chart__legend--{{ series.currency.toLowerCase() }}">{{ series.currency === 'BRL' ? 'R$ · linha contínua' : 'US$ · linha tracejada' }}</span></header>
+              <p [id]="'chart-description-' + series.currency" class="chart__description">Visualização complementar de {{ series.points.length }} {{ series.points.length === 1 ? 'observação' : 'observações' }} em {{ series.currency }}. Consulte o histórico textual para os valores exatos.</p>
+              <svg viewBox="0 0 720 260" role="img" [attr.aria-labelledby]="'chart-title-' + series.currency + ' chart-description-' + series.currency">
+                <line class="axis" x1="44" y1="222" x2="702" y2="222" />
+                @for (segment of series.segments; track $index) {
+                  @if (segment.length > 1) { <path class="series-line series-line--{{ series.currency.toLowerCase() }}" [attr.d]="path(segment)" /> }
+                }
+                @for (point of series.points; track point.snapshotId) {
+                  <g class="point" tabindex="0" role="button" [attr.aria-label]="pointLabel(series.currency, point)"
+                     (mouseenter)="showPoint(series.currency, point)" (mouseleave)="hidePoint(series.currency, point)"
+                     (focus)="showPoint(series.currency, point)" (blur)="hidePoint(series.currency, point)"
+                     (click)="showPoint(series.currency, point)">
+                    <circle [attr.cx]="point.x" [attr.cy]="point.y" r="5" />
+                    @if (activePoint() === pointKey(series.currency, point)) {
+                      <g class="tooltip" aria-hidden="true" [attr.transform]="'translate(' + tooltipX(point) + ' ' + point.y + ')'">
+                        <rect x="-92" y="-48" width="184" height="36" rx="5" />
+                        <text x="0" y="-33">{{ money(point.authoritativeValue, series.currency) }}</text>
+                        <text x="0" y="-20">{{ localDate(point.timestamp) }}</text>
+                      </g>
+                    }
+                  </g>
+                }
+                @for (label of series.xLabels; track label.snapshotId) {
+                  <text class="axis-label" [attr.x]="label.x" y="246">{{ shortDate(label.timestamp) }}</text>
+                }
+              </svg>
+            </section>
+          }
+        }
+      </div>
+
+      <section class="history app-surface" aria-labelledby="evolution-history-title">
+        <h3 id="evolution-history-title">Histórico textual de snapshots</h3>
+        <p>Fonte acessível principal, com valores autoritativos e horário local.</p>
+        <ol>
+          @for (snapshot of evolution.pontos; track snapshot.snapshotId) {
+            <li>
+              <div><strong>Snapshot #{{ snapshot.snapshotId }}</strong><time [attr.datetime]="snapshot.dataHoraSnapshot">{{ localDate(snapshot.dataHoraSnapshot) }}</time></div>
+              @if (snapshot.patrimonios.length === 0) {
+                <span class="empty-snapshot">Observação sem patrimônio por moeda.</span>
+              } @else {
+                <dl>@for (item of snapshot.patrimonios; track item.moeda) { <div><dt>{{ item.moeda }}</dt><dd>{{ money(item.patrimonioAtual, item.moeda) }}</dd></div> }</dl>
+              }
+            </li>
+          }
+        </ol>
+      </section>
+    }
+  }
+</section>

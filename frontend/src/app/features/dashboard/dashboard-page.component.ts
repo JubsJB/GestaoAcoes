@@ -21,11 +21,12 @@ import { CarteiraResponse } from '../carteiras/models/carteira';
 import { OperacaoResponse } from '../operacoes/models/operacao';
 import { OperacaoFormPageComponent } from '../operacoes/pages/operacao-form-page.component';
 import { DashboardService } from './dashboard.service';
+import { PortfolioEvolutionComponent } from './evolution/portfolio-evolution.component';
 import { DashboardFinancialData } from './models/dashboard';
 
 @Component({
   selector: 'app-dashboard-page',
-  imports: [AppIconComponent, FeedbackAlertComponent, MatButtonModule, MatCardModule, MatFormFieldModule, MatProgressSpinnerModule, MatSelectModule, PageHeaderComponent, RouterLink],
+  imports: [AppIconComponent, FeedbackAlertComponent, MatButtonModule, MatCardModule, MatFormFieldModule, MatProgressSpinnerModule, MatSelectModule, PageHeaderComponent, PortfolioEvolutionComponent, RouterLink],
   templateUrl: './dashboard-page.component.html',
   styleUrl: './dashboard-page.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush
@@ -49,6 +50,7 @@ export class DashboardPageComponent {
   protected readonly financialLoading = signal(false);
   protected readonly financialError = signal<NormalizedHttpError | null>(null);
   protected readonly data = signal<DashboardFinancialData | null>(null);
+  protected readonly evolutionRefresh = signal(0);
 
   protected readonly money = formatFinancialMoney;
   protected readonly quantity = formatFinancialQuantity;
@@ -116,7 +118,10 @@ export class DashboardPageComponent {
 
   protected reload(): void {
     const portfolio = this.selected();
-    if (portfolio) this.financialRequests.next(portfolio.id);
+    if (portfolio) {
+      this.financialRequests.next(portfolio.id);
+      this.evolutionRefresh.update(value => value + 1);
+    }
   }
 
   protected openOperationDialog(): void {

@@ -10,6 +10,7 @@ import { CarteirasService } from '../carteiras/carteiras.service';
 import { CarteiraResponse } from '../carteiras/models/carteira';
 import { DashboardPageComponent } from './dashboard-page.component';
 import { DashboardService } from './dashboard.service';
+import { EvolutionService } from './evolution/evolution.service';
 import { DashboardFinancialData } from './models/dashboard';
 import { MatDialog } from '@angular/material/dialog';
 import { provideHttpClient, withInterceptors } from '@angular/common/http';
@@ -42,15 +43,19 @@ describe('DashboardPageComponent', () => {
       listarResultadosRealizados: vi.fn().mockReturnValue(financial?.resultados ?? of(DATA.resultados))
     };
     const dialog = { open: vi.fn().mockReturnValue({ afterClosed: () => of(undefined) }) };
+    const evolution = {
+      consultar: vi.fn().mockImplementation((id: number) => of({ carteiraId: id, pontos: [] })),
+      registrarSnapshot: vi.fn()
+    };
     await TestBed.configureTestingModule({
       imports: [DashboardPageComponent],
-      providers: [provideRouter([]), { provide: ActivatedRoute, useValue: { queryParamMap: query } }, { provide: CarteirasService, useValue: carteiras }, { provide: DashboardService, useValue: dashboard }, { provide: MatDialog, useValue: dialog }, { provide: SuccessToastService, useValue: { show: vi.fn() } }]
+      providers: [provideRouter([]), { provide: ActivatedRoute, useValue: { queryParamMap: query } }, { provide: CarteirasService, useValue: carteiras }, { provide: DashboardService, useValue: dashboard }, { provide: EvolutionService, useValue: evolution }, { provide: MatDialog, useValue: dialog }, { provide: SuccessToastService, useValue: { show: vi.fn() } }]
     }).compileComponents();
     const router = TestBed.inject(Router);
     vi.spyOn(router, 'navigate').mockResolvedValue(true);
     const fixture = TestBed.createComponent(DashboardPageComponent);
     fixture.detectChanges();
-    return { fixture, carteiras, dashboard, router, dialog };
+    return { fixture, carteiras, dashboard, evolution, router, dialog };
   }
 
   it('anuncia loading e permite retry após erro da lista', async () => {
@@ -149,12 +154,14 @@ describe('DashboardPageComponent', () => {
 
   it('reload atualiza as três fontes da seleção corrente', async () => {
     query.next(convertToParamMap({ carteiraId: '1' }));
-    const { fixture, dashboard } = await create(of([A])); fixture.detectChanges();
+    const { fixture, dashboard, evolution } = await create(of([A])); fixture.detectChanges();
     const reload = Array.from(fixture.nativeElement.querySelectorAll('button')).find((button: any) => button.textContent.includes('Atualizar dados')) as HTMLButtonElement;
     reload.click(); fixture.detectChanges();
     expect(dashboard.obterResumo).toHaveBeenCalledTimes(2);
     expect(dashboard.listarPosicoes).toHaveBeenCalledTimes(2);
     expect(dashboard.listarResultadosRealizados).toHaveBeenCalledTimes(2);
+    expect(evolution.consultar).toHaveBeenCalledTimes(2);
+    expect(evolution.registrarSnapshot).not.toHaveBeenCalled();
   });
 
   it('cancela resposta obsoleta ao trocar rapidamente de carteira', async () => {
@@ -197,6 +204,7 @@ describe('DashboardPageComponent', () => {
     const http = TestBed.inject(HttpTestingController);
     http.expectOne('/api/carteiras/1/resumo').flush('{"carteiraId":1,"resumos":[]}');
     http.expectOne('/api/carteiras/1/resultados-realizados').flush('[]');
+    http.expectOne('/api/carteiras/1/evolucao-patrimonial').flush('{"carteiraId":1,"pontos":[]}');
     http.expectOne('/api/carteiras/1/posicoes').flush('{"timeStamp":1,"status":409,"error":"Conflict","message":"Histórico inconsistente","path":"/carteiras/1/posicoes","code":"HISTORICO_OPERACOES_INCONSISTENTE","details":{}}', { status: 409, statusText: 'Conflict' });
     fixture.detectChanges();
     expect(fixture.nativeElement.textContent).toContain('Histórico inconsistente');

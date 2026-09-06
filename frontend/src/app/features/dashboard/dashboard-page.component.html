@@ -70,6 +70,12 @@
           }</div> }
         </section>
       }
+
+      <app-portfolio-evolution
+        [carteiraId]="selected()!.id"
+        [carteiraNome]="selected()!.nome"
+        [refreshToken]="evolutionRefresh()"
+      />
     }
   }
 </section>
