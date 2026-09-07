@@ -116,9 +116,7 @@ export class AcoesListPageComponent {
   private openNotFoundDialog(ticker: string, mercado: Mercado): void {
     this.dialog.open(AcaoNotFoundDialogComponent, {
       data: { ticker, mercado },
-      width: '32rem',
-      maxWidth: 'calc(100vw - 2rem)',
-      panelClass: 'app-not-found-dialog',
+      panelClass: ['app-not-found-dialog', 'app-dialog--compact'],
       autoFocus: 'first-tabbable',
       restoreFocus: true
     }).afterClosed().pipe(takeUntilDestroyed(this.destroyRef)).subscribe((register: boolean | undefined) => {
@@ -129,10 +127,7 @@ export class AcoesListPageComponent {
   protected openCreateDialog(data: { ticker?: string; mercado?: Mercado } = {}): void {
     this.dialog.open(AcaoCreatePageComponent, {
       data,
-      width: '42rem',
-      maxWidth: 'calc(100vw - 2rem)',
-      maxHeight: 'calc(100dvh - 2rem)',
-      panelClass: 'app-create-dialog',
+      panelClass: ['app-create-dialog', 'app-dialog--form'],
       autoFocus: 'first-tabbable',
       restoreFocus: true
     }).afterClosed().pipe(takeUntilDestroyed(this.destroyRef)).subscribe((created: AcaoResponse | undefined) => {

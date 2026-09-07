@@ -1,7 +1,9 @@
+import { CARTEIRA_STORAGE } from '../../../core/carteira/carteira-context.service';
+import { DashboardService } from '../../dashboard/dashboard.service';
 import { OverlayContainer } from '@angular/cdk/overlay';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { MatDialog } from '@angular/material/dialog';
-import { ActivatedRoute, provideRouter, Router } from '@angular/router';
+import { ActivatedRoute, convertToParamMap, provideRouter, Router } from '@angular/router';
 import { of } from 'rxjs';
 
 import { SuccessToastService } from '../../../shared/success-toast/success-toast.service';
@@ -24,7 +26,7 @@ describe('Carteiras com MatDialog real', () => {
 
   it('cadastra pelo CTA e afterClosed real com POST único, sem novo GET', async () => {
     const service = { listar: vi.fn().mockReturnValue(of([])), cadastrar: vi.fn().mockReturnValue(of(CARTEIRA)), buscarPorId: vi.fn(), atualizar: vi.fn(), excluir: vi.fn() };
-    await TestBed.configureTestingModule({ imports: [CarteirasListPageComponent], providers: [provideRouter([]), { provide: CarteirasService, useValue: service }] }).compileComponents();
+    await TestBed.configureTestingModule({ imports: [CarteirasListPageComponent], providers: [{ provide: CARTEIRA_STORAGE, useValue: null }, { provide: DashboardService, useValue: { listarPosicoes: () => of([]) } },provideRouter([]), { provide: CarteirasService, useValue: service }] }).compileComponents();
     overlay = TestBed.inject(OverlayContainer); const fixture = TestBed.createComponent(CarteirasListPageComponent); fixture.detectChanges();
     const create = [...fixture.nativeElement.querySelectorAll('button')].find((button: HTMLButtonElement) => button.textContent?.includes('Nova carteira')) as HTMLButtonElement; create.click(); fixture.detectChanges();
     const input = overlay.getContainerElement().querySelector('input') as HTMLInputElement; input.value = 'Inicial'; input.dispatchEvent(new Event('input')); (overlay.getContainerElement().querySelector('form') as HTMLFormElement).dispatchEvent(new Event('submit')); await waitForDialogClose(); fixture.detectChanges();
@@ -32,8 +34,8 @@ describe('Carteiras com MatDialog real', () => {
   });
 
   it('cancela edição real sem PATCH e confirma exclusão real com um DELETE', async () => {
-    const service = { listar: vi.fn(), cadastrar: vi.fn(), buscarPorId: vi.fn(), atualizar: vi.fn().mockReturnValue(of(CARTEIRA)), excluir: vi.fn().mockReturnValue(of(undefined)) }; const toast = { show: vi.fn() };
-    await TestBed.configureTestingModule({ imports: [CarteiraDetailPageComponent], providers: [provideRouter([]), { provide: ActivatedRoute, useValue: { snapshot: { paramMap: { get: () => '6' } } } }, { provide: CarteirasService, useValue: service }, { provide: OperacoesService, useValue: { listarPorCarteira: vi.fn().mockReturnValue(of([])), cadastrar: vi.fn() } }, { provide: SuccessToastService, useValue: toast }] }).compileComponents();
+    const service = { listar: vi.fn().mockReturnValue(of([CARTEIRA])), cadastrar: vi.fn(), buscarPorId: vi.fn(), atualizar: vi.fn().mockReturnValue(of(CARTEIRA)), excluir: vi.fn().mockReturnValue(of(undefined)) }; const toast = { show: vi.fn() };
+    await TestBed.configureTestingModule({ imports: [CarteiraDetailPageComponent], providers: [{ provide: CARTEIRA_STORAGE, useValue: null }, { provide: DashboardService, useValue: { listarPosicoes: () => of([]) } },provideRouter([]), { provide: ActivatedRoute, useValue: { paramMap: of(convertToParamMap({ id: 6 })) } }, { provide: CarteirasService, useValue: service }, { provide: OperacoesService, useValue: { listarPorCarteira: vi.fn().mockReturnValue(of([])), cadastrar: vi.fn() } }, { provide: SuccessToastService, useValue: toast }] }).compileComponents();
     overlay = TestBed.inject(OverlayContainer); const router = TestBed.inject(Router); vi.spyOn(router, 'currentNavigation').mockReturnValue({ extras: { info: { carteira: CARTEIRA } } } as never); vi.spyOn(router, 'navigate').mockResolvedValue(true);
     const fixture: ComponentFixture<CarteiraDetailPageComponent> = TestBed.createComponent(CarteiraDetailPageComponent); fixture.detectChanges();
     (fixture.nativeElement.querySelectorAll('button')[0] as HTMLButtonElement).click(); fixture.detectChanges(); const cancel = [...overlay.getContainerElement().querySelectorAll('button')].find((button) => button.textContent?.trim() === 'Cancelar') as HTMLButtonElement; cancel.click(); await waitForDialogClose(); expect(service.atualizar).not.toHaveBeenCalled();
@@ -50,7 +52,7 @@ describe('Carteiras com MatDialog real', () => {
       obterSugestaoPrecoVenda: vi.fn().mockReturnValue(of({ precoUnitarioSugerido: '15' }))
     };
     await TestBed.configureTestingModule({
-      providers: [
+      providers: [{ provide: CARTEIRA_STORAGE, useValue: null }, { provide: DashboardService, useValue: { listarPosicoes: () => of([]) } },
         provideRouter([]),
         { provide: OperacoesService, useValue: operations },
         { provide: CarteirasService, useValue: { listar: vi.fn() } },

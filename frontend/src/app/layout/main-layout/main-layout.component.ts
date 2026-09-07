@@ -9,6 +9,7 @@ import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } fro
 import { filter, map } from 'rxjs';
 
 import { AppIconComponent } from '../../shared/app-icon/app-icon.component';
+import { CarteiraSelectorComponent } from '../carteira-selector/carteira-selector.component';
 import { NAVIGATION_ITEMS } from '../navigation-items';
 
 const COMPACT_VIEWPORT = '(max-width: 959.98px)';
@@ -23,7 +24,8 @@ const COMPACT_VIEWPORT = '(max-width: 959.98px)';
     RouterLink,
     RouterLinkActive,
     RouterOutlet,
-    AppIconComponent
+    AppIconComponent,
+    CarteiraSelectorComponent
   ],
   templateUrl: './main-layout.component.html',
   styleUrl: './main-layout.component.scss',

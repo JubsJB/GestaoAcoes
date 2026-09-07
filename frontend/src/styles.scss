@@ -1,6 +1,9 @@
 @use 'styles/theme' as app-theme;
 @use 'styles/tokens';
 @use 'styles/patterns';
+@use 'app/shared/dialog/dialog-overlay' as app-dialog;
+
+@include app-dialog.overlay-layout();
 
 html,
 body {

@@ -27,10 +27,12 @@ Nenhuma. A base visual e as oito áreas abaixo já possuem especificações.
 - `frontend-portfolio-evolution`: legibilidade responsiva e interação acessível de pontos e tooltip.
 - `frontend-broker-management`: lista compacta e detalhe cadastral consistente.
 - `frontend-stock-management`: apresentação tabular desktop, cards mobile e linguagem clara sobre cotação registrada.
-- `frontend-portfolio-management`: cards compactos, detalhe hierárquico e apresentação do histórico conforme Operações.
+- `frontend-portfolio-management`: cards compactos, detalhe hierárquico com posições abertas existentes e apresentação do histórico conforme Operações.
 - `frontend-operation-management`: histórico tabular responsivo, detalhe e agrupamento visual do formulário existente.
 
 ## Impact
+
+A change permanece pausada após as Fases 1–3. A base funcional vigente incorpora a change arquivada `centralizar-contexto-carteira-frontend`: seletor e contexto de Carteira no shell, Dashboard sem seletor local, detalhe com posições abertas e cadastro de Operação prioritariamente contextual com Carteira fixa desde a abertura. Operações permanece fora da sidebar; suas rotas globais continuam por compatibilidade/deep link. Esta reconciliação documental não retoma as Fases 4–7 nem altera evidências anteriores.
 
 A futura implementação será restrita à apresentação Angular, estilos, assets SVG locais quando necessários e testes relacionados. A change será implementada em sete fases revisáveis; nesta etapa somente seus artefatos são criados.
 

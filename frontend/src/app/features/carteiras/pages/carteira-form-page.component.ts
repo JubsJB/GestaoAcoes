@@ -9,6 +9,7 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { finalize } from 'rxjs';
 
+import { CarteiraContextService } from '../../../core/carteira/carteira-context.service';
 import { NormalizedHttpError } from '../../../core/errors/normalized-http-error';
 import { AppIconComponent } from '../../../shared/app-icon/app-icon.component';
 import { FeedbackAlertComponent } from '../../../shared/feedback-alert/feedback-alert.component';
@@ -63,6 +64,7 @@ function nonBlank(control: AbstractControl<string>): ValidationErrors | null {
 })
 export class CarteiraFormPageComponent {
   private readonly service = inject(CarteirasService);
+  private readonly context = inject(CarteiraContextService);
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
   private readonly successToast = inject(SuccessToastService);
@@ -104,6 +106,7 @@ export class CarteiraFormPageComponent {
   }
 
   private complete(carteira: CarteiraResponse): void {
+    this.context.upsert(carteira);
     if (this.dialogRef) { this.dialogRef.close(carteira); this.submitting.set(false); return; }
     void this.router.navigate(['/carteiras', carteira.id], { info: { carteira } }).then((navigated) => {
       if (navigated) this.successToast.show(this.isEdit ? 'Carteira atualizada com sucesso.' : 'Carteira cadastrada com sucesso.');

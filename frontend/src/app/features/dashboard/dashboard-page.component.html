@@ -9,10 +9,7 @@
   } @else if (carteiras().length === 0) {
     <div class="app-state app-surface"><span class="app-state__icon" aria-hidden="true"><app-icon name="empty" /></span><h2>Nenhuma carteira cadastrada</h2><p>Cadastre uma carteira para visualizar seus indicadores.</p><a mat-flat-button routerLink="/carteiras/nova">Nova carteira</a></div>
   } @else {
-    <section class="selector app-surface" aria-labelledby="portfolio-selector-title">
-      <div><h2 id="portfolio-selector-title">Carteira do Dashboard</h2><p id="portfolio-selector-hint">Selecione qual carteira deseja acompanhar.</p></div>
-      <mat-form-field appearance="outline"><mat-label>Carteira</mat-label><mat-select [value]="selected()?.id ?? null" (selectionChange)="selectPortfolio($event)" aria-describedby="portfolio-selector-hint">@for (carteira of carteiras(); track carteira.id) { <mat-option [value]="carteira.id">{{ carteira.nome }}</mat-option> }</mat-select></mat-form-field>
-    </section>
+    @if (selected(); as carteira) { <p class="portfolio-context">Carteira: <strong>{{ carteira.nome }}</strong></p> }
 
     @if (invalidSelection()) {
       <app-feedback-alert variant="warning" message="A carteira indicada na URL não está disponível. Selecione uma carteira válida." />
@@ -48,19 +45,7 @@
         </section>
 
         <section aria-labelledby="positions-title"><h2 id="positions-title">Posições abertas</h2>
-          @if (dashboard.posicoes.length === 0) { <div class="app-state app-surface"><h3>Nenhuma posição aberta</h3><p>Registre uma compra para iniciar uma posição.</p></div> }
-          @else { <div class="records" role="list">@for (position of dashboard.posicoes; track position.acaoId) {
-            <article class="record app-surface" role="listitem"><header><div><strong>{{ position.ticker }}</strong><span>{{ position.nomeEmpresa }}</span></div><span class="currency-badge">{{ position.mercado }} · {{ position.moeda }}</span></header><dl>
-              <div><dt>Quantidade</dt><dd>{{ quantity(position.quantidadeAtual, position.mercado) }}</dd></div>
-              <div><dt>Preço médio</dt><dd>{{ money(position.precoMedio, position.moeda) }}</dd></div>
-              <div><dt>Custo da posição</dt><dd>{{ money(position.custoPosicao, position.moeda) }}</dd></div>
-              <div><dt>Cotação atual</dt><dd>{{ money(position.cotacaoAtual, position.moeda) }}</dd></div>
-              <div><dt>Atualizada em</dt><dd>{{ dateTime(position.dataHoraCotacao) }}</dd></div>
-              <div><dt>Valor atual</dt><dd>{{ money(position.valorAtualPosicao, position.moeda) }}</dd></div>
-              <div><dt>Resultado não realizado</dt><dd>{{ money(position.resultadoNaoRealizado, position.moeda) }} · {{ outcome(position.resultadoNaoRealizado) }}</dd></div>
-              <div><dt>Rentabilidade</dt><dd>{{ percent(position.rentabilidadePercentual) }} · {{ outcome(position.rentabilidadePercentual) }}</dd></div>
-            </dl></article>
-          }</div> }
+          <app-portfolio-positions [positions]="dashboard.posicoes" />
         </section>
 
         <section aria-labelledby="results-title"><h2 id="results-title">Resultados realizados por ação</h2>

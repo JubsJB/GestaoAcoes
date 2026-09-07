@@ -47,7 +47,7 @@ Evidências técnicas e pendências manuais desta etapa: [evidencias-fases-1-3.m
 - [ ] 4.5 Refinar cards de Carteiras com nome, data e ações hierárquicos, sem indicadores adicionais.
 - [ ] 4.6 Refinar detalhe de Corretora em identificação, contatos, endereço e situação, preservando dados opcionais e avisos.
 - [ ] 4.7 Refinar detalhe de Ação destacando identificação, última cotação registrada e data, mantendo atualização manual.
-- [ ] 4.8 Refinar detalhe de Carteira separando contexto, ações e histórico, mantendo edição/exclusão existentes.
+- [ ] 4.8 Refinar detalhe de Carteira separando contexto, ações, posições abertas e histórico, mantendo edição/exclusão, rota reativa e estados independentes existentes.
 - [ ] 4.9 Refinar detalhe de Operação com grupos legíveis, mantendo campos aprovados e sem enriquecimento de IDs.
 - [ ] 4.10 Verificar equivalência de campos/ações e uma única representação acessível/focável ativa em cada breakpoint, sem novos filtros, sort, paginação ou HTTP.
 
@@ -56,15 +56,15 @@ Evidências técnicas e pendências manuais desta etapa: [evidencias-fases-1-3.m
 - [ ] 5.1 Refinar formulário de Corretora somente CNPJ em página/dialog, mantendo prefill, confirmação e validações.
 - [ ] 5.2 Refinar formulário de Ação somente ticker e mercado em página/dialog, sem alterar máscaras ou requisições.
 - [ ] 5.3 Refinar criação e edição de Carteira somente nome em página/dialog, mantendo submissão e cancelamento.
-- [ ] 5.4 Agrupar visualmente contexto, tipo/movimentação, quantidade/preço/data, Corretora, estimativa e ações do formulário de Operação.
-- [ ] 5.5 Verificar COMPRA com preço somente leitura, prévia existente e POST sem preço; preservar troca de contexto e bloqueios.
+- [ ] 5.4 Agrupar visualmente contexto, tipo/movimentação, quantidade/preço/data, Corretora, estimativa e ações do formulário de Operação, preservando entrada principal contextual e rotas globais por compatibilidade.
+- [ ] 5.5 Verificar COMPRA com preço somente leitura, prévia existente e POST sem preço; preservar invalidação por mudança de Ação/data, bloqueios e Carteira capturada sem reatribuição por troca global.
 - [ ] 5.6 Verificar VENDA com sugestão editável, precisão, estimativa existente, strings decimais e data civil inalteradas.
-- [ ] 5.7 Verificar Carteira fixa contextual, Corretora opcional, labels/ajudas/erros, foco, submit/cancel e double-submit em todos os formulários.
+- [ ] 5.7 Verificar Carteira fixa desde abertura em página/dialog, inclusive entrada global de compatibilidade, retorno determinístico após reload/deep link, Corretora opcional, labels/ajudas/erros, foco, submit/cancel e double-submit em todos os formulários.
 
 ## 6. Dashboard e evolução patrimonial
 
 - [ ] 6.1 Reordenar visual e semanticamente Dashboard em contexto, ações, indicadores, evolução, posições e resultados.
-- [ ] 6.2 Refinar seletor e ações mantendo query params, navegação contextual e conjunto funcional de requisições.
+- [ ] 6.2 Refinar a apresentação do contexto e ações do Dashboard preservando o seletor global exclusivamente no shell, sem seletor ou listagem de Carteiras duplicados no Dashboard; manter query params, navegação contextual e conjunto funcional de requisições.
 - [ ] 6.3 Refinar os quatro indicadores autoritativos por moeda com patrimônio em destaque, sem total combinado nem métrica nova.
 - [ ] 6.4 Aplicar tabela semântica desktop e cards completos mobile às posições preservando todos os campos e moedas.
 - [ ] 6.5 Refinar resultados realizados comparáveis por Ação, sem totalização.

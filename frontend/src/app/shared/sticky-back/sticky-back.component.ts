@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, Input } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
-import { RouterLink } from '@angular/router';
+import { RouterLink, UrlTree } from '@angular/router';
 
 @Component({
   selector: 'app-sticky-back',
@@ -14,6 +14,6 @@ import { RouterLink } from '@angular/router';
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class StickyBackComponent {
-  @Input({ required: true }) route!: string;
+  @Input({ required: true }) route!: string | UrlTree;
   @Input({ required: true }) label!: string;
 }

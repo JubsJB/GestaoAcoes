@@ -1,3 +1,4 @@
+import { CARTEIRA_STORAGE } from '../../../core/carteira/carteira-context.service';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ActivatedRoute, provideRouter, Router } from '@angular/router';
 import { of, Subject, throwError } from 'rxjs';
@@ -18,7 +19,7 @@ describe('CarteiraFormPageComponent em rota direta', () => {
 
   async function create(mode: 'create' | 'edit'): Promise<void> {
     service = { buscarPorId: vi.fn().mockReturnValue(of(CARTEIRA)), cadastrar: vi.fn().mockReturnValue(of(CARTEIRA)), atualizar: vi.fn().mockReturnValue(of({ ...CARTEIRA, nome: 'Atualizada' })) }; toast = { show: vi.fn() };
-    await TestBed.configureTestingModule({ imports: [CarteiraFormPageComponent], providers: [provideRouter([]), { provide: ActivatedRoute, useValue: { snapshot: { data: { mode }, paramMap: { get: () => '4' } } } }, { provide: CarteirasService, useValue: service }, { provide: SuccessToastService, useValue: toast }] }).compileComponents();
+    await TestBed.configureTestingModule({ imports: [CarteiraFormPageComponent], providers: [{ provide: CARTEIRA_STORAGE, useValue: null },provideRouter([]), { provide: ActivatedRoute, useValue: { snapshot: { data: { mode }, paramMap: { get: () => '4' } } } }, { provide: CarteirasService, useValue: service }, { provide: SuccessToastService, useValue: toast }] }).compileComponents();
     vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true); fixture = TestBed.createComponent(CarteiraFormPageComponent); fixture.detectChanges();
   }
   afterEach(() => TestBed.resetTestingModule());

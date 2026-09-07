@@ -140,9 +140,7 @@ export class CorretorasListPageComponent {
   private openNotFoundDialog(cnpj: string): void {
     this.dialog.open(CorretoraNotFoundDialogComponent, {
       data: { cnpj: formatCnpj(cnpj) },
-      width: '32rem',
-      maxWidth: 'calc(100vw - 2rem)',
-      panelClass: 'app-not-found-dialog',
+      panelClass: ['app-not-found-dialog', 'app-dialog--compact'],
       autoFocus: 'first-tabbable',
       restoreFocus: true
     }).afterClosed().pipe(takeUntilDestroyed(this.destroyRef)).subscribe((register: boolean | undefined) => {
@@ -153,10 +151,7 @@ export class CorretorasListPageComponent {
   protected openCreateDialog(data: { cnpj?: string } = {}): void {
     this.dialog.open(CorretoraCreatePageComponent, {
       data,
-      width: '42rem',
-      maxWidth: 'calc(100vw - 2rem)',
-      maxHeight: 'calc(100dvh - 2rem)',
-      panelClass: 'app-create-dialog',
+      panelClass: ['app-create-dialog', 'app-dialog--form'],
       autoFocus: 'first-tabbable',
       restoreFocus: true
     }).afterClosed().pipe(takeUntilDestroyed(this.destroyRef)).subscribe((created: Corretora | undefined) => {

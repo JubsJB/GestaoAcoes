@@ -4,6 +4,7 @@ import { DestroyRef } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MAT_DIALOG_DATA, MatDialogModule, MatDialogRef } from '@angular/material/dialog';
 
+import { CarteiraContextService } from '../../core/carteira/carteira-context.service';
 import { NormalizedHttpError } from '../../core/errors/normalized-http-error';
 import { FeedbackAlertComponent } from '../../shared/feedback-alert/feedback-alert.component';
 import { CarteirasService } from './carteiras.service';
@@ -34,6 +35,7 @@ export class CarteiraDeleteConfirmDialogComponent {
   protected readonly data = inject<CarteiraResponse>(MAT_DIALOG_DATA);
   private readonly dialogRef = inject(MatDialogRef<CarteiraDeleteConfirmDialogComponent, boolean>);
   private readonly service = inject(CarteirasService);
+  private readonly context = inject(CarteiraContextService);
   private readonly destroyRef = inject(DestroyRef);
   protected readonly deleting = signal(false);
   protected readonly error = signal<NormalizedHttpError | null>(null);
@@ -45,7 +47,7 @@ export class CarteiraDeleteConfirmDialogComponent {
     this.deleting.set(true);
     this.error.set(null);
     this.service.excluir(this.data.id).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
-      next: () => this.dialogRef.close(true),
+      next: () => { this.context.remove(this.data.id); this.dialogRef.close(true); },
       error: (error: NormalizedHttpError) => { this.error.set(error); this.deleting.set(false); }
     });
   }

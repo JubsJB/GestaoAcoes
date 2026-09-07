@@ -1,3 +1,4 @@
+import { CARTEIRA_STORAGE } from '../../../core/carteira/carteira-context.service';
 import { provideHttpClient, withInterceptors } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
@@ -27,7 +28,7 @@ describe('OperacaoFormPageComponent', () => {
   afterEach(() => TestBed.resetTestingModule());
   async function create(options: { post?: Subject<OperacaoResponse>; context?: CarteiraResponse; preview?: Subject<PreviaPrecoCompraResponse>; suggestion?: Subject<SugestaoPrecoVendaResponse> } = {}) {
     const operations = { cadastrar: vi.fn().mockReturnValue(options.post ?? new Subject<OperacaoResponse>()), obterPreviaCompra: vi.fn().mockReturnValue(options.preview ?? of(PREVIEW)), obterSugestaoPrecoVenda: vi.fn().mockReturnValue(options.suggestion ?? of({ precoUnitarioSugerido: '10' })) };
-    const providers: object[] = [provideRouter([]), { provide: OperacoesService, useValue: operations }, { provide: CarteirasService, useValue: { listar: () => of([CARTEIRA]) } }, { provide: AcoesService, useValue: { listar: () => of([{ id: 2, ticker: 'AAPL', nomeEmpresa: 'Apple', mercado: 'EUA', moeda: 'USD' }, { id: 3, ticker: 'PETR4', nomeEmpresa: 'Petrobras', mercado: 'BRASIL', moeda: 'BRL' }]) } }, { provide: CorretorasService, useValue: { listar: () => of([]) } }, { provide: SuccessToastService, useValue: { show: vi.fn() } }];
+    const providers: object[] = [{ provide: CARTEIRA_STORAGE, useValue: null },provideRouter([]), { provide: OperacoesService, useValue: operations }, { provide: CarteirasService, useValue: { listar: () => of([CARTEIRA]) } }, { provide: AcoesService, useValue: { listar: () => of([{ id: 2, ticker: 'AAPL', nomeEmpresa: 'Apple', mercado: 'EUA', moeda: 'USD' }, { id: 3, ticker: 'PETR4', nomeEmpresa: 'Petrobras', mercado: 'BRASIL', moeda: 'BRL' }]) } }, { provide: CorretorasService, useValue: { listar: () => of([]) } }, { provide: SuccessToastService, useValue: { show: vi.fn() } }];
     if (options.context) providers.push({ provide: MAT_DIALOG_DATA, useValue: { carteira: options.context } });
     await TestBed.configureTestingModule({ imports: [OperacaoFormPageComponent], providers }).compileComponents();
     const fixture = TestBed.createComponent(OperacaoFormPageComponent); fixture.detectChanges();
@@ -99,8 +100,20 @@ describe('OperacaoFormPageComponent', () => {
     const suggestion = new Subject<SugestaoPrecoVendaResponse>(); const { component } = await create({ suggestion }); setContext(component, 'VENDA'); component.form.controls['precoUnitario'].setValue('77'); suggestion.next({ precoUnitarioSugerido: '10' }); suggestion.complete(); expect(component.form.controls['precoUnitario'].value).toBe('77');
   });
 
-  it('mudanças de carteira, ação e data limpam sugestão e descartam resposta antiga', async () => {
-    const old = new Subject<SugestaoPrecoVendaResponse>(); const current = new Subject<SugestaoPrecoVendaResponse>(); const { component, operations } = await create(); operations.obterSugestaoPrecoVenda.mockReturnValueOnce(old).mockReturnValue(current); setContext(component, 'VENDA'); component.form.controls['precoUnitario'].setValue('33'); component.form.controls['carteiraId'].setValue(2); expect(component.form.controls['precoUnitario'].value).toBe(''); old.next({ precoUnitarioSugerido: '99' }); expect(component.form.controls['precoUnitario'].value).toBe(''); component.form.controls['acaoKey'].setValue('PETR4|BRASIL'); expect(component.form.controls['precoUnitario'].value).toBe(''); component.form.controls['dataOperacao'].setValue('2026-08-30'); expect(component.form.controls['precoUnitario'].value).toBe('');
+  it('mantém carteira fixa e preserva invalidação de preço ao mudar ação ou data', async () => {
+    const old = new Subject<SugestaoPrecoVendaResponse>(); const current = new Subject<SugestaoPrecoVendaResponse>();
+    const { component, operations } = await create();
+    operations.obterSugestaoPrecoVenda.mockReturnValueOnce(old).mockReturnValue(current);
+    setContext(component, 'VENDA'); component.form.controls['precoUnitario'].setValue('33');
+    component.form.controls['carteiraId'].setValue(2);
+    expect(component.form.controls['precoUnitario'].value).toBe('33');
+    expect(operations.obterSugestaoPrecoVenda).toHaveBeenCalledTimes(1);
+    component.form.controls['acaoKey'].setValue('PETR4|BRASIL');
+    expect(component.form.controls['precoUnitario'].value).toBe('');
+    old.next({ precoUnitarioSugerido: '99' }); expect(component.form.controls['precoUnitario'].value).toBe('');
+    component.form.controls['dataOperacao'].setValue('2026-08-30');
+    expect(component.form.controls['precoUnitario'].value).toBe('');
+    expect(operations.obterSugestaoPrecoVenda).toHaveBeenLastCalledWith(1, 'PETR4', 'BRASIL', '2026-08-30');
   });
 
   it('troca tipos sem reutilizar preço e preserva validators/double-submit', async () => {
@@ -115,7 +128,7 @@ describe('OperacaoFormPageComponent', () => {
 describe('OperacaoForm integração de erro HTTP', () => {
   afterEach(() => TestBed.resetTestingModule());
   it('percorre HttpErrorResponse, interceptor, parsing lossless, service e UI', async () => {
-    await TestBed.configureTestingModule({ imports: [OperacaoFormPageComponent], providers: [provideRouter([]), provideHttpClient(withInterceptors([httpErrorInterceptor])), provideHttpClientTesting(), provideApiConfig(), { provide: CarteirasService, useValue: { listar: () => of([CARTEIRA]) } }, { provide: AcoesService, useValue: { listar: () => of([{ id: 2, ticker: 'AAPL', nomeEmpresa: 'Apple', mercado: 'EUA', moeda: 'USD' }]) } }, { provide: CorretorasService, useValue: { listar: () => of([]) } }, { provide: SuccessToastService, useValue: { show: vi.fn() } }] }).compileComponents();
+    await TestBed.configureTestingModule({ imports: [OperacaoFormPageComponent], providers: [{ provide: CARTEIRA_STORAGE, useValue: null },provideRouter([]), provideHttpClient(withInterceptors([httpErrorInterceptor])), provideHttpClientTesting(), provideApiConfig(), { provide: CarteirasService, useValue: { listar: () => of([CARTEIRA]) } }, { provide: AcoesService, useValue: { listar: () => of([{ id: 2, ticker: 'AAPL', nomeEmpresa: 'Apple', mercado: 'EUA', moeda: 'USD' }]) } }, { provide: CorretorasService, useValue: { listar: () => of([]) } }, { provide: SuccessToastService, useValue: { show: vi.fn() } }] }).compileComponents();
     const http = TestBed.inject(HttpTestingController); const fixture = TestBed.createComponent(OperacaoFormPageComponent); fixture.detectChanges(); const component = fixture.componentInstance as unknown as TestComponent; setContext(component, 'COMPRA'); const request = http.expectOne(req => req.url === '/api/operacoes/previa-compra'); request.flush('{"timeStamp":1,"status":422,"error":"Unprocessable Entity","code":"HISTORICO_COTACAO_FORA_DO_ALCANCE","message":"Data fora do alcance","path":"/operacoes/previa-compra","details":{"dataOperacao":"2026-08-31"}}', { status: 422, statusText: 'Unprocessable Entity' }); fixture.detectChanges(); expect(fixture.nativeElement.textContent).toContain('fora do histórico disponível'); expect(fixture.nativeElement.textContent).toContain('Data fora do alcance'); expect(component.submitBlocked()).toBe(true); http.verify();
   });
 });

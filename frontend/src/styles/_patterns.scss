@@ -6,8 +6,6 @@
 
 .app-page > a[mat-button]:first-child { width: max-content; color: var(--app-text-secondary); }
 .app-back-action { position: sticky; z-index: 4; top: 0; justify-self: start; width: max-content; max-width: 100%; background: var(--app-surface-app); }
-.app-dialog-page { max-height: calc(100dvh - 2rem); padding: var(--app-space-6); overflow: auto; }
-.app-dialog-page .app-form-surface { width: 100%; max-width: none; padding: 0; border: 0; box-shadow: none; }
 
 .app-surface, .section-card {
   border: 1px solid var(--app-border-subtle);
@@ -46,7 +44,7 @@ button[mat-flat-button]:not(:disabled):hover, a[mat-flat-button]:not([aria-disab
 .app-success-toast-overlay { width: min(28rem, calc(100vw - 2rem)); max-width: calc(100vw - 2rem); }
 
 @media (max-width: 36rem) {
-  .app-dialog-page, .app-form-surface, .app-search-surface { padding: var(--app-space-4); }
+  .app-form-surface, .app-search-surface { padding: var(--app-space-4); }
   .app-success-toast-overlay { width: auto; max-width: none; }
   .app-actions--stack-compact, .data-list { display: grid; grid-template-columns: 1fr; }
   .app-actions--stack-compact > * { width: 100%; }

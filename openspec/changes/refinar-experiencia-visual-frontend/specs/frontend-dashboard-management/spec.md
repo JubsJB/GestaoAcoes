@@ -59,7 +59,7 @@ O Dashboard SHALL exibir cada `ResultadoRealizadoResponse` com ticker, empresa, 
 ## ADDED Requirements
 
 ### Requirement: Hierarquia financeira do Dashboard
-O Dashboard SHALL apresentar, nesta ordem visual e semântica, cabeçalho/contexto compacto, ações existentes, indicadores por moeda, evolução patrimonial, posições abertas e resultados realizados por Ação. A reorganização MUST preservar o carregamento e tratamento de erro independentes da evolução, seleção, query params, atualização e registro manual existentes.
+O Dashboard SHALL apresentar, nesta ordem visual e semântica, cabeçalho/contexto compacto, ações existentes, indicadores por moeda, evolução patrimonial, posições abertas e resultados realizados por Ação. A reorganização MUST preservar o carregamento e tratamento de erro independentes da evolução, o consumo do contexto global de Carteira, query params, atualização e registro manual existentes. O seletor SHALL permanecer exclusivamente no shell; o Dashboard MUST NOT duplicar seleção ou listagem de Carteiras.
 
 #### Scenario: Evolução independente
 - **WHEN** a evolução está carregando ou falha enquanto as demais seções têm conteúdo
@@ -67,6 +67,6 @@ O Dashboard SHALL apresentar, nesta ordem visual e semântica, cabeçalho/contex
 
 #### Scenario: Ordem coerente
 - **WHEN** a página é percorrida visualmente ou por headings
-- **THEN** contexto e ações precedem indicadores e evolução, seguidos por posições e resultados
+- **THEN** identificação do contexto global e ações precedem indicadores e evolução, seguidos por posições e resultados, sem seletor local duplicado
 
 

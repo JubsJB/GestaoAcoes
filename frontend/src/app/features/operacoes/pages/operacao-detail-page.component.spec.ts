@@ -1,5 +1,5 @@
 import { TestBed } from '@angular/core/testing';
-import { ActivatedRoute, provideRouter, Router } from '@angular/router';
+import { ActivatedRoute, convertToParamMap, provideRouter, Router } from '@angular/router';
 import { of, throwError } from 'rxjs';
 import { NormalizedHttpError } from '../../../core/errors/normalized-http-error';
 import { OperacaoResponse } from '../models/operacao';
@@ -14,7 +14,7 @@ describe('OperacaoDetailPageComponent', () => {
 
   async function create(info?: OperacaoResponse, failure?: NormalizedHttpError) {
     const service = { buscarPorId: vi.fn().mockReturnValue(failure ? throwError(() => failure) : of(usa)) };
-    await TestBed.configureTestingModule({ imports: [OperacaoDetailPageComponent], providers: [provideRouter([]), { provide: ActivatedRoute, useValue: { snapshot: { paramMap: { get: () => '7' } } } }, { provide: OperacoesService, useValue: service }] }).compileComponents();
+    await TestBed.configureTestingModule({ imports: [OperacaoDetailPageComponent], providers: [provideRouter([]), { provide: ActivatedRoute, useValue: { snapshot: { paramMap: { get: () => '7' }, queryParamMap: convertToParamMap({carteiraId:1,origem:'carteira'}) } } }, { provide: OperacoesService, useValue: service }] }).compileComponents();
     const router = TestBed.inject(Router);
     vi.spyOn(router, 'currentNavigation').mockReturnValue(info ? ({ extras: { info: { operacao: info, origin: '/carteiras/1' } } } as never) : null);
     const fixture = TestBed.createComponent(OperacaoDetailPageComponent);

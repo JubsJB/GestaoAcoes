@@ -1,7 +1,7 @@
 ## MODIFIED Requirements
 
 ### Requirement: Listagem cronológica e somente leitura
-A listagem global SHALL consultar `GET /operacoes` uma vez ao entrar e apresentar a ordem recebida do backend, garantida por `dataOperacao`, `ordemNoDia` e `id` ascendentes. Ela SHALL exibir tipo, ativo, mercado, data, ordem, quantidade, preço, valor total e Corretora, diferenciar loading, vazio, conteúdo e erro recuperável e MUST NOT recalcular ou reordenar o histórico. A listagem SHALL usar tabela semântica desktop e cards completos mobile conforme frontend-visual-experience, com números alinhados à direita, moeda explícita, tipo textual e ações em posição estável. O histórico contextual SHALL seguir esse mesmo padrão sem reordenar dados ou adicionar consultas.
+A listagem global SHALL consultar `GET /operacoes` uma vez ao entrar e apresentar a ordem recebida do backend, garantida por `dataOperacao`, `ordemNoDia` e `id` ascendentes. Ela SHALL exibir tipo, ativo, mercado, data, ordem, quantidade, preço, valor total e Corretora, diferenciar loading, vazio, conteúdo e erro recuperável e MUST NOT recalcular ou reordenar o histórico. A listagem SHALL usar tabela semântica desktop e cards completos mobile conforme frontend-visual-experience, com números alinhados à direita, moeda explícita, tipo textual e ações em posição estável. O histórico contextual SHALL seguir esse mesmo padrão sem reordenar dados ou adicionar consultas. As rotas globais SHALL permanecer por compatibilidade/deep link, sem filtro implícito por Carteira nem reintrodução de Operações na sidebar; a entrada principal de cadastro permanece contextual à Carteira.
 
 #### Scenario: Histórico retornado
 - **WHEN** a consulta devolve compras e vendas
@@ -37,7 +37,7 @@ O detalhe SHALL apresentar os dados relevantes do `OperacaoResponse`, incluindo 
 
 
 ### Requirement: Experiência acessível e responsiva
-A feature SHALL reutilizar feedback, toast e padrões visuais existentes, preservar foco e navegação por teclado e manter lista, formulário, detalhe e dialog legíveis em viewport compacto sem depender somente de cor. O formulário SHALL agrupar visualmente contexto, tipo/movimentação, quantidade/preço/data, Corretora, estimativa existente e ações. A reorganização MUST preservar compra/venda, preço informativo somente leitura em COMPRA, sugestão editável em VENDA, estimativa, Carteira fixa no contexto, Corretora opcional, strings decimais, data civil, máscaras, validações, payloads e gatilhos HTTP.
+A feature SHALL reutilizar feedback, toast e padrões visuais existentes, preservar foco e navegação por teclado e manter lista, formulário, detalhe e dialog legíveis em viewport compacto sem depender somente de cor. O formulário SHALL agrupar visualmente contexto, tipo/movimentação, quantidade/preço/data, Corretora, estimativa existente e ações. A reorganização MUST preservar compra/venda, preço informativo somente leitura em COMPRA, sugestão editável em VENDA, estimativa, Carteira capturada na abertura e fixa/não editável até conclusão ou cancelamento em página/dialog, inclusive na entrada global de compatibilidade, Corretora opcional, strings decimais, data civil, máscaras, validações, payloads e gatilhos HTTP.
 
 #### Scenario: Uso assistivo ou compacto
 - **WHEN** a feature é usada por teclado, tecnologia assistiva ou tela compacta
@@ -45,6 +45,6 @@ A feature SHALL reutilizar feedback, toast e padrões visuais existentes, preser
 
 #### Scenario: Formulário agrupado
 - **WHEN** uma operação é preparada em página ou dialog
-- **THEN** grupos e ajudas facilitam leitura sem adicionar campos ou alterar condições de edição, bloqueio, submissão ou cancelamento
+- **THEN** grupos e ajudas facilitam leitura sem adicionar campos ou alterar condições de edição, bloqueio, submissão ou cancelamento, preservando origem, retorno determinístico após reload/deep link e isolamento perante troca global de Carteira
 
 

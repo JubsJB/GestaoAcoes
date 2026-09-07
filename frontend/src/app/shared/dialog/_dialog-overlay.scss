@@ -1,0 +1,33 @@
+// Included globally: the CDK overlay lives outside component encapsulation.
+@mixin overlay-layout() {
+  .cdk-overlay-pane.mat-mdc-dialog-panel:is(.app-dialog--compact, .app-dialog--form, .app-dialog--extended) {
+    --app-dialog-width: 40rem;
+    width: min(var(--app-dialog-width), calc(100vw - 2rem));
+    // Override Material's inline default (80vw), retaining a mobile gutter.
+    max-width: calc(100vw - 2rem) !important;
+    max-height: calc(100dvh - 2rem);
+    &.app-dialog--compact { --app-dialog-width: 28rem; }
+    &.app-dialog--extended { --app-dialog-width: 48rem; }
+
+    .mat-mdc-dialog-surface { min-height: 0; max-height: calc(100dvh - 2rem); }
+    .mat-mdc-dialog-component-host { min-height: 0; max-height: inherit; }
+    mat-dialog-content { max-height: none; min-height: 0; padding: .75rem 1rem; }
+    mat-dialog-content p { margin: .5rem 0; }
+    h2[mat-dialog-title] { padding: 1rem 1rem 0; }
+    h2[mat-dialog-title]::before { display: none; }
+    .dialog-heading h2[mat-dialog-title] { padding: 0; }
+  }
+
+  .app-dialog-page {
+    min-height: 0;
+    max-height: calc(100dvh - 2rem);
+    padding: 1rem;
+    gap: .75rem;
+    overflow: auto;
+    form.app-form-surface { width: 100%; max-width: none; padding: 0; border: 0; box-shadow: none; row-gap: .5rem; }
+    .app-state { min-height: 0; padding: 1rem; }
+    .optional-note { margin: 0; }
+    .page-header { gap: .5rem; }
+    .page-header h1 { font-size: 1.5rem; }
+  }
+}

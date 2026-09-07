@@ -29,7 +29,7 @@ A página de listagem SHALL carregar `GET /carteiras` uma vez ao entrar, apresen
 
 
 ### Requirement: Detalhe básico da Carteira
-A aplicação SHALL apresentar em `/carteiras/{id}` nome, identificador e data de criação da Carteira, com ação textual de retorno para `/carteiras` e ações Editar e Excluir. O detalhe SHALL incorporar uma seção de histórico de Operações e uma ação “Registrar operação” fornecidas pela capability `frontend-operation-management`, sem renderizar posição, preço médio, resultados ou outros indicadores financeiros não solicitados. O detalhe SHALL separar contexto cadastral, ações e histórico por hierarquia visual. O histórico SHALL adotar o mesmo padrão semântico de tabela desktop e cards mobile de Operações, sem duplicar consultas nem alterar o formulário contextual.
+A aplicação SHALL apresentar em `/carteiras/{id}` nome, identificador e data de criação da Carteira, com ação textual de retorno para `/carteiras` e ações Editar e Excluir. O detalhe SHALL incorporar uma seção de histórico de Operações e uma ação “Registrar operação” fornecidas pela capability `frontend-operation-management`, incorporando posições abertas pelo contrato existente e sem acrescentar indicadores não solicitados. O detalhe SHALL separar contexto cadastral, ações, posições abertas e histórico por hierarquia visual, preservando os campos autoritativos existentes, reação à mudança de rota e estados independentes de posições e histórico. O histórico SHALL adotar o mesmo padrão semântico de tabela desktop e cards mobile de Operações, sem duplicar consultas nem alterar o formulário contextual.
 
 #### Scenario: Detalhe com estado transitório
 - **WHEN** a navegação fornece `CarteiraResponse` compatível com o ID da rota
@@ -57,7 +57,7 @@ A aplicação SHALL apresentar em `/carteiras/{id}` nome, identificador e data d
 
 #### Scenario: Sem antecipação financeira
 - **WHEN** o detalhe é exibido
-- **THEN** nenhuma seção funcional de posições, preço médio, resultados, resumo, patrimônio ou evolução é apresentada
+- **THEN** somente posições abertas e histórico são apresentados como seções financeiras; resumo, patrimônio agregado e evolução não são adicionados
 
 #### Scenario: Histórico visual consistente
 - **WHEN** o histórico contextual está disponível

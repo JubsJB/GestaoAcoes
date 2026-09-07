@@ -144,3 +144,6 @@
 
 @media (max-width:36rem){.app-brand__copy small{display:none}.app-brand__mark{width:2rem;height:2rem}.toolbar-content{gap:.125rem}}
 @media (prefers-reduced-motion:reduce){.app-sidenav a{transition:none}}
+
+.toolbar-content{gap:.75rem;justify-content:space-between}.app-brand{flex:1 1 auto}.app-brand__copy{white-space:normal}.menu-button{flex:0 0 auto}.app-toolbar{height:auto}.toolbar-content{padding-block:.25rem}
+@media(max-width:36rem){.app-brand__mark{display:none}.app-brand__copy strong{font-size:.85rem}.toolbar-content{gap:.5rem;padding-inline:.5rem}}

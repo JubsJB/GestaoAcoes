@@ -91,7 +91,7 @@ export class CorretoraCreatePageComponent {
       return;
     }
     const status = typeof error.details['situacaoCadastral'] === 'string' ? error.details['situacaoCadastral'] : null;
-    this.dialog.open(CorretoraConfirmDialogComponent, { data: { message: error.message, situacaoCadastral: status }, restoreFocus: true }).afterClosed().pipe(
+    this.dialog.open(CorretoraConfirmDialogComponent, { data: { message: error.message, situacaoCadastral: status }, panelClass: 'app-dialog--compact', restoreFocus: true }).afterClosed().pipe(
       switchMap((confirmed) => confirmed === true ? this.service.cadastrar({ cnpj, confirmarSituacaoCadastralNaoAtiva: true }) : EMPTY),
       finalize(() => this.submitting.set(false)),
       takeUntilDestroyed(this.destroyRef)

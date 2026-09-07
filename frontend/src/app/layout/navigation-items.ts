@@ -10,6 +10,5 @@ export const NAVIGATION_ITEMS: readonly NavigationItem[] = [
   { label: 'Dashboard', route: '/dashboard', icon: 'dashboard' },
   { label: 'Corretoras', route: '/corretoras', icon: 'broker' },
   { label: 'Ações', route: '/acoes', icon: 'stock' },
-  { label: 'Carteiras', route: '/carteiras', icon: 'portfolio' },
-  { label: 'Operações', route: '/operacoes', icon: 'operation' }
+  { label: 'Carteiras', route: '/carteiras', icon: 'portfolio' }
 ];

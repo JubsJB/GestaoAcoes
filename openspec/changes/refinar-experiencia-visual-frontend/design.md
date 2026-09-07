@@ -4,6 +4,8 @@ A base atual utiliza Angular Material/CDK, tema claro, tokens SCSS, padrões glo
 
 A auditoria anterior foi estrutural, baseada em templates, estilos e contratos. Capturas renderizadas comparáveis e medições atuais de bundle ainda deverão compor o baseline da implementação; o planejamento não afirma validação visual executada. O bundle informado de aproximadamente 506,09 kB ultrapassa o warning de 500 kB; esse número é referência histórica, não medição desta etapa.
 
+A change permanece pausada após as Fases 1–3. A referência funcional para sua futura retomada são as specs canônicas após o archive de `centralizar-contexto-carteira-frontend`; evidências e checkboxes anteriores permanecem preservados.
+
 As oito capabilities existentes recebem apenas deltas necessários de apresentação. Requirements financeiros, HTTP, rotas, concorrência, parsing e formatadores continuam vigentes sem alteração. Blocos MODIFIED preservam os cenários anteriores. Não se cria capability nova.
 
 ## Goals / Non-Goals
@@ -38,7 +40,7 @@ Preservar fonte do sistema e sprite SVG local. AppIcon permanece o ponto de uso 
 Definir papéis de título, contexto, indicador, metadado e ajuda; evitar labels minúsculas como solução de densidade. Usar tabular-nums em dinheiro, quantidades e percentuais, texto à esquerda e números à direita. Valores extensos e sinais devem permanecer completos, sem alterar as funções aprovadas de formatação.
 
 ### 4. Shell e componentes compartilhados
-Preservar breakpoint funcional de 960px, modos side/over, largura estrutural da sidebar, toolbar aproximadamente 64/56px, skip link, aria-current, rotas e região de rolagem existentes. Refinar contraste, espaços, item ativo e superfícies para que o shell seja discreto.
+Preservar breakpoint funcional de 960px, modos side/over, largura estrutural da sidebar, toolbar aproximadamente 64/56px, skip link, aria-current, rotas e região de rolagem existentes. Refinar contraste, espaços, item ativo e superfícies para que o shell seja discreto. Preservar o seletor global de Carteira, seus estados e a precedência URL explícita válida > memória válida > preferência validada > primeira por id ASC > vazio. Operações permanece fora da sidebar/drawer, com `/operacoes`, `/operacoes/nova` e `/operacoes/:id` preservadas por compatibilidade/deep link.
 
 PageHeader deve funcionar com ou sem ícone, acomodar ações e manter hierarquia semântica. Aplicar a mesma família visual a .app-surface, .section-card, .app-form-surface, .app-actions, .data-list, badges e .app-state. StickyBack mantém seu comportamento e não pode ocultar foco ou ações em baixa altura.
 
@@ -61,19 +63,19 @@ Preferir tabela HTML nativa com estilos existentes; Material/CDK pode ser usado 
 
 O breakpoint de coleção será escolhido pela largura real necessária, sem alterar o breakpoint do shell. Somente uma representação poderá estar ativa na árvore acessível e ordem de foco. Se duas estruturas de apresentação forem necessárias, devem compartilhar o mesmo estado carregado; ocultar visualmente por opacity/posição não basta. Não criar subscriptions, HTTP, anúncios ou efeitos duplicados.
 
-Detalhes usam grupos semânticos de pares label/valor. Corretora agrupa identificação, contato, endereço e situação; Ação destaca ticker e cotação com data; Carteira mantém contexto e histórico; Operação mantém seus dados aprovados, sem exibir ordemNoDia no detalhe. Nenhum ID será resolvido por chamada extra.
+Detalhes usam grupos semânticos de pares label/valor. Corretora agrupa identificação, contato, endereço e situação; Ação destaca ticker e cotação com data; Carteira mantém contexto, posições abertas e histórico, preservando reação à mudança de rota e estados independentes das seções; Operação mantém seus dados aprovados, sem exibir ordemNoDia no detalhe. Nenhum ID será resolvido por chamada extra.
 
 ### 6. Formulários sem mudança de fluxo
 Corretora continua somente CNPJ; Ação ticker e mercado; Carteira somente nome. Reutilizar o formulário atual em página e dialog, com largura adequada, labels/ajudas, ações estáveis e feedback junto aos campos.
 
-Operação organiza contexto, tipo/movimentação, quantidade/preço/data, Corretora, estimativa existente e ações. Não criar wizard, etapas ou submissões adicionais. Preservar prévia de COMPRA somente leitura e ausente no POST, sugestão de VENDA editável, estimativa, Carteira fixa quando contextual, Corretora opcional, datas civis, strings decimais, máscaras, validações e proteção contra respostas antigas/double-submit.
+Operação organiza contexto, tipo/movimentação, quantidade/preço/data, Corretora, estimativa existente e ações. A entrada principal permanece contextual à Carteira; retorno por URL após reload/deep link e isolamento da origem perante troca global devem ser preservados. Não criar wizard, etapas ou submissões adicionais. Preservar prévia de COMPRA somente leitura e ausente no POST, sugestão de VENDA editável, estimativa, Carteira capturada na abertura e fixa até conclusão/cancelamento também na entrada global de compatibilidade, Corretora opcional, datas civis, strings decimais, máscaras, validações e proteção contra respostas antigas/double-submit.
 
 ### 7. Dashboard financeiro
 Ordem visual e de leitura: contexto compacto; ações existentes; indicadores separados por moeda; evolução; posições; resultados realizados por Ação. Não apenas reposicionar com CSS produzindo ordem assistiva divergente.
 
 Usar somente patrimônio atual, custo total das posições, resultado não realizado e rentabilidade de cada resumo. Patrimônio pode ocupar composição maior; os quatro indicadores não precisam ser cards idênticos. BRL e USD nunca são somados. Resultado realizado total, variação diária, benchmark e alocação estão excluídos.
 
-Reordenar a seção de evolução sem acoplar seu loading/erro ao restante. Seletor, atualização, navegação contextual, query params e criação manual de snapshot permanecem iguais.
+Reordenar a seção de evolução sem acoplar seu loading/erro ao restante. O Dashboard consome o contexto global; o seletor permanece exclusivamente no shell, sem seleção nem listagem duplicadas no Dashboard. Atualização, navegação contextual, query params e criação manual de snapshot permanecem iguais.
 
 ### 8. Evolução e interação SVG
 Preservar SVG local, dataset completo, projeção financeira, segmentos, gaps, snapshots vazios, moeda, estilos contínuo/tracejado e timestamps. Ajustes de dimensões usam a projeção vigente; não alterar cálculo financeiro ou normalização para obter aparência.

@@ -4,7 +4,9 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { MatSidenav, MatSidenavContainer } from '@angular/material/sidenav';
 import { By } from '@angular/platform-browser';
 import { provideRouter, Router } from '@angular/router';
-import { BehaviorSubject } from 'rxjs';
+import { CarteirasService } from '../../features/carteiras/carteiras.service';
+import { CARTEIRA_STORAGE } from '../../core/carteira/carteira-context.service';
+import { BehaviorSubject, of } from 'rxjs';
 
 import { MainLayoutComponent } from './main-layout.component';
 
@@ -41,6 +43,8 @@ describe('MainLayoutComponent', () => {
     TestBed.configureTestingModule({
       imports: [MainLayoutComponent],
       providers: [
+        { provide: CARTEIRA_STORAGE, useValue: null },
+        { provide: CarteirasService, useValue: { listar: () => of([]) } },
         provideRouter([
           { path: 'dashboard', component: TestDestinationComponent },
           { path: 'corretoras', component: TestDestinationComponent },
@@ -53,7 +57,7 @@ describe('MainLayoutComponent', () => {
     });
   });
 
-  it('creates a cohesive shell with the application title and five destinations', async () => {
+  it('creates a cohesive shell with the application title and four destinations', async () => {
     await createLayout();
     const navigationLinks = fixture.nativeElement.querySelectorAll('nav a');
 
@@ -63,17 +67,15 @@ describe('MainLayoutComponent', () => {
       'Dashboard',
       'Corretoras',
       'Ações',
-      'Carteiras',
-      'Operações'
+      'Carteiras'
     ]);
     expect(Array.from(navigationLinks).map((link) => (link as HTMLAnchorElement).getAttribute('href'))).toEqual([
       '/dashboard',
       '/corretoras',
       '/acoes',
-      '/carteiras',
-      '/operacoes'
+      '/carteiras'
     ]);
-    expect(fixture.nativeElement.querySelectorAll('nav a app-icon')).toHaveLength(5);
+    expect(fixture.nativeElement.querySelectorAll('nav a app-icon')).toHaveLength(4);
     expect(Array.from(fixture.nativeElement.querySelectorAll('nav a app-icon svg')).every((icon) => (icon as SVGElement).getAttribute('aria-hidden') === 'true')).toBe(true);
     expect(Array.from(navigationLinks).every((link) => {
       const icon = (link as HTMLElement).querySelector('app-icon');

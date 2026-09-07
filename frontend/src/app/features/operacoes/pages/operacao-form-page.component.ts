@@ -7,8 +7,8 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSelectModule } from '@angular/material/select';
-import { Router, RouterLink } from '@angular/router';
-import { catchError, combineLatest, distinctUntilChanged, finalize, map, of, startWith, switchMap, tap } from 'rxjs';
+import { ActivatedRoute, convertToParamMap, ParamMap, Router, RouterLink } from '@angular/router';
+import { catchError, combineLatest, distinctUntilChanged, finalize, map, of, startWith, switchMap, tap, Subscription } from 'rxjs';
 
 import { NormalizedHttpError } from '../../../core/errors/normalized-http-error';
 import { FeedbackAlertComponent } from '../../../shared/feedback-alert/feedback-alert.component';
@@ -18,7 +18,8 @@ import { SuccessToastService } from '../../../shared/success-toast/success-toast
 import { AcaoResponse, Mercado } from '../../acoes/models/acao';
 import { AcoesService } from '../../acoes/acoes.service';
 import { CarteiraResponse } from '../../carteiras/models/carteira';
-import { CarteirasService } from '../../carteiras/carteiras.service';
+import { CarteiraContextService } from '../../../core/carteira/carteira-context.service';
+import { operationReturnUrl } from '../operation-origin';
 import { Corretora } from '../../corretoras/models/corretora';
 import { CorretorasService } from '../../corretoras/corretoras.service';
 import { OperacaoCreateRequest, OperacaoResponse, TipoOperacao } from '../models/operacao';
@@ -32,18 +33,18 @@ export interface OperacaoFormDialogData { carteira: CarteiraResponse; }
   imports: [FeedbackAlertComponent, MatButtonModule, MatFormFieldModule, MatInputModule, MatProgressSpinnerModule, MatSelectModule, PageHeaderComponent, ReactiveFormsModule, RouterLink, StickyBackComponent],
   template: `
     <section class="app-page" [class.app-dialog-page]="isDialog" aria-labelledby="operacao-form-title" aria-describedby="operacao-form-description">
-      @if (!isDialog) { <app-sticky-back route="/operacoes" label="Voltar para operações" /> }
+      @if (!isDialog) { <app-sticky-back [route]="returnUrl()" label="Voltar" /> }
       <app-page-header headingId="operacao-form-title" eyebrow="Operações" title="Nova operação" [description]="contextPortfolio() ? 'Registre a movimentação na carteira ' + contextPortfolio()!.nome + '.' : 'Registre uma compra ou venda com os dados efetivamente negociados.'" />
       <p id="operacao-form-description" class="sr-only">Formulário de cadastro de operação financeira.</p>
       @if (error()) { <app-feedback-alert variant="error" [message]="errorMessage()" [details]="error()!.details" /> }
-      @if (referencesLoading()) { <div class="app-state" role="status" aria-live="polite"><mat-spinner diameter="36" /> Carregando opções…</div> }
+      @if (referencesLoading() || portfolioLoading()) { <div class="app-state" role="status" aria-live="polite"><mat-spinner diameter="36" /> Carregando opções…</div> }
       @else {
         @if (referenceError()) { <app-feedback-alert variant="error" [message]="referenceError()!.message" [details]="referenceError()!.details" /> }
-        @if (!contextPortfolio() && carteiras().length === 0) { <app-feedback-alert variant="warning" message="Cadastre uma carteira antes de registrar uma operação." /><a mat-stroked-button routerLink="/carteiras">Ir para carteiras</a> }
+        @if (!contextPortfolio()) { <app-feedback-alert variant="warning" message="A carteira de origem não está disponível. Selecione uma carteira válida e reabra o cadastro." /><a mat-stroked-button routerLink="/carteiras">Ir para carteiras</a> }
         @if (acoes().length === 0) { <app-feedback-alert variant="warning" message="Cadastre uma ação antes de registrar uma operação." /><a mat-stroked-button routerLink="/acoes">Ir para ações</a> }
         <form class="operation-form app-form-surface app-surface" [formGroup]="form" (ngSubmit)="submit()" novalidate>
           @if (contextPortfolio(); as carteira) { <div class="context"><strong>Carteira</strong><span>{{ carteira.nome }}</span><small>Definida pelo contexto e não editável.</small></div> }
-          @else { <mat-form-field appearance="outline"><mat-label>Carteira</mat-label><mat-select formControlName="carteiraId">@for(item of carteiras();track item.id){<mat-option [value]="item.id">{{item.nome}}</mat-option>}</mat-select>@if(touchedInvalid('carteiraId')){<mat-error>Selecione uma carteira.</mat-error>}</mat-form-field> }
+
           <mat-form-field appearance="outline"><mat-label>Ação</mat-label><mat-select formControlName="acaoKey" (selectionChange)="marketChanged()">@for(item of acoes();track item.id){<mat-option [value]="actionKey(item)">{{item.ticker}} · {{item.mercado}}</mat-option>}</mat-select>@if(touchedInvalid('acaoKey')){<mat-error>Selecione uma ação.</mat-error>}</mat-form-field>
           <mat-form-field appearance="outline"><mat-label>Corretora</mat-label><mat-select formControlName="corretoraId"><mat-option [value]="null">Sem corretora</mat-option>@for(item of corretoras();track item.id){<mat-option [value]="item.id">{{brokerName(item)}}</mat-option>}</mat-select><mat-hint>A corretora é opcional.</mat-hint></mat-form-field>
           <mat-form-field appearance="outline"><mat-label>Tipo</mat-label><mat-select formControlName="tipo"><mat-option value="COMPRA">Compra</mat-option><mat-option value="VENDA">Venda</mat-option></mat-select>@if(touchedInvalid('tipo')){<mat-error>Selecione COMPRA ou VENDA.</mat-error>}</mat-form-field>
@@ -51,21 +52,24 @@ export interface OperacaoFormDialogData { carteira: CarteiraResponse; }
           @if(form.controls.tipo.value){<mat-form-field appearance="outline"><mat-label>Preço unitário</mat-label>@if(form.controls.tipo.value === 'COMPRA'){<input matInput [value]="purchasePriceDisplay()" readonly aria-readonly="true" aria-describedby="price-hint price-status"/>}@if(form.controls.tipo.value === 'VENDA'){<span matTextPrefix>{{ estimatedCurrency() === 'BRL' ? 'R$' : 'US$' }}&nbsp;</span>}@if(form.controls.tipo.value === 'VENDA'){<input matInput inputmode="decimal" formControlName="precoUnitario" aria-readonly="false" aria-describedby="price-hint price-status"/>}<mat-hint id="price-hint">{{form.controls.tipo.value === 'COMPRA' ? 'Fechamento histórico exato, somente informativo.' : 'Valor editável; até 13 inteiros e 6 decimais.'}}</mat-hint>@if(touchedInvalid('precoUnitario')){<mat-error>Informe um preço positivo com até 13 inteiros e 6 decimais.</mat-error>}</mat-form-field>}
           <mat-form-field appearance="outline"><mat-label>Data da operação</mat-label><input matInput type="date" formControlName="dataOperacao"/>@if(touchedInvalid('dataOperacao')){<mat-error>Informe uma data válida, não futura no mercado.</mat-error>}</mat-form-field>
           @if(form.controls.tipo.value){<div class="estimated-total" aria-live="polite" aria-atomic="true"><span>Valor estimado da {{form.controls.tipo.value === 'COMPRA' ? 'compra' : 'venda'}}</span><strong data-testid="estimated-total">{{estimatedTotal() ?? '—'}}</strong></div>}
-          <div id="price-status" class="price-status" aria-live="polite">@if(priceLoading()){<span role="status">Consultando preço…</span>}@if(priceError()){<app-feedback-alert variant="error" [message]="priceErrorMessage()" [details]="priceError()!.details" />}@if(form.controls.tipo.value === 'COMPRA' && previewReady()){<span>Fechamento de {{previewDate()}} em {{priceCurrency()}}. O backend confirmará o valor ao registrar.</span>}</div>
+          <div id="price-status" class="price-status" aria-live="polite">@if(priceLoading()){<span role="status">Consultando preço…</span>}@if(priceError()){<app-feedback-alert variant="error" [message]="priceErrorMessage()" [details]="priceError()!.details" />}</div>
           @if (corretoras().length === 0) { <p class="optional-note">Nenhuma corretora cadastrada. Você pode continuar sem corretora.</p> }
-          <div class="app-actions app-actions--stack-compact"><button mat-flat-button type="submit" [disabled]="submitBlocked()" [attr.aria-busy]="submitting()">Registrar operação</button>@if(isDialog){<button mat-button type="button" (click)="cancel()">Cancelar</button>}@else{<a mat-button routerLink="/operacoes">Cancelar</a>}</div>
+          <div class="app-actions app-actions--stack-compact"><button mat-flat-button type="submit" [disabled]="submitBlocked()" [attr.aria-busy]="submitting()">Registrar operação</button>@if(isDialog){<button mat-button type="button" (click)="cancel()">Cancelar</button>}@else{<a mat-button [routerLink]="returnUrl()">Cancelar</a>}</div>
           @if(submitting()){<div class="progress" role="status" aria-live="polite"><mat-spinner diameter="28"/> Registrando operação…</div>}
         </form>
       }
     </section>`,
   styles: [`
+    .app-dialog-page .context{grid-template-columns:auto minmax(0,1fr);gap:.15rem .75rem;padding:.5rem .75rem}.app-dialog-page .context small{grid-column:1/-1}.app-dialog-page .estimated-total{padding:.5rem .75rem}
+
     .operation-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1.1rem;max-width:56rem}.operation-form>*{min-width:0}.context,.optional-note,.price-status,.estimated-total,.app-actions,.progress{grid-column:1/-1}.context{display:grid;gap:.25rem;padding:1rem;border-radius:.75rem;background:var(--app-surface-selected)}.context small,.optional-note,.price-status,.estimated-total span{color:var(--app-text-secondary)}.price-status:empty{display:none}.estimated-total{display:flex;align-items:baseline;justify-content:space-between;gap:1rem;padding:1rem;border:1px solid var(--app-border-subtle);border-radius:.75rem}.estimated-total strong{font-size:1.25rem}.progress{display:flex;align-items:center;gap:.75rem}.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0)}@media(max-width:42rem){.operation-form{grid-template-columns:1fr}.context,.optional-note,.price-status,.estimated-total,.app-actions,.progress{grid-column:auto}}
   `],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class OperacaoFormPageComponent {
   private readonly service = inject(OperacoesService);
-  private readonly carteiraService = inject(CarteirasService);
+  private readonly context = inject(CarteiraContextService);
+  private readonly route = inject(ActivatedRoute);
   private readonly acaoService = inject(AcoesService);
   private readonly corretoraService = inject(CorretorasService);
   private readonly router = inject(Router);
@@ -75,7 +79,13 @@ export class OperacaoFormPageComponent {
   private readonly dialogData = inject<OperacaoFormDialogData | null>(MAT_DIALOG_DATA, { optional: true });
   protected readonly isDialog = this.dialogRef !== null;
   protected readonly contextPortfolio = signal(this.dialogData?.carteira ?? null);
-  protected readonly carteiras = signal<CarteiraResponse[]>([]);
+  protected readonly portfolioLoading = signal(false);
+  private originParams: ParamMap = convertToParamMap({});
+  protected readonly returnUrl = signal(this.router.parseUrl('/operacoes'));
+  private generation = 0;
+  private postRequest?: Subscription;
+  private captureRequest?: Subscription;
+  private normalizedId: string | null = null;
   protected readonly acoes = signal<AcaoResponse[]>([]);
   protected readonly corretoras = signal<Corretora[]>([]);
   protected readonly referencesLoading = signal(true);
@@ -108,6 +118,19 @@ export class OperacaoFormPageComponent {
     this.form.controls.quantidade.valueChanges.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => this.updateEstimatedTotal());
     this.setupPricePipeline();
     this.loadReferences();
+    this.form.controls.carteiraId.disable();
+    if (!this.dialogData?.carteira) {
+      this.route.queryParamMap.pipe(
+        distinctUntilChanged((a, b) => a.get('carteiraId') === b.get('carteiraId') && a.get('origem') === b.get('origem')),
+        takeUntilDestroyed(this.destroyRef)
+      ).subscribe(params => this.capturePortfolio(params));
+    }
+    this.context.state$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(state => {
+      const captured = this.contextPortfolio();
+      if (captured && state.status === 'ready' && !state.items.some(item => item.id === captured.id)) {
+        this.contextPortfolio.set(null); this.form.controls.carteiraId.setValue(null); this.invalidatePrice();
+      }
+    });
   }
 
   private setupPricePipeline(): void {
@@ -117,12 +140,12 @@ export class OperacaoFormPageComponent {
       this.form.controls.acaoKey.valueChanges.pipe(startWith(this.form.controls.acaoKey.value)),
       this.form.controls.dataOperacao.valueChanges.pipe(startWith(this.form.controls.dataOperacao.value))
     ]).pipe(
-      map(([tipo, carteiraId, acaoKey, dataOperacao]) => ({ tipo, carteiraId: this.contextPortfolio()?.id ?? carteiraId, acaoKey, dataOperacao })),
+      map(([tipo, , acaoKey, dataOperacao]) => ({ tipo, carteiraId: this.contextPortfolio()?.id ?? null, acaoKey, dataOperacao })),
       distinctUntilChanged((a, b) => a.tipo === b.tipo && a.carteiraId === b.carteiraId && a.acaoKey === b.acaoKey && a.dataOperacao === b.dataOperacao),
       tap(() => this.invalidatePrice()),
       switchMap(context => {
         const action = this.acoes().find(item => this.actionKey(item) === context.acaoKey);
-        if (!context.tipo || !action || !context.dataOperacao || this.form.controls.dataOperacao.invalid) return of(null);
+        if (!context.carteiraId || !context.tipo || !action || !context.dataOperacao || this.form.controls.dataOperacao.invalid) return of(null);
         this.priceLoading.set(true);
         const editVersion = this.manualPriceVersion;
         if (context.tipo === 'COMPRA') {
@@ -132,7 +155,6 @@ export class OperacaoFormPageComponent {
             finalize(() => this.priceLoading.set(false))
           );
         }
-        if (!context.carteiraId) { this.priceLoading.set(false); return of(null); }
         return this.service.obterSugestaoPrecoVenda(context.carteiraId, action.ticker, action.mercado, context.dataOperacao).pipe(
           map(value => ({ kind: 'VENDA' as const, value, editVersion })),
           catchError((error: NormalizedHttpError) => { this.priceError.set(error); return of(null); }),
@@ -166,10 +188,40 @@ export class OperacaoFormPageComponent {
     this.estimatedTotal.set(null);
   }
 
+  private capturePortfolio(params: ParamMap): void {
+    const raw = params.get('carteiraId');
+    if (raw !== null && raw === this.normalizedId && params.get('origem') === this.originParams.get('origem')) {
+      this.normalizedId = null; this.originParams = params; return;
+    }
+    this.generation++;
+    const generation = this.generation;
+    this.postRequest?.unsubscribe(); this.captureRequest?.unsubscribe();
+    this.contextPortfolio.set(null); this.submitting.set(false); this.error.set(null);
+    this.form.reset({ carteiraId: null, acaoKey: '', corretoraId: null, tipo: null, quantidade: '', precoUnitario: '', dataOperacao: '' });
+    this.invalidatePrice();
+    this.originParams = params;
+    this.returnUrl.set(operationReturnUrl(this.router, params));
+    this.portfolioLoading.set(true);
+    const contextual = params.get('origem') === 'dashboard' || params.get('origem') === 'carteira';
+    this.context.resolveUrl(raw === null && contextual ? '' : raw);
+    this.captureRequest = this.context.initialize().pipe(takeUntilDestroyed(this.destroyRef)).subscribe(ready => {
+      if (generation !== this.generation) return;
+      this.portfolioLoading.set(false);
+      if (!ready) { this.referenceError.set(this.context.error()); return; }
+      const carteira = this.context.active();
+      if (!carteira) return;
+      this.contextPortfolio.set(carteira);
+      this.form.controls.carteiraId.setValue(carteira.id);
+      if (raw === null) {
+        this.normalizedId = String(carteira.id);
+        void this.router.navigate([], { relativeTo: this.route, queryParams: { carteiraId: carteira.id }, queryParamsHandling: 'merge', replaceUrl: true });
+      }
+    });
+  }
+
   private loadReferences(): void {
-    let pending = this.contextPortfolio() ? 2 : 3;
+    let pending = 2;
     const done = () => { if (--pending === 0) this.referencesLoading.set(false); };
-    if (!this.contextPortfolio()) this.carteiraService.listar().pipe(finalize(done), takeUntilDestroyed(this.destroyRef)).subscribe({ next: value => this.carteiras.set(value), error: error => this.referenceError.set(error) });
     this.acaoService.listar().pipe(finalize(done), takeUntilDestroyed(this.destroyRef)).subscribe({ next: value => this.acoes.set(value), error: error => this.referenceError.set(error) });
     this.corretoraService.listar().pipe(finalize(done), takeUntilDestroyed(this.destroyRef)).subscribe({ next: value => this.corretoras.set(value), error: error => this.referenceError.set(error) });
   }
@@ -201,7 +253,7 @@ export class OperacaoFormPageComponent {
   protected brokerName(item: Corretora): string { return item.nomeFantasia || item.razaoSocial; }
   protected touchedInvalid(name: keyof typeof this.form.controls): boolean { const control = this.form.controls[name]; return control.touched && control.invalid; }
   protected quantityError(): string { return this.form.controls.quantidade.hasError('brazilianInteger') ? 'Ações brasileiras exigem quantidade inteira.' : 'Informe decimal positivo com até 13 inteiros e 6 decimais.'; }
-  protected submitBlocked(): boolean { return this.submitting() || !!this.referenceError() || this.acoes().length === 0 || (!this.contextPortfolio() && this.carteiras().length === 0) || (this.form.controls.tipo.value === 'COMPRA' && !this.previewReady()); }
+  protected submitBlocked(): boolean { return this.submitting() || this.referencesLoading() || this.portfolioLoading() || !!this.referenceError() || this.acoes().length === 0 || !this.contextPortfolio() || (this.form.controls.tipo.value === 'COMPRA' && !this.previewReady()); }
   protected priceErrorMessage(): string { return this.messageForError(this.priceError()!); }
   protected errorMessage(): string {
     return this.messageForError(this.error()!);
@@ -227,7 +279,7 @@ export class OperacaoFormPageComponent {
     const quantidade = normalizeDecimal(this.form.controls.quantidade.value);
     if (!quantidade) return;
     const common = {
-      carteiraId: this.contextPortfolio()?.id ?? this.form.controls.carteiraId.value!,
+      carteiraId: this.contextPortfolio()!.id,
       ticker: action.ticker,
       mercado: action.mercado,
       corretoraId: this.form.controls.corretoraId.value,
@@ -243,15 +295,16 @@ export class OperacaoFormPageComponent {
     }
     this.submitting.set(true);
     this.error.set(null);
-    this.service.cadastrar(request).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
-      next: item => this.complete(item),
+    const generation = this.generation;
+    this.postRequest = this.service.cadastrar(request).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: item => { if (generation === this.generation) this.complete(item); },
       error: (error: NormalizedHttpError) => { this.error.set(error); this.submitting.set(false); }
     });
   }
 
   private complete(item: OperacaoResponse): void {
     if (this.dialogRef) { this.dialogRef.close(item); this.submitting.set(false); return; }
-    void this.router.navigate(['/operacoes', item.id], { info: { operacao: item, origin: '/operacoes' } })
+    void this.router.navigateByUrl(this.returnUrl())
       .then(ok => { if (ok) this.toast.show('Operação registrada com sucesso.'); })
       .finally(() => this.submitting.set(false));
   }

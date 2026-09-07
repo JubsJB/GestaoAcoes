@@ -8,6 +8,7 @@ import { of } from 'rxjs';
 
 import { routes } from './app.routes';
 import { provideApiConfig } from './core/config/api.config';
+import { CARTEIRA_STORAGE } from './core/carteira/carteira-context.service';
 
 const desktopBreakpointObserver = {
   observe: () => of<BreakpointState>({ matches: false, breakpoints: {} })
@@ -15,10 +16,13 @@ const desktopBreakpointObserver = {
 
 describe('application routes', () => {
   let httpTesting: HttpTestingController;
+  let readPreference: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
+    readPreference = vi.fn().mockReturnValue(null);
     TestBed.configureTestingModule({
       providers: [
+        { provide: CARTEIRA_STORAGE, useValue: { getItem: readPreference, setItem: vi.fn(), removeItem: vi.fn() } },
         provideRouter(routes),
         provideHttpClient(),
         provideHttpClientTesting(),
@@ -56,6 +60,27 @@ describe('application routes', () => {
       .map((route) => route.path);
 
     expect(lazyPaths).toEqual(['dashboard', 'corretoras', 'acoes', 'carteiras', 'operacoes']);
+  });
+
+  it('shares shell/dashboard loading and honors the explicit URL before requesting finances', async () => {
+    readPreference.mockReturnValue('1');
+    const harness = await RouterTestingHarness.create();
+    const navigation = harness.navigateByUrl('/dashboard?carteiraId=2');
+    await vi.waitFor(() => expect(httpTesting.match(request => request.url === '/api/carteiras').map(request => {
+      request.flush([{ id: 1, nome: 'A', dataCriacao: '' }, { id: 2, nome: 'B', dataCriacao: '' }]);
+      return request;
+    })).toHaveLength(1));
+    await navigation;
+    httpTesting.expectNone(request => request.url.startsWith('/api/carteiras/1/'));
+    httpTesting.expectOne('/api/carteiras/2/resumo').flush('{"carteiraId":2,"resumos":[]}');
+    httpTesting.expectOne('/api/carteiras/2/posicoes').flush('[]');
+    httpTesting.expectOne('/api/carteiras/2/resultados-realizados').flush('[]');
+    harness.detectChanges();
+    httpTesting.expectOne('/api/carteiras/2/evolucao-patrimonial').flush('{"carteiraId":2,"pontos":[]}');
+    harness.detectChanges();
+    expect(harness.routeNativeElement?.querySelector('select')?.value).toBe('2');
+    expect(harness.routeNativeElement?.querySelector('app-dashboard-page mat-select')).toBeNull();
+    expect(harness.routeNativeElement?.querySelector('nav a[href="/operacoes"]')).toBeNull();
   });
 
   it('resolves all functional features including dashboard', async () => {
@@ -99,6 +124,7 @@ describe('application routes', () => {
 
   it('renders NotFound inside the shell and preserves an unknown URL', async () => {
     const harness = await RouterTestingHarness.create('/rota-inexistente');
+    httpTesting.expectOne('/api/carteiras').flush([]);
     const router = TestBed.inject(Router);
 
     expect(router.url).toBe('/rota-inexistente');

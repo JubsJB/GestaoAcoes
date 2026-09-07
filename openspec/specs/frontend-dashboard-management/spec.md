@@ -6,26 +6,26 @@ Oferecer uma visão financeira global orientada por carteira, fiel aos valores a
 ## Requirements
 
 ### Requirement: Dashboard funcional e contextual por carteira
-A aplicação SHALL substituir o placeholder de `/dashboard` por uma página funcional carregada no shell e SHALL usar uma carteira selecionada como contexto exclusivo dos indicadores. A página SHALL listar as carteiras disponíveis, SHALL selecionar automaticamente somente quando existir exatamente uma carteira e MUST NOT escolher arbitrariamente uma carteira quando existirem duas ou mais.
+A aplicação SHALL substituir o placeholder de `/dashboard` por uma página funcional carregada no shell e SHALL usar uma carteira selecionada como contexto exclusivo dos indicadores. A página SHALL consumir o contexto global do shell, sem seletor local próprio nem listagem duplicada de Carteiras, aplicando a precedência e o fallback especificados em frontend-application-shell.
 
 #### Scenario: Nenhuma carteira disponível
 - **WHEN** a listagem de Carteiras retorna vazia
 - **THEN** o Dashboard apresenta estado vazio e ação para cadastrar uma Carteira sem solicitar indicadores financeiros
 
 #### Scenario: Única carteira disponível
-- **WHEN** a listagem retorna exatamente uma Carteira e não existe seleção válida na URL
+- **WHEN** a listagem retorna exatamente uma Carteira e a URL não contém seleção explícita
 - **THEN** essa Carteira é selecionada automaticamente por não haver ambiguidade e seus dados financeiros são carregados
 
 #### Scenario: Múltiplas carteiras sem seleção
-- **WHEN** a listagem retorna duas ou mais Carteiras e não existe seleção válida na URL
-- **THEN** o Dashboard aguarda seleção explícita e não consulta indicadores de qualquer Carteira
+- **WHEN** a listagem retorna duas ou mais Carteiras e a URL não contém seleção explícita
+- **THEN** o Dashboard usa a seleção global válida ou o fallback por id ASC e carrega somente seus indicadores
 
 #### Scenario: Seleção explícita
-- **WHEN** o usuário seleciona uma Carteira disponível
+- **WHEN** o usuário seleciona uma Carteira disponível no shell
 - **THEN** somente os indicadores dessa Carteira são carregados e apresentados
 
 #### Scenario: Troca de carteira
-- **WHEN** o usuário troca a Carteira selecionada
+- **WHEN** o usuário troca a Carteira selecionada no shell
 - **THEN** os dados anteriores deixam de ser apresentados como atuais e o Dashboard carrega o novo contexto
 
 ### Requirement: Seleção persistida na URL
@@ -37,7 +37,7 @@ O Dashboard SHALL representar a seleção atual pelo query parameter `carteiraId
 
 #### Scenario: Query parameter ausente
 - **WHEN** o Dashboard é acessado sem `carteiraId`
-- **THEN** aplica-se a regra de seleção baseada na quantidade de Carteiras disponíveis
+- **THEN** aplica-se a precedência do contexto global e a seleção válida resolvida é representada em carteiraId sem criar ciclo de navegação
 
 #### Scenario: Query parameter malformado
 - **WHEN** `carteiraId` não representa um identificador positivo válido
@@ -179,7 +179,7 @@ O Dashboard SHALL oferecer ações para acessar a Carteira selecionada e registr
 - **THEN** a aplicação abre o fluxo existente de nova Operação com a Carteira selecionada como contexto
 
 ### Requirement: Experiência acessível do Dashboard
-O Dashboard SHALL possuir título principal, seções hierárquicas, label claro para seleção, nomes acessíveis para ações e estados dinâmicos anunciados sem deslocar foco indevidamente. Resultado positivo e negativo MUST NOT ser distinguido somente por cor.
+O Dashboard SHALL possuir título principal, seções hierárquicas, identificação clara da Carteira ativa e label acessível para seleção no shell, nomes acessíveis para ações e estados dinâmicos anunciados sem deslocar foco indevidamente. Resultado positivo e negativo MUST NOT ser distinguido somente por cor.
 
 #### Scenario: Uso por tecnologia assistiva
 - **WHEN** a página é percorrida por tecnologia assistiva
@@ -191,4 +191,4 @@ O Dashboard SHALL possuir título principal, seções hierárquicas, label claro
 
 #### Scenario: Interação por teclado
 - **WHEN** o usuário opera a página apenas por teclado
-- **THEN** seletor, retry, reload e navegação possuem foco visível e ordem coerente
+- **THEN** seletor global, retry, reload e navegação possuem foco visível e ordem coerente

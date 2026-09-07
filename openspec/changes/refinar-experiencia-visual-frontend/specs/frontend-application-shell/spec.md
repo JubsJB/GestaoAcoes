@@ -16,7 +16,7 @@ A aplicação SHALL utilizar uma base visual Angular Material 3 clara e compatí
 - **THEN** essa cor não define por si só lucro, prejuízo, sucesso ou erro
 
 ### Requirement: Shell principal da aplicação
-A aplicação SHALL apresentar um shell único ocupando a viewport, contendo toolbar, navegação lateral e uma área principal que renderiza o destino ativo. A toolbar SHALL exibir o nome “Gestão de Ações” com identidade verde refinada, conteúdo legível e contraste adequado, e a área principal SHALL aplicar o container centralizado aprovado sem impedir layouts fluidos. No desktop, toolbar e sidebar SHALL permanecer estruturalmente estáveis enquanto a área de trabalho ocupa o espaço restante; no compacto, a toolbar SHALL permanecer estável e o drawer SHALL continuar sobreposto. A composição MUST evitar conteúdo oculto, scroll horizontal e dois scrolls concorrentes. O chrome SHALL ser visualmente mais discreto que o conteúdo financeiro; superfícies, espaçamento e ícones SHALL seguir os tokens compartilhados sem alterar breakpoint, modo side/over, região de rolagem ou comportamento de navegação.
+A aplicação SHALL apresentar um shell único ocupando a viewport, contendo toolbar, navegação lateral e uma área principal que renderiza o destino ativo. A toolbar SHALL exibir o nome “Gestão de Ações” com identidade verde refinada, conteúdo legível e contraste adequado, e a área principal SHALL aplicar o container centralizado aprovado sem impedir layouts fluidos. No desktop, toolbar e sidebar SHALL permanecer estruturalmente estáveis enquanto a área de trabalho ocupa o espaço restante; no compacto, a toolbar SHALL permanecer estável e o drawer SHALL continuar sobreposto. A composição MUST evitar conteúdo oculto, scroll horizontal e dois scrolls concorrentes. O chrome SHALL ser visualmente mais discreto que o conteúdo financeiro; superfícies, espaçamento e ícones SHALL seguir os tokens compartilhados sem alterar breakpoint, modo side/over, região de rolagem ou comportamento de navegação. O seletor global de Carteira SHALL permanecer no shell, preservando identificação, estados, acessibilidade, persistência e precedência canônicas.
 
 #### Scenario: Renderização do shell
 - **WHEN** uma rota pertencente à aplicação é acessada
@@ -52,18 +52,18 @@ A aplicação SHALL apresentar um shell único ocupando a viewport, contendo too
 
 
 ### Requirement: Navegação principal entre áreas
-O shell SHALL oferecer destinos para Dashboard, Corretoras, Ações, Carteiras e Operações com URLs `/dashboard`, `/corretoras`, `/acoes`, `/carteiras` e `/operacoes`. Cada item SHALL apresentar ícone local decorativo antes do label, com coluna visual, alinhamento e espaçamento consistentes no desktop e no drawer compacto, sem fonte de ícones ou asset remoto. O destino ativo SHALL usar superfície selecionada clara definida pelo tema, marcador estrutural e `aria-current`, MUST NOT ser identificado somente por cor e SHALL manter hover e foco discretos e perceptíveis.
+O shell SHALL oferecer destinos para Dashboard, Corretoras, Ações e Carteiras com URLs `/dashboard`, `/corretoras`, `/acoes` e `/carteiras`. Cada item SHALL apresentar ícone local decorativo antes do label, com coluna visual, alinhamento e espaçamento consistentes no desktop e no drawer compacto, sem fonte de ícones ou asset remoto. O destino ativo SHALL usar superfície selecionada clara definida pelo tema, marcador estrutural e `aria-current`, MUST NOT ser identificado somente por cor e SHALL manter hover e foco discretos e perceptíveis.
 
 #### Scenario: Destinos principais disponíveis
 - **WHEN** a navegação principal é exibida
-- **THEN** ela contém os destinos principais Dashboard, Corretoras, Ações, Carteiras e Operações com os respectivos rótulos e URLs
+- **THEN** ela contém os destinos principais Dashboard, Corretoras, Ações e Carteiras com os respectivos rótulos e URLs
 
 #### Scenario: Rota inicial
 - **WHEN** o usuário acessa a raiz `/`
 - **THEN** a aplicação realiza redirect exato para `/dashboard`
 
 #### Scenario: Indicação do destino ativo
-- **WHEN** um dos cinco destinos está ativo
+- **WHEN** um dos quatro destinos está ativo
 - **THEN** seu item apresenta superfície selecionada, indicador adicional à cor e comunicação semântica de página atual
 
 #### Scenario: Interação com item inativo
@@ -73,6 +73,10 @@ O shell SHALL oferecer destinos para Dashboard, Corretoras, Ações, Carteiras e
 #### Scenario: Composição iconográfica dos destinos
 - **WHEN** a navegação principal é apresentada no desktop ou no drawer compacto
 - **THEN** cada ícone aparece antes do respectivo label, usa a mesma coluna visual e fica oculto de tecnologia assistiva quando o texto já fornece o nome acessível
+
+#### Scenario: Compatibilidade de Operações
+- **WHEN** o usuário abre `/operacoes`, `/operacoes/nova` ou `/operacoes/{id}` diretamente
+- **THEN** as rotas permanecem funcionais e lazy dentro do shell, embora Operações não apareça na sidebar nem no drawer
 
 #### Scenario: Continuidade assistiva
 - **WHEN** o refinamento é aplicado

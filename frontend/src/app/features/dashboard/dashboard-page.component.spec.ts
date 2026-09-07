@@ -8,6 +8,7 @@ import { NormalizedHttpError } from '../../core/errors/normalized-http-error';
 import { SuccessToastService } from '../../shared/success-toast/success-toast.service';
 import { CarteirasService } from '../carteiras/carteiras.service';
 import { CarteiraResponse } from '../carteiras/models/carteira';
+import { CARTEIRA_STORAGE } from '../../core/carteira/carteira-context.service';
 import { DashboardPageComponent } from './dashboard-page.component';
 import { DashboardService } from './dashboard.service';
 import { EvolutionService } from './evolution/evolution.service';
@@ -49,7 +50,7 @@ describe('DashboardPageComponent', () => {
     };
     await TestBed.configureTestingModule({
       imports: [DashboardPageComponent],
-      providers: [provideRouter([]), { provide: ActivatedRoute, useValue: { queryParamMap: query } }, { provide: CarteirasService, useValue: carteiras }, { provide: DashboardService, useValue: dashboard }, { provide: EvolutionService, useValue: evolution }, { provide: MatDialog, useValue: dialog }, { provide: SuccessToastService, useValue: { show: vi.fn() } }]
+      providers: [{ provide: CARTEIRA_STORAGE, useValue: null }, provideRouter([]), { provide: ActivatedRoute, useValue: { queryParamMap: query } }, { provide: CarteirasService, useValue: carteiras }, { provide: DashboardService, useValue: dashboard }, { provide: EvolutionService, useValue: evolution }, { provide: MatDialog, useValue: dialog }, { provide: SuccessToastService, useValue: { show: vi.fn() } }]
     }).compileComponents();
     const router = TestBed.inject(Router);
     vi.spyOn(router, 'navigate').mockResolvedValue(true);
@@ -85,10 +86,10 @@ describe('DashboardPageComponent', () => {
     expect(dashboard.listarResultadosRealizados).toHaveBeenCalledWith(1);
   });
 
-  it('não escolhe arbitrariamente entre múltiplas carteiras', async () => {
+  it('seleciona a primeira por id ASC entre múltiplas carteiras', async () => {
     const { fixture, dashboard } = await create(of([A, B]));
-    expect(fixture.nativeElement.textContent).toContain('Selecione uma carteira');
-    expect(dashboard.obterResumo).not.toHaveBeenCalled();
+    expect(fixture.nativeElement.textContent).toContain('Principal');
+    expect(dashboard.obterResumo).toHaveBeenCalledWith(1);
   });
 
   it.each(['abc', '0', '-1', '99'])('trata query parameter inválido %s sem request financeiro', async value => {
@@ -179,13 +180,14 @@ describe('DashboardPageComponent', () => {
 
   it('oferece navegação contextual e estrutura acessível sem detalhe fictício', async () => {
     query.next(convertToParamMap({ carteiraId: '1' }));
-    const { fixture, dialog } = await create(of([A])); fixture.detectChanges();
+    const { fixture, router } = await create(of([A])); fixture.detectChanges();
     expect(fixture.nativeElement.querySelector('h1')?.textContent).toBe('Dashboard');
-    expect(fixture.nativeElement.querySelector('mat-label')?.textContent).toContain('Carteira');
+    expect(fixture.nativeElement.querySelector('mat-select')).toBeNull();
+    expect(fixture.nativeElement.querySelector('.portfolio-context')?.textContent).toContain('Principal');
     expect(fixture.nativeElement.querySelector('a[href="/carteiras/1"]')).toBeTruthy();
     expect(fixture.nativeElement.querySelector('.record a')).toBeFalsy();
     const register = Array.from(fixture.nativeElement.querySelectorAll('button')).find((button: any) => button.textContent.includes('Registrar operação')) as HTMLButtonElement;
-    register.click(); expect(dialog.open).toHaveBeenCalled();
+    register.click(); expect(router.navigate).toHaveBeenCalledWith(['/operacoes/nova'], { queryParams: { carteiraId: 1, origem: 'dashboard' } });
   });
 
   it('integra HttpErrorResponse, interceptor, service e mensagem da UI', async () => {
@@ -193,7 +195,7 @@ describe('DashboardPageComponent', () => {
     TestBed.resetTestingModule();
     await TestBed.configureTestingModule({
       imports: [DashboardPageComponent],
-      providers: [provideRouter([]), provideApiConfig(), provideHttpClient(withInterceptors([httpErrorInterceptor])), provideHttpClientTesting(),
+      providers: [{ provide: CARTEIRA_STORAGE, useValue: null }, provideRouter([]), provideApiConfig(), provideHttpClient(withInterceptors([httpErrorInterceptor])), provideHttpClientTesting(),
         { provide: ActivatedRoute, useValue: { queryParamMap: query } },
         { provide: CarteirasService, useValue: { listar: () => of([A]) } },
         { provide: MatDialog, useValue: { open: vi.fn() } },

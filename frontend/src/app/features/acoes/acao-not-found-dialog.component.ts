@@ -32,7 +32,7 @@ export interface AcaoNotFoundDialogData {
       <span class="app-dialog-actions__item"><button mat-flat-button type="button" [mat-dialog-close]="true">Cadastrar ação</button></span>
     </mat-dialog-actions>
   `,
-  styles: [`:host{display:block;max-width:32rem;color:var(--app-text-primary)}`],
+  styles: [`:host{display:block;color:var(--app-text-primary)}`],
   styleUrl: '../../shared/dialog/dialog.scss',
   changeDetection: ChangeDetectionStrategy.OnPush
 })

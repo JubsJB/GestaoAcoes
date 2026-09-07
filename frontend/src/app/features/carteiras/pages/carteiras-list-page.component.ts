@@ -77,8 +77,7 @@ export class CarteirasListPageComponent {
 
   protected openCreateDialog(): void {
     this.dialog.open(CarteiraFormPageComponent, {
-      data: { mode: 'create' }, width: '36rem', maxWidth: 'calc(100vw - 2rem)', maxHeight: 'calc(100dvh - 2rem)',
-      panelClass: 'app-create-dialog', autoFocus: 'first-tabbable', restoreFocus: true,
+      data: { mode: 'create' }, panelClass: ['app-create-dialog', 'app-dialog--form'], autoFocus: 'first-tabbable', restoreFocus: true,
       ariaLabelledBy: 'carteira-form-title', ariaDescribedBy: 'carteira-form-description'
     }).afterClosed().pipe(takeUntilDestroyed(this.destroyRef)).subscribe((created: CarteiraResponse | undefined) => {
       if (!created) return;
