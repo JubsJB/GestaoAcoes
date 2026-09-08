@@ -31,7 +31,7 @@ export interface CorretoraCreateDialogData { readonly cnpj?: string; }
       <app-page-header headingId="create-title" eyebrow="Corretoras" icon="broker" title="Cadastrar corretora" description="Informe o CNPJ da instituição que deseja cadastrar." />
       @if (error()) { <app-feedback-alert variant="error" [message]="error()!.message" [details]="error()!.details" /> }
       <form class="app-form-surface app-surface" [formGroup]="form" (ngSubmit)="submit()" novalidate>
-        <div class="surface-heading"><app-icon name="identity" aria-hidden="true" /><div><h2>Identificação da instituição</h2><p>Os demais dados serão consultados com segurança durante o cadastro.</p></div></div>
+        <div class="surface-heading"><app-icon name="identity" aria-hidden="true" /><div><h2>Identificação da instituição</h2><p>Nome, endereço e situação serão consultados pelo CNPJ.</p></div></div>
         <mat-form-field appearance="outline">
           <mat-label>CNPJ</mat-label>
           <input matInput formControlName="cnpj" inputmode="numeric" maxlength="18" (input)="formatInput()" aria-describedby="cnpj-hint" />
@@ -43,7 +43,7 @@ export interface CorretoraCreateDialogData { readonly cnpj?: string; }
       </form>
     </section>
   `,
-  styles: [`form{display:grid;gap:1.25rem}.progress{display:flex;align-items:center;gap:.75rem}`],
+  styleUrl: '../../../shared/form/simple-form.scss',
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class CorretoraCreatePageComponent {

@@ -1,7 +1,7 @@
 ## MODIFIED Requirements
 
 ### Requirement: Listagem das Corretoras cadastradas
-A aplicação SHALL apresentar em `/corretoras` todas as Corretoras devolvidas por `GET /corretoras`, preservando a ordem recebida e oferecendo acesso ao cadastro e ao detalhe de cada registro. A coleção SHALL usar lista compacta, com nome como informação principal, dados cadastrais e status hierarquizados, ações estáveis e quebra de textos longos. Ela MUST NOT ser transformada em dashboard nem ganhar tabela sem necessidade estrutural.
+A aplicação SHALL apresentar em `/corretoras` todas as Corretoras devolvidas por `GET /corretoras`, preservando a ordem recebida e oferecendo acesso ao cadastro e ao detalhe de cada registro. A coleção SHALL usar uma tabela semântica desktop que reflui para cards completos mobile, com uma única estrutura acessível e focável. As colunas SHALL ser Instituição, CNPJ, Localidade, Situação cadastral e Ações, preservando razão social, nome fantasia quando distinto, dados atuais, badge textual e Ver detalhes. A busca por CNPJ e o conjunto de requisições MUST permanecer inalterados; a coleção MUST NOT acrescentar dados ou métricas.
 
 #### Scenario: Listagem com registros
 - **WHEN** o backend devolve uma ou mais Corretoras
@@ -21,7 +21,7 @@ A aplicação SHALL apresentar em `/corretoras` todas as Corretoras devolvidas p
 
 #### Scenario: Densidade cadastral
 - **WHEN** há várias Corretoras cadastradas
-- **THEN** os registros são comparáveis sem cards excessivamente altos nem perda de dados ou ações existentes
+- **THEN** os registros são comparáveis na tabela desktop e refluem em cards completos no mobile sem perda de dados, ações ou duplicação de controles acessíveis
 
 
 ### Requirement: Detalhe completo da Corretora

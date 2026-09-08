@@ -55,8 +55,8 @@ FeedbackAlert mantém semântica e conteúdo; SuccessToast mantém duração, po
 | Operações | Tabela semântica | Cards completos | Ordem recebida, sem sort ou mutações |
 | Histórico da Carteira | Mesmo padrão de Operações | Cards completos | Mesmo contexto e conjunto HTTP |
 | Ações | Tabela semântica | Cards completos | Ticker, empresa e cotação registrada |
-| Corretoras | Lista compacta | Lista em coluna | Não forçar tabela cadastral |
-| Carteiras | Cards compactos | Cards compactos | Nome e data, sem KPI novo |
+| Corretoras | Tabela semântica | Cards completos | Instituição, CNPJ, localidade, situação e ações; busca e HTTP preservados |
+| Carteiras | Tabela semântica | Cards completos | Nome, data, contexto Ativa e Ver detalhes; leitura passiva do CarteiraContextService, sem KPI ou HTTP novo |
 | Resultados realizados | Linhas comparáveis por Ação | Itens completos | Sem totalização |
 
 Preferir tabela HTML nativa com estilos existentes; Material/CDK pode ser usado quando já necessário, sem importar módulos pesados por aparência. Cabeçalhos associados, títulos/captions acessíveis e moeda explícita devem permitir leitura fora do contexto visual.
@@ -122,3 +122,14 @@ Rastreabilidade: fase 2 cobre fundação, tipografia e performance transversal; 
 
 Nenhuma decisão funcional bloqueia o planejamento. Hexadecimais finais, densidade e breakpoint visual das coleções serão definidos por evidência na implementação e submetidos à revisão visual do resultado. Dark mode permanece explicitamente fora. Qualquer necessidade de novo campo, chamada, dependência ou alteração financeira exigirá outra decisão de escopo, sem implementação silenciosa nesta change.
 
+
+## Reconciliação de linguagem — Histórico do patrimônio
+
+Apresentar a seção existente como “Histórico do patrimônio”, com a descrição: “Acompanhe os registros do valor da carteira ao longo do tempo. Os registros são realizados manualmente e preservados separadamente por moeda.” Indicar o horário local junto à descrição dos registros. Usar “Registrar patrimônio atual” como ação secundária de contorno e “Registro #ID” na apresentação, preservando IDs e nomes técnicos internos. Manter gráficos, tooltip e histórico textual já implementados, sem alterar projeção, dataset, HTTP ou ordem de seções. Erros do backend não serão reescritos. O histórico permanece complementar ao patrimônio destacado nos indicadores.
+
+Custo × valor atual, resultado não realizado e rentabilidade por ativo serão objeto de futura change separada; não são incluídos aqui. Composição/alocação também não integra este escopo.
+
+### Refinamento responsivo de 6.6
+Labels usam largura natural sem quebra interna, ancoragem para dentro e clamp visual medido, sem modificar coordenadas financeiras. A seleção prioriza extremos; tenta data curta quando ambos não cabem e suprime candidatos conflitantes. Em região compacta (até 36rem), a grade tenta colunas de no mínimo 10rem, com intervalo de 0,5rem: duas colunas exigem 20,5rem reais. O mínimo reserva espaço para legenda, duas datas curtas e padding; rem permite fallback com ampliação tipográfica. Acima dessa região, auto-fit/minmax distribui os gráficos lado a lado com mínimo de 16rem por card e intervalo de 1,5rem, limitado à largura disponível; headings e legendas podem ocupar linhas distintas. Nenhum breakpoint força o desktop a uma coluna. O histórico textual é único e completo. A adequação renderizada permanece pendente da revisão humana da 6.6.
+
+Por solicitação explícita, o formatador local específico da evolução apresenta DD/MM/YYYY, HH:mm (horário local), sem segundos/milissegundos, em tooltip, registros, descrições e nomes acessíveis. Timestamps originais e atributos datetime permanecem integrais; o eixo mantém dia/mês e hora/minuto ou sua abreviação existente. Esta exceção de apresentação não modifica formatadores financeiros ou contratos.

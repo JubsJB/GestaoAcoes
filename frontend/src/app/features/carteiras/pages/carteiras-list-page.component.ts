@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, DestroyRef, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { MatButtonModule } from '@angular/material/button';
-import { MatCardModule } from '@angular/material/card';
+import { CarteiraContextService } from '../../../core/carteira/carteira-context.service';
 import { MatDialog } from '@angular/material/dialog';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { RouterLink } from '@angular/router';
@@ -19,7 +19,7 @@ import { CarteiraFormPageComponent } from './carteira-form-page.component';
 
 @Component({
   selector: 'app-carteiras-list-page',
-  imports: [AppIconComponent, FeedbackAlertComponent, MatButtonModule, MatCardModule, MatProgressSpinnerModule, PageHeaderComponent, RouterLink],
+  imports: [AppIconComponent, FeedbackAlertComponent, MatButtonModule, MatProgressSpinnerModule, PageHeaderComponent, RouterLink],
   template: `
     <section class="app-page collection-page" aria-labelledby="carteiras-title">
       <app-page-header headingId="carteiras-title" eyebrow="Organização" icon="portfolio" title="Carteiras" description="Gerencie as carteiras que organizam seus investimentos.">
@@ -35,26 +35,38 @@ import { CarteiraFormPageComponent } from './carteira-form-page.component';
         } @else if (carteiras().length === 0) {
           <div class="app-state app-surface"><span class="app-state__icon" aria-hidden="true"><app-icon name="empty" /></span><h2>Você ainda não possui carteiras cadastradas.</h2><p>Cadastre a primeira carteira para começar sua organização.</p><button mat-stroked-button type="button" (click)="openCreateDialog()">Cadastrar a primeira</button></div>
         } @else {
-          <div class="portfolio-grid" aria-label="Carteiras cadastradas">
-            @for (carteira of carteiras(); track carteira.id) {
-              <mat-card class="entity-card" appearance="outlined">
-                <div class="entity-card__heading"><span class="entity-card__icon" aria-hidden="true"><app-icon name="portfolio" /></span><mat-card-title>{{ carteira.nome }}</mat-card-title></div>
-                <mat-card-content><span>Data de criação</span><strong>{{ dateTime(carteira.dataCriacao) }}</strong></mat-card-content>
-                <mat-card-actions><a mat-button [routerLink]="[carteira.id]" [state]="{}" [info]="{ carteira }" [attr.aria-label]="'Ver detalhes da carteira ' + carteira.nome">Ver detalhes</a></mat-card-actions>
-              </mat-card>
-            }
-          </div>
+          <table class="collection-table" role="table">
+            <caption>Carteiras cadastradas</caption>
+            <thead role="rowgroup"><tr role="row">
+              <th scope="col" role="columnheader">Carteira</th>
+              <th scope="col" role="columnheader">Data de criação</th>
+              <th scope="col" role="columnheader">Contexto</th>
+              <th scope="col" role="columnheader">Ações</th>
+            </tr></thead>
+            <tbody role="rowgroup">
+              @for (carteira of carteiras(); track carteira.id) {
+                <tr role="row">
+                  <th scope="row" role="rowheader"><span class="cell-label" aria-hidden="true">Carteira</span>{{ carteira.nome }}</th>
+                  <td role="cell"><span class="cell-label" aria-hidden="true">Data de criação</span>{{ dateTime(carteira.dataCriacao) }}</td>
+                  <td role="cell"><span class="cell-label" aria-hidden="true">Contexto</span>@if (activeId() === carteira.id) { <span class="status-badge">Ativa</span> } @else { <span>—</span> }</td>
+                  <td role="cell"><span class="cell-label" aria-hidden="true">Ações</span><a [routerLink]="[carteira.id]" [state]="{}" [info]="{ carteira }" [attr.aria-label]="'Ver detalhes da carteira ' + carteira.nome">Ver detalhes</a></td>
+                </tr>
+              }
+            </tbody>
+          </table>
         }
       </div>
     </section>
   `,
+  styleUrl: '../../../shared/collection/collection.scss',
   styles: [`
-    .collection-page{height:calc(100dvh - 8rem);overflow:hidden;display:flex;flex-direction:column}.collection-region{min-height:0;overflow:auto;padding:.125rem .25rem .75rem 0;overscroll-behavior:contain;flex:1 1 auto}.portfolio-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,18rem),1fr));gap:.75rem}.entity-card{padding:.9rem 1rem .65rem;border-color:var(--app-border-subtle);border-radius:var(--app-card-radius);background:var(--app-surface-card);box-shadow:0 .2rem .75rem rgb(31 36 29 / 5%);min-width:0}.entity-card__heading{display:flex;align-items:center;gap:.75rem;min-width:0}.entity-card__icon{width:2.25rem;height:2.25rem;display:grid;place-items:center;flex:0 0 auto;border-radius:.7rem;color:var(--app-brand-primary);background:var(--app-surface-selected)}mat-card-title{font-size:1rem;font-weight:680;overflow-wrap:anywhere;line-height:1.3}mat-card-content{display:grid;gap:.2rem;padding:1rem 0 .7rem}mat-card-content span{color:var(--app-text-secondary);font-size:.68rem;font-weight:700;letter-spacing:.055em;text-transform:uppercase}mat-card-content strong{font-size:.84rem;font-weight:600;overflow-wrap:anywhere}mat-card-actions{min-height:auto;padding:.25rem 0 0;border-top:1px solid var(--app-border-subtle)}
-    @media(max-width:959.98px){.collection-page{height:calc(100dvh - 5.5rem)}}@media(max-width:36rem){.collection-page{height:auto;overflow:visible}.collection-region{overflow:visible;padding-right:0}.portfolio-grid{grid-template-columns:1fr}}
+    .collection-page{height:calc(100dvh - 8rem);overflow:hidden;display:flex;flex-direction:column}.collection-region{min-height:0;overflow:auto;padding:.125rem .25rem .75rem 0;overscroll-behavior:contain;flex:1 1 auto}
+    @media(max-width:959.98px){.collection-page{height:calc(100dvh - 5.5rem)}}@media(max-width:36rem){.collection-page{height:auto;overflow:visible}.collection-region{overflow:visible;padding-right:0}}
   `],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class CarteirasListPageComponent {
+  protected readonly activeId = inject(CarteiraContextService).activeId;
   private readonly service = inject(CarteirasService);
   private readonly dialog = inject(MatDialog);
   private readonly successToast = inject(SuccessToastService);

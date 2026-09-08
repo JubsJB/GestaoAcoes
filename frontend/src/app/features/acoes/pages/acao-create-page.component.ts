@@ -31,13 +31,13 @@ export interface AcaoCreateDialogData { readonly ticker?: string; readonly merca
       @if(error()){<app-feedback-alert variant="error" [message]="error()!.message" [details]="error()!.details" />}
       <form class="app-form-surface app-surface" [formGroup]="form" (ngSubmit)="submit()" novalidate>
         <div class="surface-heading"><app-icon name="stock" aria-hidden="true" /><div><h2>Identificação da ação</h2><p>Use o ticker negociado e selecione o mercado correspondente.</p></div></div>
-        <mat-form-field appearance="outline"><mat-label>Ticker</mat-label><input matInput formControlName="ticker" maxlength="30" aria-describedby="ticker-hint"/><mat-hint id="ticker-hint">Até 30 caracteres; espaços externos e letras minúsculas serão normalizados.</mat-hint>@if(form.controls.ticker.invalid&&form.controls.ticker.touched){<mat-error>Ticker é obrigatório e deve ter até 30 caracteres.</mat-error>}</mat-form-field>
-        <mat-form-field appearance="outline"><mat-label>Mercado</mat-label><mat-select formControlName="mercado" aria-describedby="mercado-hint"><mat-option value="BRASIL">Brasil</mat-option><mat-option value="EUA">EUA</mat-option></mat-select><mat-hint id="mercado-hint">Selecione Brasil ou EUA.</mat-hint>@if(form.controls.mercado.invalid&&form.controls.mercado.touched){<mat-error>Mercado é obrigatório.</mat-error>}</mat-form-field>
+        <mat-form-field appearance="outline" subscriptSizing="dynamic"><mat-label>Ticker</mat-label><input matInput formControlName="ticker" maxlength="30" aria-describedby="ticker-hint"/><mat-hint id="ticker-hint">Ex.: PETR4 ou AAPL. Até 30 caracteres.</mat-hint>@if(form.controls.ticker.invalid&&form.controls.ticker.touched){<mat-error>Ticker é obrigatório e deve ter até 30 caracteres.</mat-error>}</mat-form-field>
+        <mat-form-field appearance="outline" subscriptSizing="dynamic"><mat-label>Mercado</mat-label><mat-select formControlName="mercado" aria-describedby="mercado-hint"><mat-option value="BRASIL">Brasil</mat-option><mat-option value="EUA">EUA</mat-option></mat-select><mat-hint id="mercado-hint">Selecione Brasil ou EUA.</mat-hint>@if(form.controls.mercado.invalid&&form.controls.mercado.touched){<mat-error>Mercado é obrigatório.</mat-error>}</mat-form-field>
         <div class="app-actions app-actions--stack-compact"><button mat-flat-button type="submit" [disabled]="submitting()" [attr.aria-busy]="submitting()">Cadastrar ação</button>@if(isDialog){<button mat-button type="button" (click)="cancel()">Cancelar</button>}@else{<a mat-button routerLink="/acoes">Cancelar</a>}</div>
         @if(submitting()){<div role="status" aria-live="polite" class="progress"><mat-spinner diameter="28"/>Processando cadastro…</div>}
       </form>
     </section>`,
-  styles: [`form{display:grid;gap:1.25rem}.progress{display:flex;align-items:center;gap:.75rem}`],
+  styleUrl: '../../../shared/form/simple-form.scss',
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class AcaoCreatePageComponent {

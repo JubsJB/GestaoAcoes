@@ -2,7 +2,6 @@ import { ChangeDetectionStrategy, Component, DestroyRef, inject, signal } from '
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
-import { MatCardModule } from '@angular/material/card';
 import { MatDialog } from '@angular/material/dialog';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
@@ -25,10 +24,10 @@ import { AcaoCreatePageComponent } from './acao-create-page.component';
 
 @Component({
   selector: 'app-acoes-list-page',
-  imports: [AppIconComponent, FeedbackAlertComponent, MatButtonModule, MatCardModule, MatFormFieldModule, MatInputModule, MatProgressSpinnerModule, MatSelectModule, PageHeaderComponent, ReactiveFormsModule, RouterLink],
+  imports: [AppIconComponent, FeedbackAlertComponent, MatButtonModule, MatFormFieldModule, MatInputModule, MatProgressSpinnerModule, MatSelectModule, PageHeaderComponent, ReactiveFormsModule, RouterLink],
   template: `
     <section class="app-page collection-page" aria-labelledby="acoes-title">
-      <app-page-header headingId="acoes-title" eyebrow="Ativos" icon="stock" title="Ações" description="Consulte as ações e suas últimas cotações persistidas.">
+      <app-page-header headingId="acoes-title" eyebrow="Ativos" icon="stock" title="Ações" description="Consulte as ações e suas últimas cotações registradas.">
         <button page-header-action mat-flat-button type="button" (click)="openCreateDialog()">Cadastrar nova ação</button>
       </app-page-header>
       @if (loadError()) { <app-feedback-alert variant="error" [message]="loadError()!.message" [details]="loadError()!.details" /> }
@@ -47,28 +46,17 @@ import { AcaoCreatePageComponent } from './acao-create-page.component';
         @else if(loadError()){<div class="app-state"><button mat-stroked-button type="button" (click)="load()">Tentar carregar ações novamente</button></div>}
         @else if(acoes().length===0){<div class="app-state app-surface"><span class="app-state__icon" aria-hidden="true"><app-icon name="empty" /></span><h2>Você ainda não possui ações cadastradas.</h2><p>Adicione seu primeiro ativo para acompanhar seus dados de mercado.</p><button mat-stroked-button type="button" (click)="openCreateDialog()">Cadastrar a primeira ação</button></div>}
         @else{
-          <div class="stock-grid" aria-label="Ações cadastradas">
-            @for(acao of acoes();track acao.id){
-              <mat-card class="entity-card entity-card--compact" appearance="outlined">
-                <div class="entity-card__heading">
-                  <span class="entity-card__icon" aria-hidden="true"><app-icon name="stock" /></span>
-                  <div class="entity-card__identity"><mat-card-title>{{acao.ticker}}</mat-card-title><mat-card-subtitle>{{acao.nomeEmpresa}}</mat-card-subtitle></div>
-                  <span class="market-badge">{{market(acao.mercado)}} · {{acao.moeda}}</span>
-                </div>
-                <mat-card-content class="entity-card__data"><div><span>Última cotação persistida</span><strong>{{quote(acao.cotacaoAtual,acao.moeda)}}</strong></div><div><span>Atualizada em</span><strong>{{dateTime(acao.dataHoraCotacao)}}</strong></div></mat-card-content>
-                <mat-card-actions><a mat-button [routerLink]="[acao.id]" [attr.aria-label]="'Ver detalhes de '+acao.ticker">Ver detalhes</a></mat-card-actions>
-              </mat-card>
-            }
-          </div>
+          <table class="collection-table" role="table"><caption>Ações cadastradas</caption><thead role="rowgroup"><tr role="row"><th scope="col" role="columnheader">Ativo</th><th scope="col" role="columnheader">Mercado · moeda</th><th scope="col" role="columnheader" class="numeric quote-column">Última cotação registrada</th><th scope="col" role="columnheader">Atualizada em</th><th scope="col" role="columnheader">Ações</th></tr></thead><tbody role="rowgroup">@for(acao of acoes();track acao.id){<tr role="row"><th scope="row" role="rowheader"><span class="cell-label" aria-hidden="true">Ativo</span>{{acao.ticker}}<small>{{acao.nomeEmpresa}}</small></th><td role="cell"><span class="cell-label" aria-hidden="true">Mercado · moeda</span>{{market(acao.mercado)}} · {{acao.moeda}}</td><td role="cell" class="numeric"><span class="cell-label" aria-hidden="true">Última cotação registrada</span>{{quote(acao.cotacaoAtual,acao.moeda)}}</td><td role="cell"><span class="cell-label" aria-hidden="true">Atualizada em</span>{{dateTime(acao.dataHoraCotacao)}}</td><td role="cell"><span class="cell-label" aria-hidden="true">Ações</span><a [routerLink]="[acao.id]" [attr.aria-label]="'Ver detalhes de '+acao.ticker">Ver detalhes</a></td></tr>}</tbody></table>
         }
       </div>
     </section>`,
-  styles: [`
-    .collection-page{height:calc(100dvh - 8rem);overflow:hidden}.collection-region{min-height:0;overflow:auto;padding:.125rem .25rem .75rem 0;overscroll-behavior:contain}.search{display:grid;grid-template-columns:minmax(12rem,1fr) minmax(12rem,1fr) auto;align-items:start;gap:1rem}.stock-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,20rem),1fr));gap:.75rem}.entity-card{border-color:var(--app-border-subtle);border-radius:var(--app-card-radius);background:var(--app-surface-card);box-shadow:0 .2rem .75rem rgb(31 36 29 / 5%)}.entity-card--compact{padding:.9rem 1rem .65rem}.entity-card__heading{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:start;gap:.75rem;min-width:0}.entity-card__icon{width:2.25rem;height:2.25rem;display:grid;place-items:center;border-radius:.7rem;color:var(--app-brand-primary);background:var(--app-surface-selected)}.entity-card__identity{min-width:0}.entity-card mat-card-title{font-size:1.05rem;font-weight:720;line-height:1.25}.entity-card mat-card-subtitle{margin-top:.15rem;font-size:.8rem;overflow-wrap:anywhere;line-height:1.35}.market-badge{display:inline-flex;align-items:center;min-height:1.65rem;padding:.2rem .55rem;border:1px solid #cbd5bd;border-radius:999px;color:#405136;background:var(--app-surface-selected);font-size:.68rem;font-weight:750;white-space:nowrap}.entity-card__data{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.75rem 1rem;padding:1rem 0 .35rem}.entity-card__data div{display:grid;gap:.2rem;min-width:0}.entity-card__data span{color:var(--app-text-secondary);font-size:.68rem;font-weight:700;letter-spacing:.055em;text-transform:uppercase}.entity-card__data strong{font-size:.86rem;font-weight:620;overflow-wrap:anywhere}.entity-card mat-card-actions{min-height:auto;padding:.25rem 0 0;border-top:1px solid var(--app-border-subtle)}.search-progress{margin:0;color:var(--app-text-secondary)}
+  styleUrl:'../../../shared/collection/collection.scss',styles: [`
+    .collection-page{height:calc(100dvh - 8rem);overflow:hidden}.collection-region{min-height:0;overflow:auto;padding:.125rem .25rem .75rem 0;overscroll-behavior:contain}.search{display:grid;grid-template-columns:minmax(12rem,1fr) minmax(12rem,1fr) auto;align-items:start;gap:1rem}.search-progress{margin:0;color:var(--app-text-secondary)}
     .collection-page{display:flex;flex-direction:column}.collection-region{flex:1 1 auto}
+    @media(min-width:70.001rem){.collection-table .quote-column{width:10rem;text-align:right}.collection-table thead th{vertical-align:bottom}}
     @media(max-width:959.98px){.collection-page{height:calc(100dvh - 5.5rem)}}
     @media(max-width:48rem){.search{grid-template-columns:1fr 1fr}.search .app-actions{grid-column:1/-1}}
-    @media(max-width:36rem){.collection-page{height:auto;overflow:visible}.collection-region{overflow:visible;padding-right:0}.search{grid-template-columns:1fr}.search .app-actions{grid-column:auto}.entity-card__heading{grid-template-columns:auto minmax(0,1fr)}.market-badge{grid-column:2}.entity-card__data{grid-template-columns:1fr}}
+    @media(max-width:36rem){.collection-page{height:auto;overflow:visible}.collection-region{overflow:visible;padding-right:0}.search{grid-template-columns:1fr}.search .app-actions{grid-column:auto}}
   `],
   changeDetection: ChangeDetectionStrategy.OnPush
 })

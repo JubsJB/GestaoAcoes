@@ -1,7 +1,7 @@
 ## MODIFIED Requirements
 
 ### Requirement: Listagem e estados da coleção
-A página de listagem SHALL carregar `GET /carteiras` uma vez ao entrar, apresentar todas as Carteiras na ordem fornecida pelo backend e exibir nome e `dataCriacao` formatada somente na apresentação conforme o padrão temporal compartilhado. Ela SHALL diferenciar loading, coleção vazia, conteúdo e erro recuperável. A listagem SHALL manter cards, tornando-os compactos e hierárquicos, com nome em destaque, data como metadado e ação estável, sem acrescentar indicadores financeiros.
+A página de listagem SHALL carregar `GET /carteiras` uma vez ao entrar, apresentar todas as Carteiras na ordem fornecida pelo backend e exibir nome e `dataCriacao` formatada somente na apresentação conforme o padrão temporal compartilhado. Ela SHALL diferenciar loading, coleção vazia, conteúdo e erro recuperável. A listagem SHALL usar tabela semântica no desktop e refluir para cards completos no mobile, com uma única representação acessível e focável, preservando nome, data de criação, contexto e ação Ver detalhes. O nome SHALL ser principal, sem destaque de ID técnico; a data SHALL manter o formatador atual. O contexto SHALL indicar textualmente “Ativa” apenas quando o ID corresponder ao activeId do CarteiraContextService, sem selecionar, persistir ou inicializar consultas por renderização. A listagem MUST NOT acrescentar requisições, métricas ou edição/exclusão inline e SHALL preservar Nova carteira no cabeçalho.
 
 #### Scenario: Listagem com registros
 - **WHEN** `GET /carteiras` devolve uma ou mais Carteiras
@@ -23,9 +23,14 @@ A página de listagem SHALL carregar `GET /carteiras` uma vez ao entrar, apresen
 - **WHEN** o usuário aciona uma Carteira listada
 - **THEN** a aplicação abre seu detalhe e MAY transportar o DTO completo como estado transitório para evitar GET imediato redundante
 
-#### Scenario: Cards compactos
+#### Scenario: Tabela desktop e cards mobile
 - **WHEN** Carteiras com nomes longos são exibidas
-- **THEN** nome e data permanecem legíveis e a densidade melhora sem truncamento obrigatório nem métricas novas
+- **THEN** nome, data, contexto e Ver detalhes permanecem completos e legíveis em uma linha por Carteira no desktop e cards no mobile, sem truncamento obrigatório, controles duplicados ou métricas novas
+
+
+#### Scenario: Indicação passiva do contexto global
+- **WHEN** a Carteira ativa muda no CarteiraContextService
+- **THEN** somente a Carteira correspondente recebe a indicação textual Ativa, sem nova requisição, mudança de seleção ou persistência causada pela listagem; quando não há correspondência, nenhum item é marcado ativo
 
 
 ### Requirement: Detalhe básico da Carteira

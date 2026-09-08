@@ -36,7 +36,7 @@ describe('OperacaoDetailPageComponent', () => {
   it('formata USD com símbolo e arredondamento somente visual', async () => {
     const { fixture } = await create(usa);
     const text = fixture.nativeElement.textContent;
-    expect(text).toContain('Quantidade1,500000');
+    expect(text).toContain('Quantidade1,5');
     expect(text).toContain('Preço negociadoUS$ 40,13');
     expect(text).toContain('Valor totalUS$ 60,19');
   });

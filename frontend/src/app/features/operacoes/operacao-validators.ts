@@ -1,5 +1,6 @@
 import { AbstractControl, ValidationErrors, ValidatorFn } from '@angular/forms';
 import { Mercado } from '../acoes/models/acao';
+import { formatFinancialQuantity } from '../../shared/formatters/financial-value.formatter';
 
 const DECIMAL = /^\d+(?:[.,]\d+)?$/;
 const CIVIL_DATE = /^\d{4}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12]\d|3[01])$/;
@@ -84,9 +85,7 @@ export function formatDecimal(value: string): string {
 }
 
 export function formatOperationQuantity(value: string, market: Mercado): string {
-  const [integer, fraction] = value.split('.');
-  if (market === 'BRASIL' && (!fraction || /^0+$/.test(fraction))) return formatDecimal(integer);
-  return formatDecimal(value);
+  return formatFinancialQuantity(value, market);
 }
 
 export function formatMoney(value: string, currency: 'BRL' | 'USD'): string {

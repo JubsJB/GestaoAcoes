@@ -1,5 +1,32 @@
 import { FormControl } from '@angular/forms';
-import { civilDateValidator, currentCivilDate, decimalError, formatCivilDate, formatDecimal, formatEditableDecimal, multiplyDecimals, normalizeDecimal, quantityValidator } from './operacao-validators';
+import { civilDateValidator, currentCivilDate, decimalError, formatCivilDate, formatDecimal, formatEditableDecimal, formatMoney, formatOperationQuantity, multiplyDecimals, normalizeDecimal, quantityValidator } from './operacao-validators';
+import { formatFinancialMoney, formatFinancialQuantity } from '../../shared/formatters/financial-value.formatter';
+
+describe('apresentação lossless de operações e posições', () => {
+  it.each([
+    ['10.000000', '10'], ['10.500000', '10,5'], ['0.125000', '0,125'],
+    ['0.000001', '0,000001'], ['1.123456', '1,123456'],
+    ['9999999999999.123456', '9.999.999.999.999,123456']
+  ])('remove somente zeros finais de %s', (value, expected) => {
+    const dto = Object.freeze({ quantidade: value });
+    expect(formatOperationQuantity(dto.quantidade, 'EUA')).toBe(expected);
+    expect(formatFinancialQuantity(dto.quantidade, 'EUA')).toBe(expected);
+    expect(dto.quantidade).toBe(value);
+  });
+  it.each([
+    ['30.000000', '30,00'], ['300.000000000000', '300,00'],
+    ['1566.000000000000', '1.566,00'], ['9999999999999.123456', '9.999.999.999.999,12'],
+    ['0.000001', '0,00'], ['0.125000', '0,13']
+  ])('formata %s em centavos apenas na saída visual', (value, expected) => {
+    const dto = Object.freeze({ precoUnitario: value, valorTotal: value });
+    for (const currency of ['BRL', 'USD'] as const) {
+      const symbol = currency === 'BRL' ? 'R$' : 'US$';
+      expect(formatMoney(dto.precoUnitario, currency)).toBe(`${symbol} ${expected}`);
+      expect(formatFinancialMoney(dto.valorTotal, currency)).toBe(`${symbol} ${expected}`);
+    }
+    expect(dto).toEqual({ precoUnitario: value, valorTotal: value });
+  });
+});
 
 describe('operation validators', () => {
   it('normaliza vírgula e ponto sem coerção binária', () => {

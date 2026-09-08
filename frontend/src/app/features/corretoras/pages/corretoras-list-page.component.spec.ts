@@ -39,13 +39,16 @@ describe('CorretorasListPageComponent', () => {
     expect(fixture.nativeElement.textContent).toContain('Corretora Teste');
   });
 
-  it('usa estrutura fluida de cards e controles com nomes acessíveis', () => {
+  it('usa uma tabela semântica com reflow compartilhado e controles acessíveis', () => {
     expect(fixture.nativeElement.querySelector('h1')?.textContent).toBe('Corretoras');
     expect(fixture.nativeElement.querySelector('mat-label')?.textContent).toContain('CNPJ exato');
-    expect(fixture.nativeElement.querySelector('.broker-grid')).toBeTruthy();
+    expect(fixture.nativeElement.querySelectorAll('table.collection-table')).toHaveLength(1);
     expect(fixture.nativeElement.querySelector('[data-scroll-region="records"]')).toBeTruthy();
-    expect(fixture.nativeElement.querySelector('.entity-card--compact')).toBeTruthy();
-    expect(fixture.nativeElement.querySelector('table')).toBeNull();
+    expect(Array.from(fixture.nativeElement.querySelectorAll('thead th')).map(th => (th as HTMLElement).textContent)).toEqual(['Instituição', 'CNPJ', 'Localidade', 'Situação cadastral', 'Ações']);
+    expect(fixture.nativeElement.querySelectorAll('tbody th[scope="row"]')).toHaveLength(1);
+    expect(fixture.nativeElement.querySelectorAll('tbody a')).toHaveLength(1);
+    expect(fixture.nativeElement.textContent).toContain('11.222.333/0001-81');
+    expect(fixture.nativeElement.textContent).toContain('São Paulo — SP');
     expect(fixture.nativeElement.querySelector('a[aria-label="Ver detalhes de Corretora Teste"]')).toBeTruthy();
   });
 

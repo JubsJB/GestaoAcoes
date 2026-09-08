@@ -175,7 +175,7 @@ Os padrões visuais SHALL preservar o breakpoint estrutural de `960px` do shell 
 ## ADDED Requirements
 
 ### Requirement: Hierarquia tipográfica e leitura financeira
-A interface SHALL distinguir título, contexto, indicador, metadado e ajuda, evitando labels essenciais excessivamente pequenas. Coleções financeiras SHALL apresentar texto à esquerda e dinheiro, quantidade e percentual alinhados à direita onde comparáveis, com algarismos tabulares e moeda explícita no contexto necessário. Estilização MUST NOT alterar strings, sinais, arredondamento, máscaras ou formatadores aprovados.
+A interface SHALL distinguir título, contexto, indicador, metadado e ajuda, evitando labels essenciais excessivamente pequenas. Coleções financeiras SHALL apresentar texto à esquerda e dinheiro, quantidade e percentual alinhados à direita onde comparáveis, com algarismos tabulares e moeda explícita no contexto necessário. A apresentação de quantidades SHALL remover zeros decimais finais sem perder casas significativas, reutilizando formatação textual lossless. Valores monetários SHALL usar R$ ou US$ e duas casas com o arredondamento visual existente; percentuais SHALL manter o padrão aprovado. As strings originais, sinais, modelos, payloads, máscaras editáveis e cálculos MUST permanecer inalterados, sem conversão financeira para Number/parseFloat nem regravação de valores formatados.
 
 #### Scenario: Comparação de valores
 - **WHEN** uma coleção exibe dinheiro, quantidade e percentual

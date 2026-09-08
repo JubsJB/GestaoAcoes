@@ -32,7 +32,7 @@ A área SHALL substituir somente o placeholder de Operações e manter seu limit
 - **THEN** a tela correspondente é carregada dentro do shell sem tornar funcional outro placeholder
 
 ### Requirement: Listagem cronológica e somente leitura
-A listagem global SHALL consultar `GET /operacoes` uma vez ao entrar e apresentar a ordem recebida do backend, garantida por `dataOperacao`, `ordemNoDia` e `id` ascendentes. Ela SHALL exibir tipo, ativo, mercado, data, ordem, quantidade, preço, valor total e Corretora, diferenciar loading, vazio, conteúdo e erro recuperável e MUST NOT recalcular ou reordenar o histórico.
+A listagem global SHALL consultar `GET /operacoes` uma vez ao entrar e apresentar a ordem recebida do backend, garantida por `dataOperacao`, `ordemNoDia` e `id` ascendentes. Ela SHALL exibir tipo, ativo, mercado, data, ordem, quantidade, preço, valor total e Corretora, diferenciar loading, vazio, conteúdo e erro recuperável e MUST NOT recalcular ou reordenar o histórico. A listagem SHALL usar tabela semântica desktop e cards completos mobile conforme frontend-visual-experience, com números alinhados à direita, moeda explícita, tipo textual e ações em posição estável. O histórico contextual SHALL seguir esse mesmo padrão sem reordenar dados ou adicionar consultas. As rotas globais SHALL permanecer por compatibilidade/deep link, sem filtro implícito por Carteira nem reintrodução de Operações na sidebar; a entrada principal de cadastro permanece contextual à Carteira.
 
 #### Scenario: Histórico retornado
 - **WHEN** a consulta devolve compras e vendas
@@ -45,6 +45,10 @@ A listagem global SHALL consultar `GET /operacoes` uma vez ao entrar e apresenta
 #### Scenario: Sem mutações inexistentes
 - **WHEN** uma Operação é apresentada
 - **THEN** a interface não oferece edição nem exclusão e não realiza PUT, PATCH ou DELETE de Operações
+
+#### Scenario: Comparação cronológica
+- **WHEN** o histórico é exibido em desktop ou mobile
+- **THEN** todos os campos e a ordem recebida permanecem disponíveis e somente uma representação participa da acessibilidade e do teclado
 
 ### Requirement: Cadastro com referências persistidas
 O formulário SHALL usar Carteira existente fixa resolvida na abertura pelo contexto de entrada e permitir selecionar Ação pelo par ticker/mercado, Corretora opcional e tipo COMPRA ou VENDA. Ele MUST NOT cadastrar referências ausentes, consultar providers externos ou aceitar combinações livres de ticker e mercado.
@@ -183,7 +187,7 @@ O frontend MUST NOT calcular saldo, preço médio, lucro, elegibilidade de VENDA
 - **THEN** a interface explica a posição insuficiente, preserva a entrada e não apresenta sucesso
 
 ### Requirement: Detalhe fiel
-O detalhe SHALL apresentar os dados relevantes do `OperacaoResponse`, incluindo preço e total autoritativos formatados, mostrar “Sem corretora” quando aplicável, permitir retorno ao contexto de origem e MUST NOT exibir `ordemNoDia`, cotação, posição, preço médio, resultados, edição ou exclusão. `ordemNoDia` SHALL permanecer no contrato e continuar disponível para ordenação interna.
+O detalhe SHALL apresentar os dados relevantes do `OperacaoResponse`, incluindo preço e total autoritativos formatados, mostrar “Sem corretora” quando aplicável, permitir retorno ao contexto de origem e MUST NOT exibir `ordemNoDia`, cotação, posição, preço médio, resultados, edição ou exclusão. `ordemNoDia` SHALL permanecer no contrato e continuar disponível para ordenação interna. O detalhe SHALL organizar contexto, movimentação, quantidade, preço, total, data e Corretora em grupos legíveis, mantendo identificadores quando forem os únicos dados disponíveis e sem consultas para convertê-los em nomes.
 
 #### Scenario: Estado transitório ou reload
 - **WHEN** há response transitório compatível ou a rota é recarregada
@@ -192,6 +196,10 @@ O detalhe SHALL apresentar os dados relevantes do `OperacaoResponse`, incluindo 
 #### Scenario: Operação inexistente
 - **WHEN** a consulta responde `404`
 - **THEN** a página apresenta estado de não encontrado e caminho à listagem
+
+#### Scenario: Detalhe sem enriquecimento
+- **WHEN** um identificador não possui nome no DTO disponível
+- **THEN** o identificador continua compreensível no contexto sem nova chamada HTTP
 
 ### Requirement: Cadastro contextual reutiliza as mesmas regras
 O cadastro iniciado no detalhe de Carteira SHALL reutilizar o mesmo formulário, pipeline consultivo e construtor de payload do fluxo global, com Carteira pré-selecionada, visível e não editável. A sugestão de VENDA SHALL usar essa Carteira; a prévia de COMPRA continuará independente dela. Após `201`, SHALL fechar o dialog, apresentar sucesso e incorporar o response no histórico por `dataOperacao`, `ordemNoDia` e `id`, sem GET obrigatório ou cálculo financeiro.
@@ -209,11 +217,15 @@ O cadastro iniciado no detalhe de Carteira SHALL reutilizar o mesmo formulário,
 - **THEN** o histórico passa a exibir o DTO autoritativo retornado
 
 ### Requirement: Experiência acessível e responsiva
-A feature SHALL reutilizar feedback, toast e padrões visuais existentes, preservar foco e navegação por teclado e manter lista, formulário, detalhe e dialog legíveis em viewport compacto sem depender somente de cor.
+A feature SHALL reutilizar feedback, toast e padrões visuais existentes, preservar foco e navegação por teclado e manter lista, formulário, detalhe e dialog legíveis em viewport compacto sem depender somente de cor. O formulário SHALL agrupar visualmente contexto, tipo/movimentação, quantidade/preço/data, Corretora, estimativa existente e ações. A reorganização MUST preservar compra/venda, preço informativo somente leitura em COMPRA, sugestão editável em VENDA, estimativa, Carteira capturada na abertura e fixa/não editável até conclusão ou cancelamento em página/dialog, inclusive na entrada global de compatibilidade, Corretora opcional, strings decimais, data civil, máscaras, validações, payloads e gatilhos HTTP.
 
 #### Scenario: Uso assistivo ou compacto
 - **WHEN** a feature é usada por teclado, tecnologia assistiva ou tela compacta
 - **THEN** campos condicionais, mensagens, ações, foco e valores permanecem compreensíveis e operáveis
+
+#### Scenario: Formulário agrupado
+- **WHEN** uma operação é preparada em página ou dialog
+- **THEN** grupos e ajudas facilitam leitura sem adicionar campos ou alterar condições de edição, bloqueio, submissão ou cancelamento, preservando origem, retorno determinístico após reload/deep link e isolamento perante troca global de Carteira
 
 ### Requirement: Carteira fixa da abertura ao POST
 Cada abertura de cadastro SHALL capturar uma Carteira válida e mantê-la visível e não editável até cancelamento ou conclusão. Sugestão de VENDA e `carteiraId` do POST SHALL usar essa identidade capturada, nunca reler a seleção global no submit. A prévia de COMPRA SHALL preservar seu contrato independente da Carteira. Mudanças externas de contexto MUST NOT redirecionar a operação em edição a outra Carteira. Sem Carteira válida SHALL bloquear submissão e oferecer recuperação explícita.

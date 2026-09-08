@@ -2,6 +2,8 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { provideRouter } from '@angular/router';
 import { of } from 'rxjs';
+import { By } from '@angular/platform-browser';
+import { MatFormField } from '@angular/material/form-field';
 
 import { SuccessToastService } from '../../../shared/success-toast/success-toast.service';
 import { AcoesService } from '../acoes.service';
@@ -31,6 +33,14 @@ describe('AcaoCreatePageComponent em dialog', () => {
     const component = fixture.componentInstance as unknown as { form: { controls: { mercado: { value: string | null } } } };
     expect(component.form.controls.mercado.value).toBe('EUA');
     expect(service.criar).not.toHaveBeenCalled();
+  });
+
+  it('usa ajuda curta e altura dinâmica para acomodar quebras no mobile', () => {
+    expect(fixture.nativeElement.querySelector('#ticker-hint').textContent).toBe('Ex.: PETR4 ou AAPL. Até 30 caracteres.');
+    expect(fixture.nativeElement.querySelector('input').maxLength).toBe(30);
+    const fields = fixture.debugElement.queryAll(By.directive(MatFormField));
+    expect(fields).toHaveLength(2);
+    for (const field of fields) expect(field.injector.get(MatFormField).subscriptSizing).toBe('dynamic');
   });
 
   it('fecha com o DTO do POST único após submissão explícita', () => {

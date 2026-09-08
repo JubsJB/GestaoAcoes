@@ -1,3 +1,4 @@
+import { CorretorasService } from '../../corretoras/corretoras.service';
 import { CARTEIRA_STORAGE } from '../../../core/carteira/carteira-context.service';
 import { DashboardService } from '../../dashboard/dashboard.service';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
@@ -26,11 +27,32 @@ describe('CarteiraDetailPageComponent', () => {
     const dashboard = { listarPosicoes: vi.fn().mockReturnValue(of([])) };
     const operations = { listarPorCarteira: vi.fn().mockReturnValue(of([])), cadastrar: vi.fn() };
     const closed = new Subject<CarteiraResponse | OperacaoResponse | boolean | undefined>(); const dialog = { open: vi.fn().mockReturnValue({ afterClosed: () => closed, close: vi.fn() }) }; const toast = { show: vi.fn() };
-    await TestBed.configureTestingModule({ imports: [CarteiraDetailPageComponent], providers: [{ provide: CARTEIRA_STORAGE, useValue: null }, { provide: DashboardService, useValue: dashboard }, provideRouter([]), { provide: ActivatedRoute, useValue: { paramMap: params } }, { provide: CarteirasService, useValue: service }, { provide: OperacoesService, useValue: operations }, { provide: MatDialog, useValue: dialog }, { provide: SuccessToastService, useValue: toast }] }).compileComponents();
+    await TestBed.configureTestingModule({ imports: [CarteiraDetailPageComponent], providers: [{provide:CorretorasService,useValue:{listar:vi.fn().mockReturnValue(of([]))}},{ provide: CARTEIRA_STORAGE, useValue: null }, { provide: DashboardService, useValue: dashboard }, provideRouter([]), { provide: ActivatedRoute, useValue: { paramMap: params } }, { provide: CarteirasService, useValue: service }, { provide: OperacoesService, useValue: operations }, { provide: MatDialog, useValue: dialog }, { provide: SuccessToastService, useValue: toast }] }).compileComponents();
     const router = TestBed.inject(Router); vi.spyOn(router, 'currentNavigation').mockReturnValue(info ? ({ extras: { info: { carteira: info } } } as never) : null); vi.spyOn(router, 'navigate').mockResolvedValue(true);
     const fixture = TestBed.createComponent(CarteiraDetailPageComponent); fixture.detectChanges(); return { fixture, service, closed, dialog, toast, router, params, dashboard, operations };
   }
   afterEach(() => TestBed.resetTestingModule());
+
+  it('resolve corretoras para todo o histórico com uma consulta e preserva fallback e navegação', async () => {
+    const result = await create(CARTEIRA);
+    const brokers = vi.mocked(TestBed.inject(CorretorasService).listar);
+    brokers.mockReturnValue(of([{ id: 4, nomeFantasia: 'XP Investimentos', razaoSocial: 'XP SA' }] as any));
+    const operation: OperacaoResponse = { id: 20, carteiraId: 3, ticker: 'AAPL', mercado: 'EUA', corretoraId: 4, tipo: 'COMPRA', quantidade: '2', precoUnitario: '12.34', dataOperacao: '2026-08-31', ordemNoDia: 2, valorTotal: '24.68' };
+    result.operations.listarPorCarteira.mockReturnValue(of([operation, { ...operation, id: 21, corretoraId: 99 }, { ...operation, id: 22, corretoraId: null }]));
+    (result.fixture.componentInstance as any).loadHistory();
+    (result.fixture.componentInstance as any).loadHistory();
+    result.fixture.detectChanges();
+    expect(brokers).toHaveBeenCalledTimes(1);
+    const root: HTMLElement = result.fixture.nativeElement;
+    expect(root.textContent).toContain('XP Investimentos');
+    expect(root.textContent).toContain('Corretora #99');
+    expect(root.textContent).toContain('Sem corretora');
+    expect(root.textContent).toContain('Quantidade2');
+    expect(root.textContent).toContain('US$ 12,34');
+    expect(root.textContent).toContain('US$ 24,68');
+    expect(operation.precoUnitario).toBe('12.34');
+    expect(root.querySelector('a.history-item')?.getAttribute('href')).toContain('/operacoes/20?carteiraId=3&origem=carteira');
+  });
 
   it('usa DTO transitório compatível sem GET e mostra dados básicos e histórico', async () => { const { fixture, service } = await create(CARTEIRA); expect(service.buscarPorId).not.toHaveBeenCalled(); expect(fixture.nativeElement.textContent).toContain('Carteira detalhada'); expect(fixture.nativeElement.textContent).toContain('Histórico de operações'); expect(fixture.nativeElement.textContent).not.toMatch(/patrimônio|resumo por moeda/i); });
   it('ignora DTO incompatível e faz GET no acesso direto', async () => { const { service } = await create({ ...CARTEIRA, id: 99 }); expect(service.buscarPorId).toHaveBeenCalledOnce(); expect(service.buscarPorId).toHaveBeenCalledWith(3); });
@@ -46,8 +68,8 @@ describe('CarteiraDetailPageComponent', () => {
     closed.complete();
     fixture.detectChanges();
     expect(fixture.nativeElement.textContent).toContain('ordem 4');
-    expect(fixture.nativeElement.textContent).toContain('12,340000');
-    expect(fixture.nativeElement.textContent).toContain('24,680000000000');
+    expect(fixture.nativeElement.textContent).toContain('US$ 12,34');
+    expect(fixture.nativeElement.textContent).toContain('US$ 24,68');
     expect(toast.show).toHaveBeenCalledWith('Operação registrada com sucesso.');
   });
   it('reage ao paramMap, limpa posições antigas e isola histórico e respostas tardias', async () => {

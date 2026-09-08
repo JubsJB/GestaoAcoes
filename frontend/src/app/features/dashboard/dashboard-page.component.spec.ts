@@ -165,6 +165,44 @@ describe('DashboardPageComponent', () => {
     expect(evolution.registrarSnapshot).not.toHaveBeenCalled();
   });
 
+  it('ordena indicadores, evolução, posições e resultados, com quatro indicadores por moeda e sem seletor local', async () => {
+    const { fixture, dashboard, evolution, carteiras } = await create(of([A])); fixture.detectChanges();
+    const root = fixture.nativeElement as HTMLElement;
+    expect(Array.from(root.querySelectorAll('h2')).map(heading => heading.id).filter(id => ['summary-title', 'evolution-title', 'positions-title', 'results-title'].includes(id)))
+      .toEqual(['summary-title', 'evolution-title', 'positions-title', 'results-title']);
+    expect(root.querySelector('select, mat-select, app-carteira-selector')).toBeNull();
+    expect(root.querySelectorAll('.currency-group')).toHaveLength(2);
+    root.querySelectorAll('.summary-grid').forEach(group => {
+      expect(group.querySelectorAll('mat-card')).toHaveLength(4);
+      expect(group.querySelector('.summary-primary')?.textContent).toContain('Patrimônio atual');
+    });
+    expect(root.querySelectorAll('app-portfolio-positions')).toHaveLength(1);
+    expect(root.querySelectorAll('.result')).toHaveLength(1);
+    expect(carteiras.listar).toHaveBeenCalledTimes(1);
+    expect(dashboard.obterResumo).toHaveBeenCalledTimes(1);
+    expect(dashboard.listarPosicoes).toHaveBeenCalledTimes(1);
+    expect(dashboard.listarResultadosRealizados).toHaveBeenCalledTimes(1);
+    expect(evolution.consultar).toHaveBeenCalledTimes(1);
+    expect(evolution.registrarSnapshot).not.toHaveBeenCalled();
+  });
+
+  it('não remonta evolução quando indicadores terminam de carregar ou falham', async () => {
+    const pending = new Subject<any>();
+    const { fixture, dashboard, evolution } = await create(of([A]), { resumo: pending }); fixture.detectChanges();
+    const component = fixture.nativeElement.querySelector('app-portfolio-evolution');
+    expect(component).toBeTruthy();
+    expect(evolution.consultar).toHaveBeenCalledTimes(1);
+    pending.next(DATA.resumo); pending.complete(); fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('app-portfolio-evolution')).toBe(component);
+    expect(evolution.consultar).toHaveBeenCalledTimes(1);
+    dashboard.obterResumo.mockReturnValueOnce(throwError(() => ERROR));
+    const reload = Array.from(fixture.nativeElement.querySelectorAll('button')).find((button: any) => button.textContent.includes('Atualizar dados')) as HTMLButtonElement;
+    reload.click(); fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('app-portfolio-evolution')).toBe(component);
+    expect(evolution.consultar).toHaveBeenCalledTimes(2);
+    expect(evolution.registrarSnapshot).not.toHaveBeenCalled();
+  });
+
   it('cancela resposta obsoleta ao trocar rapidamente de carteira', async () => {
     query.next(convertToParamMap({ carteiraId: '1' }));
     const first = new Subject<any>();
@@ -188,6 +226,46 @@ describe('DashboardPageComponent', () => {
     expect(fixture.nativeElement.querySelector('.record a')).toBeFalsy();
     const register = Array.from(fixture.nativeElement.querySelectorAll('button')).find((button: any) => button.textContent.includes('Registrar operação')) as HTMLButtonElement;
     register.click(); expect(router.navigate).toHaveBeenCalledWith(['/operacoes/nova'], { queryParams: { carteiraId: 1, origem: 'dashboard' } });
+  });
+
+  it('preserva quatro GETs por carga/reload e evolução independente sem POST automático', async () => {
+    query.next(convertToParamMap({ carteiraId: '1' }));
+    await TestBed.configureTestingModule({
+      imports: [DashboardPageComponent],
+      providers: [{ provide: CARTEIRA_STORAGE, useValue: null }, provideRouter([]), provideApiConfig(), provideHttpClient(withInterceptors([httpErrorInterceptor])), provideHttpClientTesting(),
+        { provide: ActivatedRoute, useValue: { queryParamMap: query } },
+        { provide: CarteirasService, useValue: { listar: () => of([A]) } },
+        { provide: SuccessToastService, useValue: { show: vi.fn() } }]
+    }).compileComponents();
+    const fixture = TestBed.createComponent(DashboardPageComponent);
+    const http = TestBed.inject(HttpTestingController);
+    fixture.detectChanges();
+    const requests = http.match(() => true);
+    expect(requests.map(request => [request.request.method, request.request.url]).sort()).toEqual([
+      ['GET', '/api/carteiras/1/evolucao-patrimonial'], ['GET', '/api/carteiras/1/posicoes'],
+      ['GET', '/api/carteiras/1/resultados-realizados'], ['GET', '/api/carteiras/1/resumo']
+    ]);
+    const evolution = requests.find(request => request.request.url.endsWith('/evolucao-patrimonial'))!;
+    requests.find(request => request.request.url.endsWith('/resumo'))!.flush(JSON.stringify(DATA.resumo));
+    requests.find(request => request.request.url.endsWith('/posicoes'))!.flush('[]');
+    requests.find(request => request.request.url.endsWith('/resultados-realizados'))!.flush('[]');
+    fixture.detectChanges();
+    expect(fixture.nativeElement.textContent).toContain('R$ 241,00');
+    expect(fixture.nativeElement.textContent).toContain('Carregando histórico do patrimônio');
+    evolution.flush('falha', { status: 500, statusText: 'Erro' }); fixture.detectChanges();
+    expect(fixture.nativeElement.textContent).toContain('R$ 241,00');
+    http.expectNone(() => true);
+    const reload = Array.from(fixture.nativeElement.querySelectorAll('button')).find((button: any) => button.textContent.includes('Atualizar dados')) as HTMLButtonElement;
+    reload.click(); fixture.detectChanges();
+    const next = http.match(() => true);
+    expect(next.map(request => request.request.url).sort()).toEqual(requests.map(request => request.request.url).sort());
+    expect(next.every(request => request.request.method === 'GET')).toBe(true);
+    for (const request of next) {
+      const url = request.request.url;
+      request.flush(url.endsWith('/resumo') ? JSON.stringify(DATA.resumo) : url.endsWith('/evolucao-patrimonial') ? '{"carteiraId":1,"pontos":[]}' : '[]');
+    }
+    fixture.detectChanges();
+    http.verify();
   });
 
   it('integra HttpErrorResponse, interceptor, service e mensagem da UI', async () => {

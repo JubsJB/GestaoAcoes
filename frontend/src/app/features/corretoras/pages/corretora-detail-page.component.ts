@@ -46,7 +46,7 @@ import { CorretorasService } from '../corretoras.service';
     </section>
   `,
   styles: [`
-    .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,20rem),1fr));gap:1rem;align-items:start}.section-card mat-card-content{padding:1.25rem}.section-card:nth-child(1){grid-column:span 2}address{padding:1.25rem;font-style:normal;font-weight:550;line-height:1.7;overflow-wrap:anywhere}@media(max-width:48rem){.section-card:nth-child(1){grid-column:auto}}
+    .grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1rem;align-items:start}.section-card mat-card-content{padding:1.25rem}.section-card:nth-child(1){grid-column:span 2}address{padding:0;font-style:normal;font-weight:550;line-height:1.7;overflow-wrap:anywhere}@media(max-width:48rem){.grid{grid-template-columns:1fr}.section-card:nth-child(1){grid-column:auto}}
   `],
   changeDetection: ChangeDetectionStrategy.OnPush
 })

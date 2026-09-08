@@ -28,7 +28,7 @@ import { AcaoResponse } from '../models/acao';
           <button page-header-action mat-stroked-button type="button" (click)="updateQuote()" [disabled]="updating()" [attr.aria-busy]="updating()">Atualizar cotação</button>
         </app-page-header>
       } @else {
-        <app-page-header headingId="detail-title" eyebrow="Ações" icon="stock" [title]="notFound() ? 'Ação não encontrada' : loadError() ? 'Não foi possível carregar a ação' : 'Detalhe da ação'" description="Consulte a identificação e a última cotação persistida." />
+        <app-page-header headingId="detail-title" eyebrow="Ações" icon="stock" [title]="notFound() ? 'Ação não encontrada' : loadError() ? 'Não foi possível carregar a ação' : 'Detalhe da ação'" description="Consulte a identificação e a última cotação registrada." />
       }
 
       @if (loadError()) { <app-feedback-alert variant="error" [message]="loadError()!.message" [details]="loadError()!.details" /> }
@@ -42,12 +42,12 @@ import { AcaoResponse } from '../models/acao';
       @else if(acao();as item){
         <div class="grid">
           <mat-card class="section-card" appearance="outlined"><div class="section-card__heading"><app-icon name="identity" aria-hidden="true" /><h2>Identificação</h2></div><mat-card-content><dl class="data-list"><div><dt>Ticker</dt><dd>{{item.ticker}}</dd></div><div><dt>Empresa</dt><dd>{{item.nomeEmpresa}}</dd></div><div><dt>Mercado</dt><dd><span class="status-badge">{{market(item.mercado)}}</span></dd></div></dl></mat-card-content></mat-card>
-          <mat-card class="section-card quote-card" appearance="outlined"><div class="section-card__heading"><app-icon name="quote" aria-hidden="true" /><h2>Última cotação persistida</h2></div><mat-card-content><p class="quote-note">Valor fornecido pelo backend na referência abaixo; não representa garantia de cotação em tempo real.</p><dl class="data-list"><div><dt>Moeda</dt><dd><span class="status-badge">{{item.moeda}}</span></dd></div><div><dt>Cotação</dt><dd class="quote-value">{{quote(item.cotacaoAtual,item.moeda)}}</dd></div><div><dt>Atualizada em</dt><dd>{{dateTime(item.dataHoraCotacao)}}</dd></div></dl></mat-card-content></mat-card>
+          <mat-card class="section-card quote-card" appearance="outlined"><div class="section-card__heading"><app-icon name="quote" aria-hidden="true" /><h2>Última cotação registrada</h2></div><mat-card-content><p class="quote-note">Cotação na referência abaixo; pode não refletir o preço em tempo real.</p><dl class="data-list"><div><dt>Moeda</dt><dd><span class="status-badge">{{item.moeda}}</span></dd></div><div><dt>Cotação</dt><dd class="quote-value">{{quote(item.cotacaoAtual,item.moeda)}}</dd></div><div><dt>Atualizada em</dt><dd>{{dateTime(item.dataHoraCotacao)}}</dd></div></dl></mat-card-content></mat-card>
         </div>
       }
     </section>`,
   styles: [`
-    .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,22rem),1fr));gap:1rem;align-items:start}.section-card mat-card-content{padding:1.25rem}.progress{margin:0;color:var(--app-text-secondary)}.quote-card{background:linear-gradient(145deg,#fff,#fbfcf8)}.quote-note{margin-top:0;color:var(--app-text-secondary);font-size:.875rem;line-height:1.5}.quote-value{font-size:1.25rem;font-weight:720;color:var(--app-text-primary)}
+    .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,22rem),1fr));gap:1rem;align-items:start}.section-card mat-card-content{padding:1.25rem}.progress{margin:0;color:var(--app-text-secondary)}.quote-card{background:var(--app-surface-card)}.quote-note{margin-top:0;color:var(--app-text-secondary);font-size:.875rem;line-height:1.5}.quote-value{font-variant-numeric:tabular-nums;font-size:1.75rem;font-weight:720;color:var(--app-text-primary)}
   `],
   changeDetection: ChangeDetectionStrategy.OnPush
 })

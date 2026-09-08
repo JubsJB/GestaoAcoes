@@ -2,7 +2,7 @@ import { ChangeDetectionStrategy, Component, DestroyRef, inject, signal } from '
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
-import { MatCardModule } from '@angular/material/card';
+
 import { MatDialog } from '@angular/material/dialog';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
@@ -23,7 +23,7 @@ import { CorretoraCreatePageComponent } from './corretora-create-page.component'
 
 @Component({
   selector: 'app-corretoras-list-page',
-  imports: [AppIconComponent, FeedbackAlertComponent, MatButtonModule, MatCardModule, MatFormFieldModule, MatInputModule, MatProgressSpinnerModule, PageHeaderComponent, ReactiveFormsModule, RouterLink],
+  imports: [AppIconComponent, FeedbackAlertComponent, MatButtonModule, MatFormFieldModule, MatInputModule, MatProgressSpinnerModule, PageHeaderComponent, ReactiveFormsModule, RouterLink],
   template: `
     <section class="app-page collection-page" aria-labelledby="corretoras-title">
       <app-page-header headingId="corretoras-title" eyebrow="Instituições financeiras" icon="broker" title="Corretoras" description="Consulte e cadastre instituições por CNPJ.">
@@ -59,36 +59,38 @@ import { CorretoraCreatePageComponent } from './corretora-create-page.component'
         } @else if (corretoras().length === 0) {
           <div class="app-state app-surface"><span class="app-state__icon" aria-hidden="true"><app-icon name="empty" /></span><h2>Você ainda não possui corretoras cadastradas.</h2><p>Cadastre sua primeira instituição para começar a organizar seus investimentos.</p><button mat-stroked-button type="button" (click)="openCreateDialog()">Cadastrar a primeira</button></div>
         } @else {
-          <div class="broker-grid" aria-label="Corretoras cadastradas">
-            @for (corretora of corretoras(); track corretora.id) {
-              <mat-card class="entity-card entity-card--compact" appearance="outlined">
-                <div class="entity-card__heading">
-                  <span class="entity-card__icon" aria-hidden="true"><app-icon name="broker" /></span>
-                  <div class="entity-card__identity">
-                    <mat-card-title>{{ corretora.razaoSocial }}</mat-card-title>
-                    @if (corretora.nomeFantasia && corretora.nomeFantasia !== corretora.razaoSocial) {
-                      <mat-card-subtitle>{{ corretora.nomeFantasia }}</mat-card-subtitle>
-                    }
-                  </div>
-                </div>
-                <mat-card-content class="entity-card__data">
-                  <div><span>CNPJ</span><strong>{{ formatCnpj(corretora.cnpj) }}</strong></div>
-                  <div><span>Localidade</span><strong>{{ corretora.cidade }} — {{ corretora.uf }}</strong></div>
-                  <div><span>Situação cadastral</span><strong class="status-badge" [class]="'status-badge status-badge--' + statusVariant(corretora.situacaoCadastral)" [attr.data-status-variant]="statusVariant(corretora.situacaoCadastral)">{{ corretora.situacaoCadastral }}</strong></div>
-                </mat-card-content>
-                <mat-card-actions><a mat-button [routerLink]="[corretora.id]" [attr.aria-label]="'Ver detalhes de ' + corretora.razaoSocial">Ver detalhes</a></mat-card-actions>
-              </mat-card>
-            }
-          </div>
+          <table class="collection-table" role="table">
+            <caption>Corretoras cadastradas</caption>
+            <thead role="rowgroup"><tr role="row">
+              <th scope="col" role="columnheader">Instituição</th>
+              <th scope="col" role="columnheader">CNPJ</th>
+              <th scope="col" role="columnheader">Localidade</th>
+              <th scope="col" role="columnheader">Situação cadastral</th>
+              <th scope="col" role="columnheader">Ações</th>
+            </tr></thead>
+            <tbody role="rowgroup">
+              @for (corretora of corretoras(); track corretora.id) {
+                <tr role="row">
+                  <th scope="row" role="rowheader"><span class="cell-label" aria-hidden="true">Instituição</span>{{ corretora.razaoSocial }}
+                    @if (corretora.nomeFantasia && corretora.nomeFantasia !== corretora.razaoSocial) { <small>{{ corretora.nomeFantasia }}</small> }
+                  </th>
+                  <td role="cell"><span class="cell-label" aria-hidden="true">CNPJ</span>{{ formatCnpj(corretora.cnpj) }}</td>
+                  <td role="cell"><span class="cell-label" aria-hidden="true">Localidade</span>{{ corretora.cidade }} — {{ corretora.uf }}</td>
+                  <td role="cell"><span class="cell-label" aria-hidden="true">Situação cadastral</span><strong [class]="'status-badge status-badge--' + statusVariant(corretora.situacaoCadastral)" [attr.data-status-variant]="statusVariant(corretora.situacaoCadastral)">{{ corretora.situacaoCadastral }}</strong></td>
+                  <td role="cell"><span class="cell-label" aria-hidden="true">Ações</span><a [routerLink]="[corretora.id]" [attr.aria-label]="'Ver detalhes de ' + corretora.razaoSocial">Ver detalhes</a></td>
+                </tr>
+              }
+            </tbody>
+          </table>
         }
       </div>
     </section>
   `,
+  styleUrl: '../../../shared/collection/collection.scss',
   styles: [`
-    .collection-page{height:calc(100dvh - 8rem);overflow:hidden}.collection-region{min-height:0;overflow:auto;padding:.125rem .25rem .75rem 0;overscroll-behavior:contain}.search{display:flex;align-items:flex-start;gap:1rem}.search mat-form-field{flex:1 1 18rem}.broker-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,20rem),1fr));gap:.75rem}.entity-card{border-color:var(--app-border-subtle);border-radius:var(--app-card-radius);background:var(--app-surface-card);box-shadow:0 .2rem .75rem rgb(31 36 29 / 5%)}.entity-card--compact{padding:.9rem 1rem .65rem}.entity-card__heading{display:flex;align-items:flex-start;gap:.75rem;min-width:0}.entity-card__icon{width:2.25rem;height:2.25rem;display:grid;place-items:center;flex:0 0 auto;border-radius:.7rem;color:var(--app-brand-primary);background:var(--app-surface-selected)}.entity-card__identity{min-width:0}.entity-card mat-card-title{font-size:1rem;font-weight:680;overflow-wrap:anywhere;line-height:1.3}.entity-card mat-card-subtitle{margin-top:.15rem;font-size:.8rem;overflow-wrap:anywhere}.entity-card__data{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.7rem 1rem;padding:1rem 0 .35rem}.entity-card__data div{display:grid;gap:.2rem;min-width:0}.entity-card__data span:not(.status-badge){color:var(--app-text-secondary);font-size:.68rem;font-weight:700;letter-spacing:.055em;text-transform:uppercase}.entity-card__data strong{font-size:.84rem;font-weight:600;overflow-wrap:anywhere}.entity-card__data div:last-child{grid-column:1/-1}.entity-card mat-card-actions{min-height:auto;padding:.25rem 0 0;border-top:1px solid var(--app-border-subtle)}.search-progress{margin:0;color:var(--app-text-secondary)}
-    .collection-page{display:flex;flex-direction:column}.collection-region{flex:1 1 auto}
+    .collection-page{height:calc(100dvh - 8rem);overflow:hidden;display:flex;flex-direction:column}.collection-region{min-height:0;overflow:auto;padding:.125rem .25rem .75rem 0;overscroll-behavior:contain;flex:1 1 auto}.search{display:flex;align-items:flex-start;gap:1rem}.search mat-form-field{flex:1 1 18rem}.search-progress{margin:0;color:var(--app-text-secondary)}
     @media(max-width:959.98px){.collection-page{height:calc(100dvh - 5.5rem)}}
-    @media(max-width:36rem){.collection-page{height:auto;overflow:visible}.collection-region{overflow:visible;padding-right:0}.search{display:grid;grid-template-columns:1fr}.search mat-form-field{width:100%}.entity-card__data{grid-template-columns:1fr}.entity-card__data div:last-child{grid-column:auto}}
+    @media(max-width:36rem){.collection-page{height:auto;overflow:visible}.collection-region{overflow:visible;padding-right:0}.search{display:grid;grid-template-columns:1fr}.search mat-form-field{width:100%}}
   `],
   changeDetection: ChangeDetectionStrategy.OnPush
 })

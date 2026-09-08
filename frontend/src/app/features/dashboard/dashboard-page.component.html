@@ -1,5 +1,5 @@
 <section class="app-page dashboard" aria-labelledby="dashboard-title">
-  <app-page-header headingId="dashboard-title" eyebrow="Visão geral" icon="dashboard" title="Dashboard" description="Acompanhe os valores autoritativos de uma carteira, sempre separados por moeda." />
+  <app-page-header headingId="dashboard-title" eyebrow="Visão geral" icon="dashboard" title="Dashboard" description="Acompanhe seu patrimônio e suas posições, sempre separados por moeda." />
 
   @if (portfoliosError()) {
     <app-feedback-alert variant="error" [message]="portfoliosError()!.message" [details]="portfoliosError()!.details" />
@@ -36,7 +36,7 @@
           @if (dashboard.resumo.resumos.length === 0) { <div class="app-state app-surface"><h3>Resumo ainda indisponível</h3><p>Esta carteira não possui posições abertas.</p></div> }
           @else { <div class="currency-groups">@for (item of dashboard.resumo.resumos; track item.moeda) {
             <section class="currency-group" [attr.aria-labelledby]="'currency-' + item.moeda"><h3 [id]="'currency-' + item.moeda">{{ item.moeda }}</h3><div class="summary-grid">
-              <mat-card appearance="outlined"><mat-card-content><span>Patrimônio atual</span><strong>{{ money(item.patrimonioAtual, item.moeda) }}</strong></mat-card-content></mat-card>
+              <mat-card appearance="outlined" class="summary-primary"><mat-card-content><span>Patrimônio atual</span><strong>{{ money(item.patrimonioAtual, item.moeda) }}</strong></mat-card-content></mat-card>
               <mat-card appearance="outlined"><mat-card-content><span>Custo total das posições</span><strong>{{ money(item.custoTotalPosicoes, item.moeda) }}</strong></mat-card-content></mat-card>
               <mat-card appearance="outlined"><mat-card-content><span>Resultado não realizado</span><strong>{{ money(item.resultadoNaoRealizadoTotal, item.moeda) }}</strong><small>{{ outcome(item.resultadoNaoRealizadoTotal) }}</small></mat-card-content></mat-card>
               <mat-card appearance="outlined"><mat-card-content><span>Rentabilidade</span><strong>{{ percent(item.rentabilidadePercentual) }}</strong><small>{{ outcome(item.rentabilidadePercentual) }}</small></mat-card-content></mat-card>
@@ -44,6 +44,15 @@
           }</div> }
         </section>
 
+      }
+
+      <app-portfolio-evolution
+        [carteiraId]="selected()!.id"
+        [carteiraNome]="selected()!.nome"
+        [refreshToken]="evolutionRefresh()"
+      />
+
+      @if (data(); as dashboard) {
         <section aria-labelledby="positions-title"><h2 id="positions-title">Posições abertas</h2>
           <app-portfolio-positions [positions]="dashboard.posicoes" />
         </section>
@@ -56,11 +65,6 @@
         </section>
       }
 
-      <app-portfolio-evolution
-        [carteiraId]="selected()!.id"
-        [carteiraNome]="selected()!.nome"
-        [refreshToken]="evolutionRefresh()"
-      />
     }
   }
 </section>

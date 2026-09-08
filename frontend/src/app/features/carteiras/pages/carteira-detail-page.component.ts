@@ -1,3 +1,4 @@
+import { CorretoraNamesService } from '../../corretoras/corretora-names.service';
 import { ChangeDetectionStrategy, Component, DestroyRef, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { MatButtonModule } from '@angular/material/button';
@@ -20,7 +21,7 @@ import { PageHeaderComponent } from '../../../shared/page-header/page-header.com
 import { StickyBackComponent } from '../../../shared/sticky-back/sticky-back.component';
 import { SuccessToastService } from '../../../shared/success-toast/success-toast.service';
 import { OperacaoResponse } from '../../operacoes/models/operacao';
-import { formatCivilDate, formatDecimal } from '../../operacoes/operacao-validators';
+import { formatCivilDate, formatMoney, formatOperationQuantity } from '../../operacoes/operacao-validators';
 import { OperacoesService } from '../../operacoes/operacoes.service';
 import { OperacaoFormPageComponent } from '../../operacoes/pages/operacao-form-page.component';
 import { CarteiraDeleteConfirmDialogComponent } from '../carteira-delete-confirm-dialog.component';
@@ -28,9 +29,9 @@ import { CarteirasService } from '../carteiras.service';
 import { CarteiraResponse } from '../models/carteira';
 import { CarteiraFormPageComponent } from './carteira-form-page.component';
 
-@Component({selector:'app-carteira-detail-page',imports:[PortfolioPositionsComponent,AppIconComponent,FeedbackAlertComponent,MatButtonModule,MatCardModule,MatProgressSpinnerModule,PageHeaderComponent,RouterLink,StickyBackComponent],template:`
+@Component({providers:[CorretoraNamesService],selector:'app-carteira-detail-page',imports:[PortfolioPositionsComponent,AppIconComponent,FeedbackAlertComponent,MatButtonModule,MatCardModule,MatProgressSpinnerModule,PageHeaderComponent,RouterLink,StickyBackComponent],template:`
 <section class="app-page" aria-labelledby="carteira-detail-title"><app-sticky-back route="/carteiras" label="Voltar para carteiras"/>
-@if(carteira();as item){<app-page-header headingId="carteira-detail-title" eyebrow="Detalhe da carteira" icon="portfolio" [title]="item.nome" description="Dados básicos, posições abertas e histórico da carteira."><div page-header-action class="app-actions app-actions--stack-compact"><button mat-stroked-button type="button" (click)="openEditDialog()">Editar</button><button mat-flat-button type="button" (click)="openDeleteDialog()">Excluir</button></div></app-page-header>}@else{<app-page-header headingId="carteira-detail-title" eyebrow="Carteiras" icon="portfolio" [title]="notFound()?'Carteira não encontrada':error()?'Não foi possível carregar a carteira':'Detalhe da carteira'" description="Consulte os dados básicos da carteira."/>}
+@if(carteira();as item){<app-page-header headingId="carteira-detail-title" eyebrow="Detalhe da carteira" icon="portfolio" [title]="item.nome" description="Dados básicos, posições abertas e histórico da carteira."><div page-header-action class="app-actions app-actions--stack-compact"><button mat-stroked-button type="button" (click)="openEditDialog()">Editar</button><button mat-flat-button type="button" class="destructive" (click)="openDeleteDialog()">Excluir</button></div></app-page-header>}@else{<app-page-header headingId="carteira-detail-title" eyebrow="Carteiras" icon="portfolio" [title]="notFound()?'Carteira não encontrada':error()?'Não foi possível carregar a carteira':'Detalhe da carteira'" description="Consulte os dados básicos da carteira."/>}
 @if(error()){<app-feedback-alert variant="error" [message]="error()!.message" [details]="error()!.details"/>}
 @if(loading()){<div class="app-state" role="status" aria-live="polite"><mat-spinner diameter="36"/>Carregando carteira…</div>}@else if(error()){<div class="app-state">@if(notFound()){<a mat-stroked-button routerLink="/carteiras">Voltar para a listagem</a>}@else{<button mat-stroked-button type="button" (click)="load()">Tentar novamente</button>}</div>}@else if(carteira();as item){
 <mat-card class="section-card" appearance="outlined"><div class="section-card__heading"><app-icon name="identity" aria-hidden="true"/><h2>Identificação</h2></div><mat-card-content><dl class="data-list"><div><dt>Nome</dt><dd>{{item.nome}}</dd></div><div><dt>Identificador</dt><dd>{{item.id}}</dd></div><div><dt>Data de criação</dt><dd>{{dateTime(item.dataCriacao)}}</dd></div></dl></mat-card-content></mat-card>
@@ -40,9 +41,10 @@ import { CarteiraFormPageComponent } from './carteira-form-page.component';
 @else{<app-portfolio-positions [positions]="positions()"/>}</section>
 <section class="history" aria-labelledby="portfolio-history-title"><div class="history__heading"><div><h2 id="portfolio-history-title">Histórico de operações</h2><p>Compras e vendas desta carteira na ordem cronológica.</p></div><button mat-flat-button type="button" (click)="openOperationDialog()">Registrar operação</button></div>
 @if(historyError()){<app-feedback-alert variant="error" [message]="historyError()!.message" [details]="historyError()!.details"/>}
-@if(historyLoading()){<div class="app-state" role="status" aria-live="polite"><mat-spinner diameter="32"/>Carregando histórico…</div>}@else if(historyError()){<div class="app-state"><button mat-stroked-button type="button" (click)="loadHistory()">Tentar novamente</button></div>}@else if(history().length===0){<div class="app-state app-surface"><h3>Nenhuma operação nesta carteira.</h3><p>Registre a primeira movimentação.</p></div>}@else{<div class="history-list">@for(op of history();track op.id){<a class="history-item app-surface" [routerLink]="['/operacoes',op.id]" [info]="{operacao:op}" [queryParams]="{carteiraId:item.id,origem:'carteira'}"><strong>{{op.tipo}} · {{op.ticker}}</strong><span>{{civilDate(op.dataOperacao)}} · ordem {{op.ordemNoDia}}</span><span>{{decimal(op.quantidade)}} × {{decimal(op.precoUnitario)}} {{op.moeda??(op.mercado==='BRASIL'?'BRL':'USD')}}</span><span>Total {{decimal(op.valorTotal)}} · {{op.corretoraId==null?'Sem corretora':'Corretora #'+op.corretoraId}}</span></a>}</div>}</section>}
-</section>`,styles:[`.section-card{max-width:48rem}.section-card mat-card-content{padding:1.25rem}.data-list dd{overflow-wrap:anywhere}.history{display:grid;gap:1rem}.history__heading{display:flex;align-items:center;justify-content:space-between;gap:1rem}.history__heading h2,.history__heading p{margin:0}.history__heading p{margin-top:.25rem;color:var(--app-text-secondary)}.history-list{display:grid;gap:.75rem}.history-item{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.75rem;padding:1rem;color:inherit;text-decoration:none}.history-item:focus-visible{outline:3px solid var(--app-brand-primary);outline-offset:2px}.history-item span{overflow-wrap:anywhere;color:var(--app-text-secondary)}@media(max-width:48rem){.history-item{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:36rem){.history__heading{align-items:stretch;flex-direction:column}.history-item{grid-template-columns:1fr}}`],changeDetection:ChangeDetectionStrategy.OnPush})
+@if(historyLoading()){<div class="app-state" role="status" aria-live="polite"><mat-spinner diameter="32"/>Carregando histórico…</div>}@else if(historyError()){<div class="app-state"><button mat-stroked-button type="button" (click)="loadHistory()">Tentar novamente</button></div>}@else if(history().length===0){<div class="app-state app-surface"><h3>Nenhuma operação nesta carteira.</h3><p>Registre a primeira movimentação.</p></div>}@else{<table class="collection-table" role="table"><caption>Histórico da carteira</caption><thead role="rowgroup"><tr role="row"><th scope="col" role="columnheader">Ativo</th><th scope="col" role="columnheader">Tipo</th><th scope="col" role="columnheader">Data · ordem</th><th scope="col" role="columnheader">Carteira</th><th scope="col" role="columnheader" class="numeric">Quantidade</th><th scope="col" role="columnheader" class="numeric">Preço unitário</th><th scope="col" role="columnheader" class="numeric">Valor total</th><th scope="col" role="columnheader">Corretora</th><th scope="col" role="columnheader">Ações</th></tr></thead><tbody role="rowgroup">@for(op of history();track op.id){<tr role="row"><th scope="row" role="rowheader"><span class="cell-label" aria-hidden="true">Ativo</span>{{op.ticker}}<small>{{op.mercado}} · {{op.moeda??(op.mercado==='BRASIL'?'BRL':'USD')}}</small></th><td role="cell"><span class="cell-label" aria-hidden="true">Tipo</span>{{op.tipo}}</td><td role="cell"><span class="cell-label" aria-hidden="true">Data · ordem</span>{{civilDate(op.dataOperacao)}} · ordem {{op.ordemNoDia}}</td><td role="cell"><span class="cell-label" aria-hidden="true">Carteira</span>#{{op.carteiraId}}</td><td role="cell" class="numeric"><span class="cell-label" aria-hidden="true">Quantidade</span>{{quantity(op.quantidade,op.mercado)}}</td><td role="cell" class="numeric"><span class="cell-label" aria-hidden="true">Preço unitário</span>{{money(op.precoUnitario,op.moeda??(op.mercado==='BRASIL'?'BRL':'USD'))}}</td><td role="cell" class="numeric"><span class="cell-label" aria-hidden="true">Valor total</span>{{money(op.valorTotal,op.moeda??(op.mercado==='BRASIL'?'BRL':'USD'))}}</td><td role="cell"><span class="cell-label" aria-hidden="true">Corretora</span>{{brokerNames.name(op.corretoraId)}}</td><td role="cell"><span class="cell-label" aria-hidden="true">Ações</span><a class="history-item" [routerLink]="['/operacoes',op.id]" [info]="{operacao:op}" [queryParams]="{carteiraId:item.id,origem:'carteira'}" [attr.aria-label]="'Ver detalhes da operação '+op.id">Ver detalhes</a></td></tr>}</tbody></table>}</section>}
+</section>`,styleUrl:'../../../shared/collection/collection.scss',styles:[`.destructive{--mat-button-filled-container-color:var(--app-error)}.section-card{max-width:48rem}.section-card mat-card-content{padding:1.25rem}.data-list dd{overflow-wrap:anywhere}.history{display:grid;gap:1rem}.history__heading{display:flex;align-items:center;justify-content:space-between;gap:1rem}.history__heading h2,.history__heading p{margin:0}.history__heading p{margin-top:.25rem;color:var(--app-text-secondary)}@media(max-width:48rem){}@media(max-width:36rem){.history__heading{align-items:stretch;flex-direction:column}}`],changeDetection:ChangeDetectionStrategy.OnPush})
 export class CarteiraDetailPageComponent {
+  protected readonly brokerNames = inject(CorretoraNamesService);
   private readonly service = inject(CarteirasService);
   private readonly context = inject(CarteiraContextService);
   private readonly dashboard = inject(DashboardService);
@@ -71,7 +73,7 @@ export class CarteiraDetailPageComponent {
   protected readonly positionsError = signal<NormalizedHttpError | null>(null);
   protected readonly dateTime = formatOffsetDateTime;
   protected readonly civilDate = formatCivilDate;
-  protected readonly decimal = formatDecimal;
+  protected readonly quantity = formatOperationQuantity; protected readonly money = formatMoney;
 
   constructor() {
     this.route.paramMap.pipe(map(params => params.get('id')), distinctUntilChanged(), takeUntilDestroyed(this.destroyRef)).subscribe(raw => {
@@ -120,7 +122,7 @@ export class CarteiraDetailPageComponent {
     const item = this.carteira(); if (!item) return;
     this.historyRequest?.unsubscribe(); this.historyLoading.set(true); this.historyError.set(null);
     this.historyRequest = this.operationsService.listarPorCarteira(item.id).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
-      next: items => { this.history.set(this.withCreatedOperations(items)); this.historyLoading.set(false); },
+      next: items => { this.history.set(this.withCreatedOperations(items)); this.brokerNames.loadFor(this.history()); this.historyLoading.set(false); },
       error: (error: NormalizedHttpError) => { this.historyError.set(error); this.historyLoading.set(false); }
     });
   }
@@ -139,7 +141,7 @@ export class CarteiraDetailPageComponent {
     this.closeDialogs.push(() => ref.close());
     ref.afterClosed().pipe(takeUntilDestroyed(this.destroyRef)).subscribe((created: OperacaoResponse | undefined) => {
       if (!created || generation !== this.generation || created.carteiraId !== carteira.id) return;
-      this.createdOperations.set(created.id, created);
+      this.createdOperations.set(created.id, created); this.brokerNames.loadFor([created]);
       this.history.update(items => this.withCreatedOperations(items));
       this.successToast.show('Operação registrada com sucesso.'); this.loadPositions();
     });

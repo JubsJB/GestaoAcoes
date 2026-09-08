@@ -44,7 +44,7 @@ A área SHALL substituir somente o placeholder de Carteiras e SHALL manter seu l
 - **THEN** Dashboard e Operações continuam placeholders e Corretoras e Ações mantêm seus limites e comportamentos
 
 ### Requirement: Listagem e estados da coleção
-A página de listagem SHALL carregar `GET /carteiras` uma vez ao entrar, apresentar todas as Carteiras na ordem fornecida pelo backend e exibir nome e `dataCriacao` formatada somente na apresentação conforme o padrão temporal compartilhado. Ela SHALL diferenciar loading, coleção vazia, conteúdo e erro recuperável.
+A página de listagem SHALL carregar `GET /carteiras` uma vez ao entrar, apresentar todas as Carteiras na ordem fornecida pelo backend e exibir nome e `dataCriacao` formatada somente na apresentação conforme o padrão temporal compartilhado. Ela SHALL diferenciar loading, coleção vazia, conteúdo e erro recuperável. A listagem SHALL usar tabela semântica no desktop e refluir para cards completos no mobile, com uma única representação acessível e focável, preservando nome, data de criação, contexto e ação Ver detalhes. O nome SHALL ser principal, sem destaque de ID técnico; a data SHALL manter o formatador atual. O contexto SHALL indicar textualmente “Ativa” apenas quando o ID corresponder ao activeId do CarteiraContextService, sem selecionar, persistir ou inicializar consultas por renderização. A listagem MUST NOT acrescentar requisições, métricas ou edição/exclusão inline e SHALL preservar Nova carteira no cabeçalho.
 
 #### Scenario: Listagem com registros
 - **WHEN** `GET /carteiras` devolve uma ou mais Carteiras
@@ -65,6 +65,14 @@ A página de listagem SHALL carregar `GET /carteiras` uma vez ao entrar, apresen
 #### Scenario: Abertura do detalhe
 - **WHEN** o usuário aciona uma Carteira listada
 - **THEN** a aplicação abre seu detalhe e MAY transportar o DTO completo como estado transitório para evitar GET imediato redundante
+
+#### Scenario: Tabela desktop e cards mobile
+- **WHEN** Carteiras com nomes longos são exibidas
+- **THEN** nome, data, contexto e Ver detalhes permanecem completos e legíveis em uma linha por Carteira no desktop e cards no mobile, sem truncamento obrigatório, controles duplicados ou métricas novas
+
+#### Scenario: Indicação passiva do contexto global
+- **WHEN** a Carteira ativa muda no CarteiraContextService
+- **THEN** somente a Carteira correspondente recebe a indicação textual Ativa, sem nova requisição, mudança de seleção ou persistência causada pela listagem; quando não há correspondência, nenhum item é marcado ativo
 
 ### Requirement: Cadastro contextual e direto
 A aplicação SHALL criar Carteiras por Typed Reactive Form contendo somente `nome`, com validação estrutural de obrigatoriedade, conteúdo não branco e máximo de 255 caracteres. A listagem SHALL iniciar o cadastro em dialog acessível, enquanto `/carteiras/nova` SHALL reutilizar o mesmo formulário em página. O backend SHALL permanecer autoridade final e nomes duplicados MUST NOT ser rejeitados localmente.
@@ -94,7 +102,7 @@ A aplicação SHALL criar Carteiras por Typed Reactive Form contendo somente `no
 - **THEN** o dialog ou página retorna ao contexto anterior sem POST
 
 ### Requirement: Detalhe básico da Carteira
-A aplicação SHALL apresentar em `/carteiras/{id}` nome, identificador e data de criação da Carteira, com ação textual de retorno para `/carteiras` e ações Editar e Excluir. O detalhe SHALL incorporar uma seção de histórico de Operações e uma ação “Registrar operação” fornecidas pela capability `frontend-operation-management`, incorporando posições abertas pelo contrato existente e sem acrescentar indicadores não solicitados.
+A aplicação SHALL apresentar em `/carteiras/{id}` nome, identificador e data de criação da Carteira, com ação textual de retorno para `/carteiras` e ações Editar e Excluir. O detalhe SHALL incorporar uma seção de histórico de Operações e uma ação “Registrar operação” fornecidas pela capability `frontend-operation-management`, incorporando posições abertas pelo contrato existente e sem acrescentar indicadores não solicitados. O detalhe SHALL separar contexto cadastral, ações, posições abertas e histórico por hierarquia visual, preservando os campos autoritativos existentes, reação à mudança de rota e estados independentes de posições e histórico. O histórico SHALL adotar o mesmo padrão semântico de tabela desktop e cards mobile de Operações, sem duplicar consultas nem alterar o formulário contextual.
 
 #### Scenario: Detalhe com estado transitório
 - **WHEN** a navegação fornece `CarteiraResponse` compatível com o ID da rota
@@ -123,6 +131,10 @@ A aplicação SHALL apresentar em `/carteiras/{id}` nome, identificador e data d
 #### Scenario: Sem antecipação financeira
 - **WHEN** o detalhe é exibido
 - **THEN** somente posições abertas e histórico são apresentados como seções financeiras; resumo, patrimônio agregado e evolução não são adicionados
+
+#### Scenario: Histórico visual consistente
+- **WHEN** o histórico contextual está disponível
+- **THEN** seus campos, ordem e estados permanecem equivalentes aos de Operações, com apenas uma representação acessível ativa
 
 ### Requirement: Edição exclusiva do nome
 A aplicação SHALL editar somente `nome` por Typed Reactive Form preenchido com o valor atual. O detalhe SHALL iniciar a edição em dialog acessível e `/carteiras/{id}/editar` SHALL reutilizar o mesmo formulário em página. A aplicação MUST NOT enviar `id`, `dataCriacao` ou outro campo.
