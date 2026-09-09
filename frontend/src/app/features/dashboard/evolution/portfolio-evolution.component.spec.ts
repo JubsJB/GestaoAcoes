@@ -6,6 +6,7 @@ import { NormalizedHttpError } from '../../../core/errors/normalized-http-error'
 import { SuccessToastService } from '../../../shared/success-toast/success-toast.service';
 import { EvolucaoPatrimonialResponse, SnapshotCarteiraResponse } from './evolution.models';
 import { EvolutionService } from './evolution.service';
+import { buildEvolutionGeometry, segmentPath } from './evolution-geometry';
 import { formatLocalDateTime, PortfolioEvolutionComponent } from './portfolio-evolution.component';
 
 const EMPTY: EvolucaoPatrimonialResponse = { carteiraId: 1, pontos: [] };
@@ -98,8 +99,8 @@ describe('PortfolioEvolutionComponent', () => {
     expect(styles).toContain('white-space: nowrap');
     expect(styles).toContain('width: max-content');
     expect(styles).toMatch(/@container \(max-width:\s*36rem\)/);
-    expect(styles).toContain('minmax(min(100%, 10rem), 1fr)');
-    expect(styles.split('@media')[0]).toContain('grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr))');
+    expect(styles).toMatch(/@container[^}]+\.charts[^}]+grid-template-columns: 1fr/);
+    expect(styles.split('@media')[0]).toContain('grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr))');
     expect(fixture.nativeElement.querySelectorAll('.charts > .chart')).toHaveLength(2);
     expect(fixture.nativeElement.querySelectorAll('.history')).toHaveLength(1);
     expect(fixture.nativeElement.querySelector('svg').getAttribute('viewBox')).toBe('0 0 720 260');
@@ -313,4 +314,25 @@ describe('PortfolioEvolutionComponent', () => {
     expect(service.consultar).toHaveBeenCalledTimes(2);
     expect((Array.from(fixture.nativeElement.querySelectorAll('button')).find((item: any) => item.textContent.includes('Registrar patrimônio atual')) as HTMLButtonElement).disabled).toBe(false);
   });
+  it('refina o grid sem mudar coordenadas, segmentos ou criar séries e chamadas', async () => {
+    const data = { carteiraId: 1, pontos: [DATA.pontos[0],
+      { ...DATA.pontos[2], snapshotId: 5, dataHoraSnapshot: '2026-09-05T10:00:00Z' },
+      DATA.pontos[3],
+      { ...DATA.pontos[2], snapshotId: 6, dataHoraSnapshot: '2026-09-06T10:00:00Z' }
+    ] };
+    const fixture = await create(data);
+    const root = fixture.nativeElement as HTMLElement;
+    const series = buildEvolutionGeometry(data.pontos, 'BRL')!;
+    expect(root.querySelectorAll('.chart-grid[aria-hidden="true"]')).toHaveLength(1);
+    expect(root.querySelectorAll('.series-line')).toHaveLength(1);
+    expect(root.querySelector('.series-line')?.getAttribute('d')).toBe(segmentPath(series.segments[0]));
+    expect(Array.from(root.querySelectorAll('.point circle')).map(p => [p.getAttribute('cx'), p.getAttribute('cy')]))
+      .toEqual(series.points.map(p => [String(p.x), String(p.y)]));
+    expect(root.querySelectorAll('.history')).toHaveLength(1);
+    expect(root.querySelectorAll('.history li')).toHaveLength(4);
+    expect(root.querySelectorAll('svg path')).toHaveLength(1);
+    expect(service.consultar).toHaveBeenCalledTimes(1);
+    expect(service.registrarSnapshot).not.toHaveBeenCalled();
+  });
+
 });

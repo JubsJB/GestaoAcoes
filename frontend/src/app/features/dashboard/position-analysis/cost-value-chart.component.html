@@ -1,0 +1,41 @@
+<section aria-labelledby="cost-value-title">
+  <h3 id="cost-value-title">Custo × Valor atual</h3>
+  <p class="chart-description">Compare quanto foi investido em cada ativo com o valor atual da posição.</p>
+  <div class="chart-groups">
+    @for (group of groups(); track group.currency) {
+      <section class="chart-group app-surface" [attr.aria-labelledby]="'cost-value-' + group.currency">
+        <h4 [id]="'cost-value-' + group.currency">{{ group.currency }}</h4>
+        <ul class="chart-assets">
+          @for (row of group.rows; track row.position.acaoId) {
+            <li class="chart-asset" [attr.data-asset-id]="row.position.acaoId">
+              <div class="asset-heading"><strong>{{ row.position.ticker }}</strong><span>{{ row.position.nomeEmpresa }}</span></div>
+              <dl class="comparison-plot">
+                @for (series of row.series; track series.kind) {
+                  <div class="chart-series" [class]="series.kind">
+                    <dt>{{ series.label }}</dt>
+                    <dd>
+                      <span class="amount">{{ series.formatted }}</span>
+                      @if (series.complete) { <small>Valor completo: {{ series.authoritativeValue }} {{ group.currency }}</small> }
+                      @if (series.sign === null || series.sign === -1) {
+                        <small>Valor indisponível nesta escala de comparação.</small>
+                      } @else if (series.small) {
+                        <small>Valor não nulo; a barra pode não ser perceptível nesta escala.</small>
+                      }
+                    </dd>
+                    <svg class="bar" viewBox="0 0 1000 16" preserveAspectRatio="none" aria-hidden="true" focusable="false">
+                      @if (series.sign === 1 && series.ratio !== null) {
+                        <svg [attr.width]="series.ratio * 1000" height="16" overflow="hidden" focusable="false">
+                          <rect x="0" y="0" [attr.width]="series.ratio * 1000" height="16" />
+                        </svg>
+                      }
+                    </svg>
+                  </div>
+                }
+              </dl>
+            </li>
+          }
+        </ul>
+      </section>
+    }
+  </div>
+</section>

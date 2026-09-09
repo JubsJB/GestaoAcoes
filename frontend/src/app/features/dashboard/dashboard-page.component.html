@@ -30,9 +30,8 @@
       } @else if (financialLoading()) {
         <div class="app-state" role="status" aria-live="polite"><mat-spinner diameter="36" /> Atualizando indicadores de {{ selected()!.nome }}…</div>
       } @else if (data(); as dashboard) {
-        <p class="position-count" role="status">{{ dashboard.posicoes.length }} {{ dashboard.posicoes.length === 1 ? 'posição aberta' : 'posições abertas' }}</p>
-
-        <section aria-labelledby="summary-title"><h2 id="summary-title">Resumo por moeda</h2>
+        <section aria-labelledby="summary-title">
+          <header class="summary-heading"><h2 id="summary-title">Resumo por moeda</h2><p class="position-count" role="status">{{ dashboard.posicoes.length }} {{ dashboard.posicoes.length === 1 ? 'posição aberta' : 'posições abertas' }}</p></header>
           @if (dashboard.resumo.resumos.length === 0) { <div class="app-state app-surface"><h3>Resumo ainda indisponível</h3><p>Esta carteira não possui posições abertas.</p></div> }
           @else { <div class="currency-groups">@for (item of dashboard.resumo.resumos; track item.moeda) {
             <section class="currency-group" [attr.aria-labelledby]="'currency-' + item.moeda"><h3 [id]="'currency-' + item.moeda">{{ item.moeda }}</h3><div class="summary-grid">
@@ -43,7 +42,7 @@
             </div></section>
           }</div> }
         </section>
-
+        <app-position-analysis [positions]="dashboard.posicoes" />
       }
 
       <app-portfolio-evolution

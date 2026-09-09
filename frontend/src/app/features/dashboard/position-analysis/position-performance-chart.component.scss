@@ -1,0 +1,27 @@
+:host{display:block;min-width:0}
+.performance{padding:1.25rem;box-shadow:none;overflow-wrap:anywhere}
+h3,h4,p,ul{margin:0}h3{font-size:1.1rem;letter-spacing:-.02em}
+header p{margin-top:.5rem;color:var(--app-text-secondary);font-size:.875rem}
+.currency{margin-top:1.5rem}.currency+.currency{border-top:1px solid var(--app-border-subtle);padding-top:1.25rem}
+h4{font-size:.875rem;letter-spacing:.06em}
+.axis-labels{display:flex;justify-content:space-between;margin:.75rem 0 .25rem;color:var(--app-text-secondary);font-size:.75rem}
+ul{padding:0;list-style:none}li+li{margin-top:1.25rem}
+.row-heading{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:.75rem;align-items:start}
+.identity,.value{display:grid;gap:.2rem;min-width:0}.identity span,.value span,small{font-size:.8125rem;color:var(--app-text-secondary)}
+.value{text-align:right;font-variant-numeric:tabular-nums}.value strong{font-size:1.05rem}
+.positive{color:var(--app-financial-positive);fill:var(--app-financial-positive)}
+.negative{color:var(--app-negative);fill:var(--app-negative)}
+svg{display:block;width:100%;height:1.5rem;margin-top:.4rem;overflow:visible}
+.guides{stroke:var(--app-border-subtle);stroke-width:1;fill:none;vector-effect:non-scaling-stroke}
+.zero{stroke:var(--app-border-control);stroke-width:1;fill:none;vector-effect:non-scaling-stroke}
+small{display:block;margin-top:.25rem}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+@media(max-width:36rem){.performance{padding:1rem}}
+
+.dot-plot{padding:0 6px;margin-top:.4rem;height:1.5rem}
+.dot-scale{position:relative;height:100%;background:linear-gradient(var(--app-border-control),var(--app-border-control)) center/100% 1px no-repeat}
+.dot-zero{position:absolute;left:50%;top:0;height:100%;border-left:1px solid var(--app-border-control)}
+.dot{position:absolute;top:50%;width:10px;height:10px;box-sizing:border-box;transform:translate(-50%,-50%);border:2px solid currentColor;border-radius:50%;background:currentColor;color:var(--app-text-secondary)}
+.dot.positive{color:var(--app-financial-positive)}
+.dot.negative{color:var(--app-negative);background:var(--app-surface,#fff)}
+.dot.neutral{background:var(--app-surface,#fff);border-radius:0}

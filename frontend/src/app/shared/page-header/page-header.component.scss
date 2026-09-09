@@ -1,4 +1,4 @@
-:host { display: block; min-width: 0; }
+:host { display: block; min-width: 0; container-type: inline-size; }
 .page-header { display: grid; grid-template-columns: minmax(0,1fr) auto; align-items: center; gap: var(--app-space-4); }
 .page-header--with-icon { grid-template-columns: auto minmax(0,1fr) auto; }
 .page-header__icon { width: 2.75rem; height: 2.75rem; display: grid; place-items: center; border-radius: var(--app-card-radius); color: var(--app-brand-primary); background: var(--app-surface-selected); }
@@ -12,4 +12,7 @@ p { margin: var(--app-space-2) 0 0; color: var(--app-text-secondary); line-heigh
   .page-header { grid-template-columns: minmax(0,1fr); align-items: start; }
   .page-header--with-icon { grid-template-columns: auto minmax(0,1fr); }
   .page-header__action { grid-column: 1 / -1; width: 100%; }
+}
+@container (max-width: 15rem) {
+  .page-header--with-icon { grid-template-columns: minmax(0,1fr); }
 }

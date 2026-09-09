@@ -168,8 +168,9 @@ describe('DashboardPageComponent', () => {
   it('ordena indicadores, evolução, posições e resultados, com quatro indicadores por moeda e sem seletor local', async () => {
     const { fixture, dashboard, evolution, carteiras } = await create(of([A])); fixture.detectChanges();
     const root = fixture.nativeElement as HTMLElement;
-    expect(Array.from(root.querySelectorAll('h2')).map(heading => heading.id).filter(id => ['summary-title', 'evolution-title', 'positions-title', 'results-title'].includes(id)))
-      .toEqual(['summary-title', 'evolution-title', 'positions-title', 'results-title']);
+    expect(Array.from(root.querySelectorAll('h2')).map(heading => heading.id).filter(id => ['summary-title', 'position-analysis-title', 'evolution-title', 'positions-title', 'results-title'].includes(id)))
+      .toEqual(['summary-title', 'position-analysis-title', 'evolution-title', 'positions-title', 'results-title']);
+    expect(root.querySelector('app-position-analysis')?.textContent).toContain('Custo × Valor atual');
     expect(root.querySelector('select, mat-select, app-carteira-selector')).toBeNull();
     expect(root.querySelectorAll('.currency-group')).toHaveLength(2);
     root.querySelectorAll('.summary-grid').forEach(group => {
@@ -190,15 +191,18 @@ describe('DashboardPageComponent', () => {
     const pending = new Subject<any>();
     const { fixture, dashboard, evolution } = await create(of([A]), { resumo: pending }); fixture.detectChanges();
     const component = fixture.nativeElement.querySelector('app-portfolio-evolution');
+    expect(fixture.nativeElement.querySelector('app-position-analysis')).toBeNull();
     expect(component).toBeTruthy();
     expect(evolution.consultar).toHaveBeenCalledTimes(1);
     pending.next(DATA.resumo); pending.complete(); fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('app-position-analysis')).toBeTruthy();
     expect(fixture.nativeElement.querySelector('app-portfolio-evolution')).toBe(component);
     expect(evolution.consultar).toHaveBeenCalledTimes(1);
     dashboard.obterResumo.mockReturnValueOnce(throwError(() => ERROR));
     const reload = Array.from(fixture.nativeElement.querySelectorAll('button')).find((button: any) => button.textContent.includes('Atualizar dados')) as HTMLButtonElement;
     reload.click(); fixture.detectChanges();
     expect(fixture.nativeElement.querySelector('app-portfolio-evolution')).toBe(component);
+    expect(fixture.nativeElement.querySelector('app-position-analysis')).toBeNull();
     expect(evolution.consultar).toHaveBeenCalledTimes(2);
     expect(evolution.registrarSnapshot).not.toHaveBeenCalled();
   });
@@ -228,6 +232,26 @@ describe('DashboardPageComponent', () => {
     register.click(); expect(router.navigate).toHaveBeenCalledWith(['/operacoes/nova'], { queryParams: { carteiraId: 1, origem: 'dashboard' } });
   });
 
+  it('remove a análise anterior durante troca de contexto e preserva histórico mesmo sem posições atuais', async () => {
+    query.next(convertToParamMap({ carteiraId: '1' }));
+    const { fixture, dashboard, evolution } = await create(of([A, B]));
+    expect(fixture.nativeElement.querySelector('app-position-analysis')?.textContent).toContain('PETR4');
+    const pendingPositions = new Subject<DashboardFinancialData['posicoes']>();
+    dashboard.listarPosicoes.mockReturnValueOnce(pendingPositions);
+    evolution.consultar.mockReturnValueOnce(of({ carteiraId: 2, pontos: [
+      { snapshotId: 1, dataHoraSnapshot: '2026-09-08T10:00:00Z', patrimonios: [{ moeda: 'USD', patrimonioAtual: '345.67' }] }
+    ] }));
+    query.next(convertToParamMap({ carteiraId: '2' })); fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('app-position-analysis')).toBeNull();
+    expect(fixture.nativeElement.querySelector('app-portfolio-evolution')?.textContent).toContain('US$ 345,67');
+    pendingPositions.next([]); pendingPositions.complete(); fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('app-position-analysis')?.textContent).toContain('Nenhuma posição aberta para comparar');
+    expect(fixture.nativeElement.querySelector('app-position-analysis')?.textContent).not.toContain('PETR4');
+    expect(fixture.nativeElement.querySelector('app-portfolio-evolution')?.textContent).toContain('US$ 345,67');
+    expect(fixture.nativeElement.querySelector('app-portfolio-evolution')?.textContent).toContain('Registros do patrimônio');
+    expect(evolution.registrarSnapshot).not.toHaveBeenCalled();
+  });
+
   it('preserva quatro GETs por carga/reload e evolução independente sem POST automático', async () => {
     query.next(convertToParamMap({ carteiraId: '1' }));
     await TestBed.configureTestingModule({
@@ -247,11 +271,15 @@ describe('DashboardPageComponent', () => {
     ]);
     const evolution = requests.find(request => request.request.url.endsWith('/evolucao-patrimonial'))!;
     requests.find(request => request.request.url.endsWith('/resumo'))!.flush(JSON.stringify(DATA.resumo));
-    requests.find(request => request.request.url.endsWith('/posicoes'))!.flush('[]');
+    requests.find(request => request.request.url.endsWith('/posicoes'))!.flush(JSON.stringify(DATA.posicoes));
     requests.find(request => request.request.url.endsWith('/resultados-realizados'))!.flush('[]');
     fixture.detectChanges();
     expect(fixture.nativeElement.textContent).toContain('R$ 241,00');
     expect(fixture.nativeElement.textContent).toContain('Carregando histórico do patrimônio');
+    expect(fixture.nativeElement.querySelector('app-position-analysis')?.textContent).toContain('PETR4');
+    expect(fixture.nativeElement.querySelectorAll('app-position-analysis .chart-series')).toHaveLength(2);
+    expect(fixture.nativeElement.querySelectorAll('app-position-performance-chart')).toHaveLength(2);
+    expect(fixture.nativeElement.querySelectorAll('app-position-performance-chart li')).toHaveLength(2);
     evolution.flush('falha', { status: 500, statusText: 'Erro' }); fixture.detectChanges();
     expect(fixture.nativeElement.textContent).toContain('R$ 241,00');
     http.expectNone(() => true);

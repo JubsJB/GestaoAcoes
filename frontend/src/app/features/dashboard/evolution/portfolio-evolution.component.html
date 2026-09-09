@@ -37,6 +37,11 @@
               <header><h3 [id]="'chart-title-' + series.currency"><span class="chart__title-prefix">Histórico do patrimônio — </span>{{ series.currency }}</h3><span class="chart__legend chart__legend--{{ series.currency.toLowerCase() }}">{{ series.currency === 'BRL' ? 'R$ · linha contínua' : 'US$ · linha tracejada' }}</span></header>
               <p [id]="'chart-description-' + series.currency" class="chart__description">Visualização complementar de {{ series.points.length }} {{ series.points.length === 1 ? 'observação' : 'observações' }} em {{ series.currency }}. Consulte o histórico textual para os valores exatos.</p>
               <svg viewBox="0 0 720 260" role="group" [attr.aria-labelledby]="'chart-title-' + series.currency + ' chart-description-' + series.currency">
+                <g class="chart-grid" aria-hidden="true">
+                  <line x1="44" y1="30" x2="702" y2="30" />
+                  <line x1="44" y1="94" x2="702" y2="94" />
+                  <line x1="44" y1="158" x2="702" y2="158" />
+                </g>
                 <line class="axis" x1="44" y1="222" x2="702" y2="222" />
                 @for (segment of series.segments; track $index) {
                   @if (segment.length > 1) { <path class="series-line series-line--{{ series.currency.toLowerCase() }}" [attr.d]="path(segment)" /> }

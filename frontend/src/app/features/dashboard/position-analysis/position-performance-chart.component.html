@@ -1,0 +1,49 @@
+<section class="performance app-surface" [attr.aria-labelledby]="metric() + '-title'">
+  <header>
+    <h3 [id]="metric() + '-title'">{{ title() }}</h3>
+    <p>{{ metric() === 'result' ? 'Ganhos e perdas das posições em aberto.' : 'O desempenho percentual de cada posição.' }}</p>
+  </header>
+  @for (group of groups(); track group.currency) {
+    <section class="currency" [attr.aria-labelledby]="metric() + '-' + group.currency">
+      <h4 [id]="metric() + '-' + group.currency">{{ group.currency }}</h4>
+      <div class="axis-labels" aria-hidden="true"><span>−</span><span>{{ metric() === 'return' ? '0%' : '0' }}</span><span>+</span></div>
+      <ul>
+        @for (row of group.rows; track row.position.acaoId) {
+          <li [attr.data-asset-id]="row.position.acaoId">
+            <div class="row-heading">
+              <div class="identity"><strong>{{ row.position.ticker }}</strong><span>{{ row.position.nomeEmpresa }}</span></div>
+              <div class="value" [class.positive]="row.sign === 1" [class.negative]="row.sign === -1">
+                <span class="sr-only">{{ title() }}:</span>
+                <strong>{{ row.formatted }}</strong><span>{{ row.outcome }}</span>
+              </div>
+            </div>
+            @if (metric() === 'return') {
+              <div class="dot-plot" aria-hidden="true">
+                <div class="dot-scale">
+                  <span class="dot-zero"></span>
+                  @if (row.ratio !== null && row.sign !== null) {
+                    <span class="dot" [class.positive]="row.sign === 1" [class.negative]="row.sign === -1"
+                      [class.neutral]="row.sign === 0"
+                      [style.left.%]="50 + row.sign * row.ratio * 50"></span>
+                  }
+                </div>
+              </div>
+            } @else {
+            <svg viewBox="0 0 1000 24" preserveAspectRatio="none" aria-hidden="true" focusable="false">
+              <path class="guides" d="M 0 0 V 24 M 250 0 V 24 M 750 0 V 24 M 1000 0 V 24" />
+              <path class="zero" d="M 500 0 V 24" />
+              @if (row.ratio !== null && row.sign !== null && row.sign !== 0) {
+                <rect [class.positive]="row.sign === 1" [class.negative]="row.sign === -1"
+                  [attr.x]="row.sign === -1 ? 500 - row.ratio * 500 : 500"
+                  y="5" [attr.width]="row.ratio * 500" height="14" />
+              }
+            </svg>
+            }
+            @if (row.complete) { <small>Valor completo: {{ row.authoritativeValue }} {{ metric() === 'return' ? '%' : group.currency }}</small> }
+            @if (row.small) { <small>{{ metric() === 'return' ? 'Valor não nulo; o ponto pode parecer sobre o zero.' : 'Valor não nulo; a barra pode não ser perceptível.' }}</small> }
+          </li>
+        }
+      </ul>
+    </section>
+  }
+</section>

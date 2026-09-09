@@ -17,10 +17,11 @@ import { PageHeaderComponent } from '../../shared/page-header/page-header.compon
 import { DashboardService } from './dashboard.service';
 import { PortfolioEvolutionComponent } from './evolution/portfolio-evolution.component';
 import { DashboardFinancialData } from './models/dashboard';
+import { PositionAnalysisComponent } from './position-analysis/position-analysis.component';
 
 @Component({
   selector: 'app-dashboard-page',
-  imports: [PortfolioPositionsComponent, AppIconComponent, FeedbackAlertComponent, MatButtonModule, MatCardModule, MatProgressSpinnerModule, PageHeaderComponent, PortfolioEvolutionComponent, RouterLink],
+  imports: [PositionAnalysisComponent, PortfolioPositionsComponent, AppIconComponent, FeedbackAlertComponent, MatButtonModule, MatCardModule, MatProgressSpinnerModule, PageHeaderComponent, PortfolioEvolutionComponent, RouterLink],
   templateUrl: './dashboard-page.component.html',
   styleUrl: './dashboard-page.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush

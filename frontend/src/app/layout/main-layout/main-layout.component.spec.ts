@@ -202,4 +202,21 @@ describe('MainLayoutComponent', () => {
     (fixture.nativeElement.querySelector('.skip-link') as HTMLAnchorElement).click();
     expect(document.activeElement).toBe(fixture.nativeElement.querySelector('main'));
   });
+  it('preserves the global selector and full navigation labels when the compact drawer opens', async () => {
+    TestBed.overrideProvider(CarteirasService, { useValue: { listar: () => of([
+      { id: 1, nome: 'Carteira com nome extenso para leitura acessível', dataCriacao: '2026-01-01T10:00:00Z' }
+    ]) } });
+    await createLayout(true);
+    const select = fixture.nativeElement.querySelector('#global-carteira') as HTMLSelectElement;
+    expect(select.disabled).toBe(false);
+    expect(select.options[select.selectedIndex].text).toBe('Carteira com nome extenso para leitura acessível');
+    const value = select.value;
+    (fixture.nativeElement.querySelector('.menu-button') as HTMLButtonElement).click();
+    fixture.detectChanges(); await fixture.whenStable();
+    expect(fixture.nativeElement.querySelectorAll('app-carteira-selector')).toHaveLength(1);
+    expect(select.value).toBe(value);
+    expect(Array.from(fixture.nativeElement.querySelectorAll('nav [matListItemTitle]')).map(e => (e as HTMLElement).textContent))
+      .toEqual(['Dashboard', 'Corretoras', 'Ações', 'Carteiras']);
+  });
+
 });
