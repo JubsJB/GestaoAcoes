@@ -2,7 +2,7 @@
   <header class="evolution__header">
     <div>
       <h2 id="evolution-title">Histórico do patrimônio</h2>
-      <p>Acompanhe os registros do valor da carteira ao longo do tempo. Os registros são realizados manualmente e preservados separadamente por moeda.</p>
+      <p>Seu patrimônio nos momentos em que você registrou. Registros manuais, separados por moeda.</p>
       <p class="evolution__timezone">Datas e horários são apresentados no horário local.</p>
     </div>
     <button mat-stroked-button type="button" (click)="registerSnapshot()" [disabled]="creating()">
@@ -35,8 +35,23 @@
           @if (chart; as series) {
             <section class="chart app-surface" [attr.aria-labelledby]="'chart-title-' + series.currency" (mouseleave)="leaveChart(series.currency)">
               <header><h3 [id]="'chart-title-' + series.currency"><span class="chart__title-prefix">Histórico do patrimônio — </span>{{ series.currency }}</h3><span class="chart__legend chart__legend--{{ series.currency.toLowerCase() }}">{{ series.currency === 'BRL' ? 'R$ · linha contínua' : 'US$ · linha tracejada' }}</span></header>
-              <p [id]="'chart-description-' + series.currency" class="chart__description">Visualização complementar de {{ series.points.length }} {{ series.points.length === 1 ? 'observação' : 'observações' }} em {{ series.currency }}. Consulte o histórico textual para os valores exatos.</p>
+              <p [id]="'chart-description-' + series.currency" class="chart__description">{{ series.points.length }} {{ series.points.length === 1 ? 'observação' : 'observações' }} registradas. Consulte os pontos ou o histórico abaixo.</p>
+              @if (series.points[series.points.length - 1]; as latest) {
+                <div class="chart__latest"><span>Último registro em {{ series.currency }}</span><strong>{{ money(latest.authoritativeValue, series.currency) }}</strong><time [attr.datetime]="latest.timestamp">{{ localDate(latest.timestamp) }}</time></div>
+              }
               <svg viewBox="0 0 720 260" role="group" [attr.aria-labelledby]="'chart-title-' + series.currency + ' chart-description-' + series.currency">
+                <defs>
+                  <linearGradient [id]="'area-' + series.currency" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stop-color="currentColor" stop-opacity=".20" />
+                    <stop offset="100%" stop-color="currentColor" stop-opacity=".015" />
+                  </linearGradient>
+                </defs>
+                @for (segment of series.segments; track $index) {
+                  @if (segment.length > 1) {
+                    <path class="series-area" aria-hidden="true" [attr.fill]="'url(#area-' + series.currency + ')'"
+                      [attr.d]="path(segment) + ' L ' + segment[segment.length - 1].x + ' 222 L ' + segment[0].x + ' 222 Z'" />
+                  }
+                }
                 <g class="chart-grid" aria-hidden="true">
                   <line x1="44" y1="30" x2="702" y2="30" />
                   <line x1="44" y1="94" x2="702" y2="94" />
@@ -64,6 +79,19 @@
                 @for (label of series.xLabels; track label.snapshotId) {
                   <span [style.left.%]="label.x / 720 * 100" [attr.data-full]="shortDate(label.timestamp)" [attr.data-compact]="shortDate(label.timestamp, true)">{{ shortDate(label.timestamp) }}</span>
                 }
+              </div>
+              <div class="record-picker" role="group" [attr.aria-label]="'Selecionar registro em ' + series.currency">
+                <p>Selecione um registro. Pontos próximos podem aparecer sobrepostos.</p>
+                <div>
+                  @for (point of series.points; track point.snapshotId) {
+                    <button type="button" [attr.aria-label]="'Registro #' + point.snapshotId + ', ' + pointLabel(series.currency, point)"
+                      [attr.aria-pressed]="activePoint() === pointKey(series.currency, point)"
+                      (focus)="showPoint(series.currency, point, 'focus')" (blur)="blurPoint()"
+                      (click)="activatePoint($event, series.currency, point)">
+                      #{{ point.snapshotId }} · {{ shortDate(point.timestamp) }}
+                    </button>
+                  }
+                </div>
               </div>
               <div class="chart__inspection">
                 @if (activeSelection(); as active) {

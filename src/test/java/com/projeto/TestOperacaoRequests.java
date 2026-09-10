@@ -8,7 +8,7 @@ public final class TestOperacaoRequests {
  public static OperacaoCreateRequest request(Long carteiraId,String ticker,Mercado mercado,Long corretoraId,
   TipoOperacao tipo,BigDecimal quantidade,BigDecimal preco,LocalDate data){
   return tipo==TipoOperacao.COMPRA
-   ?new OperacaoCompraCreateRequest(carteiraId,ticker,mercado,corretoraId,quantidade,data)
+   ?new OperacaoCompraCreateRequest(carteiraId,ticker,mercado,corretoraId,quantidade,data,preco)
    :new OperacaoVendaCreateRequest(carteiraId,ticker,mercado,corretoraId,quantidade,data,preco);
  }
 }

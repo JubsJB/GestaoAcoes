@@ -6,23 +6,36 @@ Disponibilizar no frontend o registro e a consulta acessível de compras e venda
 ## Requirements
 
 ### Requirement: Contratos frontend discriminados de Operações
-A área de Operações SHALL consumir `POST /operacoes`, `GET /operacoes`, `GET /operacoes/{id}`, `GET /carteiras/{carteiraId}/operacoes`, `GET /operacoes/previa-compra` e `GET /carteiras/{carteiraId}/operacoes/sugestao-preco-venda` pela configuração central da API. A criação SHALL ser uma união discriminada: COMPRA contém exclusivamente `carteiraId`, `ticker`, `mercado`, `corretoraId`, `tipo`, `quantidade` e `dataOperacao`; VENDA contém esses campos e `precoUnitario` obrigatório. Nenhum create request SHALL conter `ordemNoDia`. Responses financeiros SHALL preservar representação decimal lossless.
+O formulario SHALL exigir precoUnitario editavel e positivo em COMPRA e VENDA, preservando strings lossless e validacao vigente. COMPRA SHALL consultar previa-compra para acao/data validas e preencher preco historico como sugestao inicial editavel; SHALL enviar o valor final do campo. Respostas obsoletas e respostas posteriores a edicao manual MUST NOT sobrescrever o campo. VENDA SHALL preservar sugestao editavel existente. Estimativa visual existente MUST NOT substituir valorTotal autoritativo.
+
+#### Scenario: Compra manual
+- **WHEN** usuario preenche COMPRA
+- **THEN** informa preco obrigatorio, enviado explicitamente no POST sem reconsulta historica pelo backend
+
+#### Scenario: Preco ausente
+- **WHEN** falta preco positivo em qualquer tipo
+- **THEN** formulario nao submete e apresenta validacao
+
 
 #### Scenario: Payload exato de COMPRA
-- **WHEN** o usuário submete uma COMPRA válida
-- **THEN** o frontend envia um único POST sem `precoUnitario`, inclusive nulo, sem `ordemNoDia`, `id`, `acaoId`, `valorTotal` ou qualquer cotação
+- **WHEN** o formulario envia COMPRA
+- **THEN** envia precoUnitario manual lossless junto aos campos existentes, sem ordemNoDia ou valorTotal
+
 
 #### Scenario: Payload exato de VENDA
 - **WHEN** o usuário submete uma VENDA válida
 - **THEN** o frontend envia um único POST com `precoUnitario` e sem `ordemNoDia`, `id`, `acaoId` ou `valorTotal`
 
+
 #### Scenario: Corretora opcional
 - **WHEN** o usuário não seleciona Corretora
 - **THEN** o request contém `corretoraId=null` ou omite a propriedade conforme a convenção vigente
 
+
 #### Scenario: Response completo
 - **WHEN** o backend devolve uma Operação
 - **THEN** o frontend preserva `precoUnitario`, `ordemNoDia`, `valorTotal` e os demais campos retornados
+
 
 ### Requirement: Rotas globais e carregamento lazy
 A área SHALL substituir somente o placeholder de Operações e manter seu limite lazy. Ela SHALL oferecer `/operacoes` para listagem, `/operacoes/nova` para cadastro e `/operacoes/{id}` para detalhe, resolvendo a rota estática `nova` antes do identificador.
@@ -62,31 +75,46 @@ O formulário SHALL usar Carteira existente fixa resolvida na abertura pelo cont
 - **THEN** o formulário explica a dependência, oferece caminho à área correspondente e não envia POST
 
 ### Requirement: Formulário discriminado de COMPRA
-Quando `tipo=COMPRA`, o formulário SHALL manter visível um campo de preço unitário somente leitura e sem validators de preço. Havendo Carteira, Ação, mercado e data suficientes, o frontend SHALL consultar `GET /operacoes/previa-compra` com ticker, mercado e `dataOperacao`, exibir o preço e a moeda retornados e informar que se trata do fechamento exato usado informativamente. O campo MUST NOT permitir edição, usar `cotacaoAtual`, substituir a data ou integrar o POST.
+O formulario SHALL exigir precoUnitario editavel e positivo em COMPRA e VENDA, preservando strings lossless e validacao vigente. COMPRA SHALL consultar previa-compra para acao/data validas e preencher preco historico como sugestao inicial editavel; SHALL enviar o valor final do campo. Respostas obsoletas e respostas posteriores a edicao manual MUST NOT sobrescrever o campo. VENDA SHALL preservar sugestao editavel existente. Estimativa visual existente MUST NOT substituir valorTotal autoritativo.
+
+#### Scenario: Compra manual
+- **WHEN** usuario preenche COMPRA
+- **THEN** informa preco obrigatorio, enviado explicitamente no POST sem reconsulta historica pelo backend
+
+#### Scenario: Preco ausente
+- **WHEN** falta preco positivo em qualquer tipo
+- **THEN** formulario nao submete e apresenta validacao
+
 
 #### Scenario: Campos de COMPRA
-- **WHEN** o usuário seleciona COMPRA
-- **THEN** o preço fica visível e somente leitura, ordem no dia permanece ausente e o texto explicativo do fechamento histórico é apresentado
+- **WHEN** o usuario escolhe COMPRA
+- **THEN** quantidade e precoUnitario sao editaveis e obrigatorios positivos; corretora permanece opcional
+
 
 #### Scenario: Prévia carregada
-- **WHEN** Ação, mercado e data válidos produzem uma prévia
-- **THEN** o campo exibe `precoUnitario` com `BRL` ou `USD` retornado pelo backend e o POST permanece sem preço
+- **WHEN** a previa da acao e data atuais retorna
+- **THEN** ela preenche sugestao editavel lossless se nao houve edicao manual durante a consulta
+
 
 #### Scenario: Prévia pendente ou inválida
-- **WHEN** a prévia está carregando, falha ou ainda não existe para o contexto atual
-- **THEN** o campo não apresenta preço válido e Registrar operação permanece bloqueado
+- **WHEN** o formulario de COMPRA e preenchido
+- **THEN** apresenta loading ou erro normalizado da previa e exige preco final positivo; permite entrada manual sem substituir data
+
 
 #### Scenario: Data sem substituição de pregão
 - **WHEN** o usuário escolhe uma data sem pregão
 - **THEN** o frontend envia exatamente a data escolhida e não procura nem substitui por pregão anterior ou posterior
 
+
 #### Scenario: Alternância de VENDA para COMPRA
-- **WHEN** existe preço digitado em VENDA e o usuário muda para COMPRA
-- **THEN** o valor é removido imediatamente, o campo torna-se somente leitura, uma nova prévia é consultada e nenhum preço aparece no payload de COMPRA
+- **WHEN** o usuario alterna de VENDA para COMPRA
+- **THEN** preco permanece editavel e obrigatorio; consulta sugestao historica para acao/data atuais
+
 
 #### Scenario: Contexto alterado durante a prévia
-- **WHEN** Ação, mercado ou data muda antes de a consulta anterior terminar
-- **THEN** o preço anterior é invalidado imediatamente e uma resposta atrasada não pode sobrescrever o contexto novo
+- **WHEN** o contexto de uma consulta anterior muda
+- **THEN** uma resposta tardia nao substitui o preco manual nem a carteira capturada; a sugestao da nova acao/data substitui a anterior, sem reutilizar resposta obsoleta
+
 
 ### Requirement: Formulário discriminado de VENDA
 Quando `tipo=VENDA`, o formulário SHALL exibir `precoUnitario` editável, obrigatório, positivo, com no máximo 13 dígitos inteiros e 6 fracionários. Havendo Carteira, Ação, mercado e data suficientes, SHALL consultar a sugestão da Carteira. Preço sugerido SHALL apenas preencher inicialmente o campo e poderá ser livremente aumentado ou reduzido pelo usuário; `null` SHALL manter o campo vazio sem erro técnico. Ordem no dia permanecerá ausente.
@@ -146,27 +174,41 @@ Os campos decimais `quantidade`, `precoUnitario`, `precoUnitarioSugerido` e `val
 - **THEN** o formulário pode exibir quantidade × preço como estimativa visual em BRL ou USD, sem enviar `valorTotal` ou realizar outro cálculo financeiro
 
 ### Requirement: Erros históricos e externos acionáveis
-A feature SHALL preservar o erro normalizado dos GETs e do POST e acrescentar orientação específica sem ocultar `message` e `details`. `COTACAO_HISTORICA_INDISPONIVEL`, `HISTORICO_COTACAO_FORA_DO_ALCANCE`, `TICKER_INEXISTENTE` e `LIMITE_REQUISICOES_EXCEDIDO` SHALL possuir feedback apropriado, sem preço manual ou troca automática de data. Erros `502`, `503` e `504` SHALL usar o tratamento técnico central existente. O caminho real de `HttpErrorResponse` até a mensagem SHALL ser integrado à normalização central.
+A feature SHALL preservar message e details dos erros normalizados dos GETs e POST. Falhas SHALL manter o formulario aberto e permitir nova tentativa sem submissao duplicada. Erros tecnicos SHALL usar o tratamento central existente. O cadastro manual MUST NOT depender de disponibilidade do fechamento historico.
+
+#### Scenario: Falha no registro manual
+- **WHEN** o POST de COMPRA ou VENDA falha
+- **THEN** o formulario permanece aberto com os valores informados e mensagem normalizada
+
+#### Scenario: Consulta historica independente
+- **WHEN** uma consulta historica independente encontra indisponibilidade ou rate limit
+- **THEN** a falha nao substitui o preco manual nem troca automaticamente a data da Operacao
+
 
 #### Scenario: Fechamento indisponível
-- **WHEN** uma COMPRA recebe `422 COTACAO_HISTORICA_INDISPONIVEL`
+- **WHEN** uma consulta historica independente recebe `422 COTACAO_HISTORICA_INDISPONIVEL`
 - **THEN** o formulário permanece aberto e informa que não houve fechamento disponível para a data escolhida
 
+
 #### Scenario: Histórico fora do alcance
-- **WHEN** uma COMPRA recebe `422 HISTORICO_COTACAO_FORA_DO_ALCANCE`
+- **WHEN** uma consulta historica independente recebe `422 HISTORICO_COTACAO_FORA_DO_ALCANCE`
 - **THEN** o formulário permanece aberto e informa que a data está fora do histórico disponível pelo provedor
 
+
 #### Scenario: Limite do provider
-- **WHEN** uma COMPRA recebe `429 LIMITE_REQUISICOES_EXCEDIDO`
-- **THEN** a interface apresenta orientação técnica amigável sem oferecer preço manual ou retry automático do POST
+- **WHEN** uma consulta historica independente recebe `429 LIMITE_REQUISICOES_EXCEDIDO`
+- **THEN** a interface preserva o erro e nao dispara retry automatico; o preco manual do cadastro nao depende dessa consulta
+
 
 #### Scenario: Falha técnica externa
 - **WHEN** o backend responde `502`, `503` ou `504`
 - **THEN** a interface usa o tratamento técnico central e preserva os dados do formulário
 
+
 #### Scenario: Erro real da prévia
 - **WHEN** o GET da prévia produz `StandardError` em um `HttpErrorResponse`
-- **THEN** interceptor, service e formulário preservam código, mensagem e detalhes e mantêm a COMPRA bloqueada até uma prévia válida
+- **THEN** os erros normalizados preservam codigo, mensagem e detalhes sem bloquear a COMPRA manual por falta de previa
+
 
 ### Requirement: Submissão explícita sem deduplicação
 O envio SHALL bloquear nova submissão enquanto o POST atual estiver pendente e, para COMPRA, enquanto não existir prévia válida correspondente ao contexto atual. O preço da prévia MUST NOT integrar o request. A feature MUST NOT realizar retry automático, criar idempotency key nem rejeitar operações legitimamente idênticas por comparação de payload.
@@ -202,11 +244,11 @@ O detalhe SHALL apresentar os dados relevantes do `OperacaoResponse`, incluindo 
 - **THEN** o identificador continua compreensível no contexto sem nova chamada HTTP
 
 ### Requirement: Cadastro contextual reutiliza as mesmas regras
-O cadastro iniciado no detalhe de Carteira SHALL reutilizar o mesmo formulário, pipeline consultivo e construtor de payload do fluxo global, com Carteira pré-selecionada, visível e não editável. A sugestão de VENDA SHALL usar essa Carteira; a prévia de COMPRA continuará independente dela. Após `201`, SHALL fechar o dialog, apresentar sucesso e incorporar o response no histórico por `dataOperacao`, `ordemNoDia` e `id`, sem GET obrigatório ou cálculo financeiro.
+O cadastro iniciado no detalhe de Carteira SHALL reutilizar o mesmo formulário, pipeline consultivo e construtor de payload do fluxo global, com Carteira pré-selecionada, visível e não editável. A sugestão de VENDA SHALL usar essa Carteira; COMPRA oferece previa historica editavel e exige preco final positivo. Após `201`, SHALL fechar o dialog, apresentar sucesso e incorporar o response no histórico por `dataOperacao`, `ordemNoDia` e `id`, sem GET obrigatório ou cálculo financeiro.
 
 #### Scenario: COMPRA contextual
 - **WHEN** o usuário registra COMPRA a partir de uma Carteira
-- **THEN** o request usa o `carteiraId` contextual e omite preço e ordem
+- **THEN** o request usa o `carteiraId` contextual e inclui preco manual e omite ordem
 
 #### Scenario: VENDA contextual
 - **WHEN** o usuário registra VENDA a partir de uma Carteira
@@ -216,8 +258,9 @@ O cadastro iniciado no detalhe de Carteira SHALL reutilizar o mesmo formulário,
 - **WHEN** o cadastro contextual retorna com sucesso
 - **THEN** o histórico passa a exibir o DTO autoritativo retornado
 
+
 ### Requirement: Experiência acessível e responsiva
-A feature SHALL reutilizar feedback, toast e padrões visuais existentes, preservar foco e navegação por teclado e manter lista, formulário, detalhe e dialog legíveis em viewport compacto sem depender somente de cor. O formulário SHALL agrupar visualmente contexto, tipo/movimentação, quantidade/preço/data, Corretora, estimativa existente e ações. A reorganização MUST preservar compra/venda, preço informativo somente leitura em COMPRA, sugestão editável em VENDA, estimativa, Carteira capturada na abertura e fixa/não editável até conclusão ou cancelamento em página/dialog, inclusive na entrada global de compatibilidade, Corretora opcional, strings decimais, data civil, máscaras, validações, payloads e gatilhos HTTP.
+A feature SHALL reutilizar feedback, toast e padrões visuais existentes, preservar foco e navegação por teclado e manter lista, formulário, detalhe e dialog legíveis em viewport compacto sem depender somente de cor. O formulário SHALL agrupar visualmente contexto, tipo/movimentação, quantidade/preço/data, Corretora, estimativa existente e ações. A reorganização MUST preservar compra/venda, preco manual editavel e obrigatorio em COMPRA, sugestão editável em VENDA, estimativa, Carteira capturada na abertura e fixa/não editável até conclusão ou cancelamento em página/dialog, inclusive na entrada global de compatibilidade, Corretora opcional, strings decimais, data civil, máscaras, validações, payloads com preco nos dois tipos e previa historica apenas como sugestao editavel no formulario COMPRA.
 
 #### Scenario: Uso assistivo ou compacto
 - **WHEN** a feature é usada por teclado, tecnologia assistiva ou tela compacta
@@ -226,6 +269,7 @@ A feature SHALL reutilizar feedback, toast e padrões visuais existentes, preser
 #### Scenario: Formulário agrupado
 - **WHEN** uma operação é preparada em página ou dialog
 - **THEN** grupos e ajudas facilitam leitura sem adicionar campos ou alterar condições de edição, bloqueio, submissão ou cancelamento, preservando origem, retorno determinístico após reload/deep link e isolamento perante troca global de Carteira
+
 
 ### Requirement: Carteira fixa da abertura ao POST
 Cada abertura de cadastro SHALL capturar uma Carteira válida e mantê-la visível e não editável até cancelamento ou conclusão. Sugestão de VENDA e `carteiraId` do POST SHALL usar essa identidade capturada, nunca reler a seleção global no submit. A prévia de COMPRA SHALL preservar seu contrato independente da Carteira. Mudanças externas de contexto MUST NOT redirecionar a operação em edição a outra Carteira. Sem Carteira válida SHALL bloquear submissão e oferecer recuperação explícita.
@@ -268,3 +312,21 @@ Entradas de Dashboard e detalhe de Carteira SHALL transportar Carteira e origem 
 #### Scenario: Origem de retorno inválida
 - **WHEN** a URL contém origem desconhecida ou destino arbitrário
 - **THEN** o retorno usa `/operacoes` sem redirecionamento externo; um ID contextual inválido continua exigindo recuperação explícita sem substituição silenciosa de Carteira
+
+### Requirement: Mensagens de validacao sem sobreposicao
+O formulario SHALL reservar altura dinamica para erros e ajudas multilinha. Quantidade e preco SHALL permanecer lado a lado quando houver espaco; Corretora SHALL iniciar abaixo das mensagens, sem ocultar conteudo.
+
+#### Scenario: Erros simultaneos
+- **WHEN** quantidade e preco exibem erros multilinha
+- **THEN** as mensagens participam do fluxo e nao sobrepoem Corretora
+
+### Requirement: Dialog contextual no Dashboard
+Dashboard SHALL abrir o mesmo formulario em dialog com carteira capturada na abertura, sem selecao local. Troca global MUST NOT reatribuir a operacao. Sucesso SHALL fechar e atualizar dados financeiros da origem somente se ela ainda estiver visivel; MUST NOT criar snapshots. Erro SHALL manter dialog aberto e impedir submissao duplicada durante POST. Rota existente SHALL permanecer.
+
+#### Scenario: Origem fixa
+- **WHEN** carteira global muda com dialog aberto
+- **THEN** POST continua usando carteira da abertura
+
+#### Scenario: Sucesso e erro
+- **WHEN** POST conclui
+- **THEN** sucesso fecha e atualiza origem visivel; erro preserva formulario e informa falha sem POST duplicado

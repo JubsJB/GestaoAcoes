@@ -2,7 +2,7 @@ import { ChangeDetectionStrategy, Component, computed, input } from '@angular/co
 import { formatFinancialMoney, formatFinancialPercent } from '../../../shared/formatters/financial-value.formatter';
 import { PosicaoResponse } from '../models/dashboard';
 import { projectFinancialValues } from './position-chart-geometry';
-import { groupPositions } from './position-chart-presentation';
+import { exactPresentation, groupPositions } from './position-chart-presentation';
 
 @Component({
   selector: 'app-position-performance-chart',
@@ -26,9 +26,9 @@ export class PositionPerformanceChartComponent {
         const formatted = percent ? formatFinancialPercent(value) : formatFinancialMoney(value, group.currency);
         return {
           position, ...projection,
-          formatted: !percent && projection.sign === 1 ? `+${formatted}` : formatted,
+          formatted: /[eE][+-]?\d/.test(formatted) ? `${exactPresentation(value).exact} ${percent ? '%' : group.currency}` : !percent && projection.sign === 1 ? `+${formatted}` : formatted,
           outcome: projection.sign === null ? 'Indisponível' : projection.sign === 0 ? 'Neutro' : projection.sign === 1 ? 'Positivo' : 'Negativo',
-          complete: /[eE]/.test(value) || /[1-9]/.test((value.split('.')[1] ?? '').slice(2)),
+          ...exactPresentation(value),
           small: projection.sign !== 0 && projection.sign !== null && projection.ratio !== null && projection.ratio < .005
         };
       })

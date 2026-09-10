@@ -77,7 +77,7 @@ import { CorretoraCreatePageComponent } from './corretora-create-page.component'
                   <td role="cell"><span class="cell-label" aria-hidden="true">CNPJ</span>{{ formatCnpj(corretora.cnpj) }}</td>
                   <td role="cell"><span class="cell-label" aria-hidden="true">Localidade</span>{{ corretora.cidade }} — {{ corretora.uf }}</td>
                   <td role="cell"><span class="cell-label" aria-hidden="true">Situação cadastral</span><strong [class]="'status-badge status-badge--' + statusVariant(corretora.situacaoCadastral)" [attr.data-status-variant]="statusVariant(corretora.situacaoCadastral)">{{ corretora.situacaoCadastral }}</strong></td>
-                  <td role="cell"><span class="cell-label" aria-hidden="true">Ações</span><a [routerLink]="[corretora.id]" [attr.aria-label]="'Ver detalhes de ' + corretora.razaoSocial">Ver detalhes</a></td>
+                  <td role="cell" class="actions-cell"><span class="cell-label" aria-hidden="true">Ações</span><a class="details-link" [routerLink]="[corretora.id]" [attr.aria-label]="'Ver detalhes de ' + corretora.razaoSocial">Ver detalhes</a></td>
                 </tr>
               }
             </tbody>
@@ -86,7 +86,7 @@ import { CorretoraCreatePageComponent } from './corretora-create-page.component'
       </div>
     </section>
   `,
-  styleUrl: '../../../shared/collection/collection.scss',
+  styleUrl: '../../../shared/collection/refined-collection.scss',
   styles: [`
     .collection-page{height:calc(100dvh - 8rem);overflow:hidden;display:flex;flex-direction:column}.collection-region{min-height:0;overflow:auto;padding:.125rem .25rem .75rem 0;overscroll-behavior:contain;flex:1 1 auto}.search{display:flex;align-items:flex-start;gap:1rem}.search mat-form-field{flex:1 1 18rem}.search-progress{margin:0;color:var(--app-text-secondary)}
     @media(max-width:959.98px){.collection-page{height:calc(100dvh - 5.5rem)}}

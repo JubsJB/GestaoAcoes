@@ -1,9 +1,11 @@
 import { ChangeDetectionStrategy, Component, DestroyRef, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { MatButtonModule } from '@angular/material/button';
+import { MatDialog } from '@angular/material/dialog';
+import { SuccessToastService } from '../../shared/success-toast/success-toast.service';
 import { MatCardModule } from '@angular/material/card';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
-import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { ActivatedRoute, RouterLink } from '@angular/router';
 import { catchError, EMPTY, forkJoin, Subject, switchMap, tap, map, distinctUntilChanged } from 'rxjs';
 
 import { CarteiraContextService } from '../../core/carteira/carteira-context.service';
@@ -31,7 +33,9 @@ export class DashboardPageComponent {
   private readonly navigation = inject(CarteiraNavigationService);
   private readonly dashboardService = inject(DashboardService);
   private readonly route = inject(ActivatedRoute);
-  private readonly router = inject(Router);
+  private readonly dialog = inject(MatDialog);
+  private readonly toast = inject(SuccessToastService);
+  private operationOpening = false;
   private readonly destroyRef = inject(DestroyRef);
   private readonly financialRequests = new Subject<number | null>();
 
@@ -90,8 +94,25 @@ export class DashboardPageComponent {
     }
   }
 
-  protected openOperationDialog(): void {
+  protected async openOperationDialog(): Promise<void> {
     const carteira = this.selected();
-    if (carteira) void this.router.navigate(['/operacoes/nova'], { queryParams: { carteiraId: carteira.id, origem: 'dashboard' } });
+    if (!carteira || this.operationOpening) return;
+    this.operationOpening = true;
+    try {
+      const { OperacaoFormPageComponent } = await import('../operacoes/pages/operacao-form-page.component');
+      if (this.destroyRef.destroyed) return;
+      const ref = this.dialog.open(OperacaoFormPageComponent, {
+        data: { carteira }, panelClass: ['app-create-dialog', 'app-dialog--extended'],
+        autoFocus: 'first-tabbable', restoreFocus: true,
+        ariaLabelledBy: 'operacao-form-title', ariaDescribedBy: 'operacao-form-description'
+      });
+      ref.afterClosed().pipe(takeUntilDestroyed(this.destroyRef)).subscribe(item => {
+        this.operationOpening = false;
+        if (item) {
+          this.toast.show('Operação registrada com sucesso.');
+          if (this.selected()?.id === carteira.id) this.financialRequests.next(carteira.id);
+        }
+      });
+    } catch { this.operationOpening = false; }
   }
 }

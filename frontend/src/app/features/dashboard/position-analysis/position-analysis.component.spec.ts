@@ -14,7 +14,7 @@ async function render(positions: readonly PosicaoResponse[]) {
 }
 
 function widths(root: Element) {
-  return Array.from(root.querySelectorAll('.bar')).map(bar => bar.querySelector('rect')?.getAttribute('width') ?? '0');
+  return Array.from(root.querySelectorAll('.bar')).flatMap(bar => [bar.querySelector('line.cost')?.getAttribute('x1') ?? '0', bar.querySelector('rect.current')?.getAttribute('width') ?? '0']);
 }
 
 describe('PositionAnalysis / Custo × Valor atual', () => {
@@ -80,11 +80,11 @@ describe('PositionAnalysis / Custo × Valor atual', () => {
     expect(root.querySelectorAll('li')).toHaveLength(3);
     expect(root.textContent).toContain('R$ 9.007.199.254.740.993,01');
     expect(root.textContent).toContain('R$ 9.007.199.254.740.993,02');
-    expect(root.textContent).toContain('Valor completo: 0.00000000000000000001 BRL');
-    expect(root.textContent).toContain('Valor completo: 1e-400 BRL');
-    expect(root.textContent).toContain('Valor completo: 1e400 BRL');
+    expect(root.textContent).toContain('Valor completo: 0,00000000000000000001 BRL');
+    expect(root.textContent).toContain('Valor completo: 0,' + '0'.repeat(399) + '1 BRL');
+    expect(root.textContent).toContain('Valor completo: 1' + '0'.repeat(400) + ' BRL');
     const small = root.querySelector('[data-asset-id="2"]')!;
-    expect(small.textContent).toContain('Valor não nulo; a barra pode não ser perceptível');
+    expect(small.textContent).toContain('Valor não nulo; a marca pode não ser perceptível');
     expect(widths(small)).toEqual(['0', '0']);
     expect(widths(root).map(Number).every(value => Number.isFinite(value) && value >= 0 && value <= 1000)).toBe(true);
     expect(JSON.stringify(EXTREME_POSITIONS)).toBe(before);
@@ -96,7 +96,7 @@ describe('PositionAnalysis / Custo × Valor atual', () => {
     expect(root.querySelectorAll('dt')).toHaveLength(200);
     expect(root.querySelectorAll('.amount')).toHaveLength(200);
     expect(root.querySelector('button, a, input, [tabindex], [role="button"]')).toBeNull();
-    expect(root.querySelectorAll('svg.bar[aria-hidden="true"][focusable="false"]')).toHaveLength(200);
+    expect(root.querySelectorAll('svg.bar[aria-hidden="true"][focusable="false"]')).toHaveLength(100);
     for (const group of root.querySelectorAll('.chart-group')) {
       const currency = group.querySelector('h4')!.textContent!.slice(0, 3);
       expect(Array.from(group.querySelectorAll('li')).map(item => item.getAttribute('data-asset-id')))
@@ -111,7 +111,7 @@ describe('PositionAnalysis / Custo × Valor atual', () => {
     const { root, fixture } = await render([positionFixture({ ticker, nomeEmpresa: company, custoPosicao: '12.12345678901234567890' })]);
     expect(root.querySelector('.asset-heading')?.textContent).toContain(ticker);
     expect(root.querySelector('.asset-heading')?.textContent).toContain(company);
-    expect(root.textContent).toContain('Valor completo: 12.12345678901234567890 BRL');
+    expect(root.textContent).toContain('Valor completo: 12,12345678901234567890 BRL');
     expect(root.querySelector('svg text')).toBeNull();
     fixture.componentRef.setInput('positions', EMPTY_POSITIONS); fixture.detectChanges();
     expect(fixture.nativeElement.querySelector('li')).toBeNull();
@@ -127,7 +127,7 @@ describe('PositionAnalysis / Custo × Valor atual', () => {
     const row = root.querySelector('li')!;
     expect(Number(widths(row)[0])).toBeGreaterThan(0);
     expect(Number(widths(row)[0])).toBeLessThan(.001);
-    expect(row.textContent).toContain('Valor completo: 0.00001 USD');
+    expect(row.textContent).toContain('Valor completo: 0,00001 USD');
     expect(row.textContent).toContain('Valor não nulo');
   });
 

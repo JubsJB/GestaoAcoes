@@ -116,7 +116,7 @@ class OpenApiDocumentationTest {
         assertThat(paths.path("/corretoras").path("post").path("responses").has("201")).isTrue();
         assertThat(paths.path("/acoes/{id}/cotacao").path("patch").path("responses").has("504")).isTrue();
         assertThat(paths.path("/carteiras/{id}").path("delete").path("responses").has("204")).isTrue();
-        assertThat(paths.path("/operacoes").path("post").path("responses").has("422")).isTrue();
+        assertThat(paths.path("/operacoes").path("post").path("responses").has("422")).isFalse();
     }
 
     @Test
@@ -146,12 +146,12 @@ class OpenApiDocumentationTest {
 
         JsonNode purchase = schemas.path("OperacaoCompraCreateRequest");
         JsonNode sale = schemas.path("OperacaoVendaCreateRequest");
-        assertThat(purchase.toString()).doesNotContain("precoUnitario", "ordemNoDia");
+        assertThat(purchase.toString()).contains("precoUnitario").doesNotContain("ordemNoDia");
         assertThat(sale.toString()).contains("precoUnitario").doesNotContain("ordemNoDia");
         assertThat(sale.path("required").toString()).contains("precoUnitario");
         assertThat(purchase.path("additionalProperties").asBoolean(true)).isFalse();
         assertThat(sale.path("additionalProperties").asBoolean(true)).isFalse();
-        assertThat(purchase.path("description").asText()).contains("fechamento histórico", "COMPRA");
+        assertThat(purchase.path("description").asText()).contains("informado pelo cliente", "COMPRA");
         assertThat(sale.path("description").asText())
                 .contains("informado pelo cliente", "nenhum provider histórico")
                 .doesNotContain("consulta o fechamento histórico");
@@ -163,7 +163,7 @@ class OpenApiDocumentationTest {
         assertThat(response.has("ordemNoDia")).isTrue();
         assertThat(response.has("valorTotal")).isTrue();
         JsonNode responses = document.at("/paths/~1operacoes/post/responses");
-        for (String status : List.of("404", "422", "429", "502", "503", "504")) {
+        for (String status : List.of("400", "404", "409")) {
             assertThat(responses.has(status)).isTrue();
         }
         assertThat(document.at("/paths/~1operacoes/post/description").asText()).contains("COMPRA");
@@ -174,8 +174,8 @@ class OpenApiDocumentationTest {
         JsonNode document = openApiDocument();
         JsonNode preview = document.at("/paths/~1operacoes~1previa-compra/get");
         assertThat(preview.path("description").asText())
-                .contains("fechamento histórico bruto", "data exata", "informativa", "consulta novamente")
-                .contains("sem aceitar precoUnitario");
+                .contains("fechamento histórico bruto", "data exata", "Consulta independente")
+                .contains("exige precoUnitario manual");
         for (String status : List.of("200", "400", "404", "422", "429", "502", "503", "504")) {
             assertThat(preview.path("responses").has(status)).isTrue();
         }

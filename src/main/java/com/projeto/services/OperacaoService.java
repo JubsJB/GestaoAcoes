@@ -20,12 +20,12 @@ public class OperacaoService {
  private static final Sort QUERY_ORDER=Sort.by(Sort.Order.asc("dataOperacao"),Sort.Order.asc("ordemNoDia"),Sort.Order.asc("id"));
  private final OperacaoRepository operacoes; private final CarteiraRepository carteiras; private final AcaoRepository acoes;
  private final CorretoraRepository corretoras; private final TickerNormalizer tickers; private final OperacaoMapper mapper;
- private final Clock clock; private final OperacaoPersistenceService persistence; private final FechamentoHistoricoService fechamentoHistorico;
+ private final Clock clock; private final OperacaoPersistenceService persistence;
  public OperacaoService(OperacaoRepository operacoes,CarteiraRepository carteiras,AcaoRepository acoes,
   CorretoraRepository corretoras,TickerNormalizer tickers,OperacaoMapper mapper,Clock clock,
-  OperacaoPersistenceService persistence,FechamentoHistoricoService fechamentoHistorico){
+  OperacaoPersistenceService persistence){
   this.operacoes=operacoes;this.carteiras=carteiras;this.acoes=acoes;this.corretoras=corretoras;this.tickers=tickers;
-  this.mapper=mapper;this.clock=clock;this.persistence=persistence;this.fechamentoHistorico=fechamentoHistorico;
+  this.mapper=mapper;this.clock=clock;this.persistence=persistence;
  }
  public OperacaoResponse cadastrar(OperacaoCreateRequest request){
   if(request==null)throw invalid("request","Corpo da requisição é obrigatório");
@@ -41,8 +41,8 @@ public class OperacaoService {
   validateDate(request.getDataOperacao(),request.getMercado());
   BigDecimal price;
   if(request instanceof OperacaoVendaCreateRequest sale)price=operand(sale.getPrecoUnitario(),"precoUnitario","Preço unitário");
-  else if(request instanceof OperacaoCompraCreateRequest){
-   price=fechamentoHistorico.consultar(ticker,request.getMercado(),request.getDataOperacao());
+  else if(request instanceof OperacaoCompraCreateRequest purchase){
+   price=operand(purchase.getPrecoUnitario(),"precoUnitario","Preco unitario");
   }else throw invalid("tipo","Tipo de operação inválido");
   return persistence.persistir(new OperacaoPersistenceCommand(request.getCarteiraId(),ticker,request.getMercado(),request.getCorretoraId(),request.getTipo(),quantity,price,request.getDataOperacao()));
  }

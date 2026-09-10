@@ -42,6 +42,59 @@ describe('PortfolioEvolutionComponent', () => {
     return fixture;
   }
 
+  it('decorates only existing segments without bridging gaps or moving financial points', async () => {
+    const data: EvolucaoPatrimonialResponse = { carteiraId: 1, pontos: [
+      ...[1, 2, 3, 4, 5, 6].map(id => ({ snapshotId: id, dataHoraSnapshot: `2026-09-0${id}T10:00:00Z`,
+        patrimonios: id === 3 ? [] : [{ moeda: 'BRL' as const, patrimonioAtual: `${id}00.123456789012` }] }))
+    ] };
+    const before = JSON.stringify(data);
+    const fixture = await create(data);
+    const root = fixture.nativeElement as HTMLElement;
+    const geometry = buildEvolutionGeometry(data.pontos, 'BRL')!;
+    const lines = Array.from(root.querySelectorAll('.series-line')).map(e => e.getAttribute('d'));
+    expect(lines).toEqual(geometry.segments.map(segmentPath));
+    const areas = Array.from(root.querySelectorAll('.series-area'));
+    expect(areas).toHaveLength(2);
+    areas.forEach((area, i) => {
+      expect(area.getAttribute('d')!.startsWith(lines[i]!)).toBe(true);
+      expect(area.getAttribute('aria-hidden')).toBe('true');
+    });
+    expect(root.querySelectorAll('.point')).toHaveLength(5);
+    expect(root.querySelectorAll('.history li')).toHaveLength(6);
+    expect(root.querySelector('.chart__latest')?.textContent).toContain('R$ 600,12');
+    expect(service.consultar).toHaveBeenCalledTimes(1);
+    expect(service.registrarSnapshot).not.toHaveBeenCalled();
+    expect(JSON.stringify(data)).toBe(before);
+  });
+
+  it('exposes every constant close record without changing the real temporal coordinates', async () => {
+    const data: EvolucaoPatrimonialResponse = { carteiraId: 1, pontos: [
+      { snapshotId: 1, dataHoraSnapshot: '2026-09-05T17:09:43.932463Z', patrimonios: [{ moeda: 'BRL', patrimonioAtual: '1569.000000000000' }, { moeda: 'USD', patrimonioAtual: '1599.850000000000' }] },
+      { snapshotId: 5, dataHoraSnapshot: '2026-09-05T17:25:20.545814Z', patrimonios: [{ moeda: 'BRL', patrimonioAtual: '1569.000000000000' }, { moeda: 'USD', patrimonioAtual: '1599.850000000000' }] },
+      { snapshotId: 8, dataHoraSnapshot: '2026-09-07T21:17:26.957196Z', patrimonios: [{ moeda: 'BRL', patrimonioAtual: '1569.000000000000' }, { moeda: 'USD', patrimonioAtual: '1599.850000000000' }] }
+    ] };
+    const original = JSON.stringify(data);
+    const fixture = await create(data);
+    const root = fixture.nativeElement as HTMLElement;
+    expect(root.querySelectorAll('.point')).toHaveLength(6);
+    for (const chart of root.querySelectorAll('.chart')) {
+      const circles = Array.from(chart.querySelectorAll('.point circle'));
+      expect(circles.map(c => c.getAttribute('cy'))).toEqual(['120', '120', '120']);
+      expect(circles.map(c => c.getAttribute('cx'))).toEqual(['44', '47.28403186509436', '702']);
+      const buttons = chart.querySelectorAll<HTMLButtonElement>('.record-picker button');
+      expect(buttons).toHaveLength(3);
+      buttons[1].focus(); fixture.detectChanges();
+      expect(buttons[1].getAttribute('aria-pressed')).toBe('true');
+      expect(chart.querySelector('.tooltip')?.textContent).toContain('Registro #5');
+      expect(chart.querySelectorAll('.point--active')).toHaveLength(1);
+      buttons[1].dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); fixture.detectChanges();
+      expect(root.querySelector('.tooltip')).toBeNull();
+    }
+    expect(service.consultar).toHaveBeenCalledTimes(1);
+    expect(service.registrarSnapshot).not.toHaveBeenCalled();
+    expect(JSON.stringify(data)).toBe(original);
+  });
+
   it('apresenta loading anunciado e empty state sem tratar zero snapshots como erro', async () => {
     const pending = new Subject<EvolucaoPatrimonialResponse>();
     service.consultar.mockReturnValueOnce(pending);
@@ -69,6 +122,7 @@ describe('PortfolioEvolutionComponent', () => {
     expect(fixture.nativeElement.textContent).toContain('somente uma observação histórica');
     expect(fixture.nativeElement.querySelectorAll('circle')).toHaveLength(1);
     expect(fixture.nativeElement.querySelectorAll('path.series-line')).toHaveLength(0);
+    expect(fixture.nativeElement.querySelectorAll('path.series-area')).toHaveLength(0);
   });
 
   it('expõe SVG complementar, histórico e ponto focável com valor autoritativo', async () => {
@@ -85,7 +139,7 @@ describe('PortfolioEvolutionComponent', () => {
   it('mantém semântica, nomes não cromáticos e breakpoints responsivos estruturais', async () => {
     const fixture = await create(DATA);
     expect(fixture.nativeElement.querySelector('h2')?.textContent).toContain('Histórico do patrimônio');
-    expect(fixture.nativeElement.textContent).toContain('Os registros são realizados manualmente e preservados separadamente por moeda.');
+    expect(fixture.nativeElement.textContent).toContain('Registros manuais, separados por moeda.');
     expect(fixture.nativeElement.querySelector('.evolution__timezone')?.textContent).toContain('horário local');
     expect(fixture.nativeElement.querySelector('button[mat-stroked-button]')?.textContent).toContain('Registrar patrimônio atual');
     expect(fixture.nativeElement.textContent).not.toMatch(/snapshot/i);
@@ -330,7 +384,8 @@ describe('PortfolioEvolutionComponent', () => {
       .toEqual(series.points.map(p => [String(p.x), String(p.y)]));
     expect(root.querySelectorAll('.history')).toHaveLength(1);
     expect(root.querySelectorAll('.history li')).toHaveLength(4);
-    expect(root.querySelectorAll('svg path')).toHaveLength(1);
+    expect(root.querySelectorAll('svg path.series-line')).toHaveLength(1);
+    expect(root.querySelectorAll('svg path.series-area')).toHaveLength(1);
     expect(service.consultar).toHaveBeenCalledTimes(1);
     expect(service.registrarSnapshot).not.toHaveBeenCalled();
   });

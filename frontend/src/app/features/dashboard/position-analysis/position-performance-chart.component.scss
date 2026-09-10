@@ -25,3 +25,8 @@ small{display:block;margin-top:.25rem}
 .dot.positive{color:var(--app-financial-positive)}
 .dot.negative{color:var(--app-negative);background:var(--app-surface,#fff)}
 .dot.neutral{background:var(--app-surface,#fff);border-radius:0}
+
+.return-panel li+li{border-top:1px solid var(--app-border-subtle);padding-top:.8rem;margin-top:.8rem}
+.return-panel .dot-plot{height:2rem;margin-top:.6rem}
+.return-panel .dot{width:12px;height:12px;border-width:3px}
+.return-panel .dot-zero{top:25%;height:50%}

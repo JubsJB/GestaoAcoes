@@ -7,7 +7,7 @@ import { OperacoesService } from './operacoes.service';
 
 const PURCHASE: OperacaoCompraCreateRequest = {
   carteiraId: 2, ticker: 'AAPL', mercado: 'EUA', corretoraId: null,
-  tipo: 'COMPRA', quantidade: '0.123456', dataOperacao: '2026-09-01'
+  tipo: 'COMPRA', precoUnitario: '9999999999999.123456', quantidade: '0.123456', dataOperacao: '2026-09-01'
 };
 const SALE: OperacaoVendaCreateRequest = {
   carteiraId: 2, ticker: 'AAPL', mercado: 'EUA', tipo: 'VENDA',
@@ -32,7 +32,7 @@ describe('OperacoesService', () => {
     const request = http.expectOne('/api/operacoes');
     expect(request.request.method).toBe('POST');
     expect(request.request.body).toEqual(PURCHASE);
-    expect(request.request.body).not.toHaveProperty('precoUnitario');
+    expect(request.request.body.precoUnitario).toBe(PURCHASE.precoUnitario);
     expect(request.request.body).not.toHaveProperty('ordemNoDia');
     expect(request.request.body).not.toHaveProperty('valorTotal');
     expect(request.request.body).not.toHaveProperty('id');

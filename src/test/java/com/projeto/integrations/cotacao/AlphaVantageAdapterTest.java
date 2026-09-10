@@ -33,6 +33,48 @@ class AlphaVantageAdapterTest {
     }
 
     @Test
+    void refreshMapsTimeoutAndUnavailableWithoutRetry() {
+        server.expect(requestTo("http://alpha.test/query?function=GLOBAL_QUOTE&symbol=AAPL&apikey=" + KEY))
+                .andRespond(withStatus(HttpStatus.SERVICE_UNAVAILABLE));
+        assertCode(ErrorCodes.SERVICO_EXTERNO_INDISPONIVEL,
+                () -> adapter.consultarAtualizacao("AAPL", "Apple", "USD"));
+        server.verify();
+        RestClient client = RestClient.builder().requestFactory((uri, method) -> {
+            throw new HttpTimeoutException("timeout");
+        }).build();
+        assertCode(ErrorCodes.SERVICO_EXTERNO_TIMEOUT,
+                () -> new AlphaVantageAdapter(client, KEY).consultarAtualizacao("AAPL", "Apple", "USD"));
+    }
+
+    @Test
+    void refreshUsesOnlyQuoteAndPersistedIdentity() {
+        expectQuote("AAPL", """
+                {"Global Quote":{"01. symbol":"AAPL","05. price":"224.410001"}}
+                """);
+        CotacaoData result = adapter.consultarAtualizacao("AAPL", "Apple Inc.", "USD");
+        assertEquals("Apple Inc.", result.nomeEmpresa());
+        assertEquals("USD", result.moeda());
+        assertEquals("224.410001", result.cotacao().toPlainString());
+        server.verify();
+    }
+
+    @Test
+    void refreshRateLimitDoesNotRetry() {
+        expectQuote("AAPL", "{\"Note\":\"API call frequency exceeded\"}");
+        assertCode(ErrorCodes.LIMITE_REQUISICOES_EXCEDIDO,
+                () -> adapter.consultarAtualizacao("AAPL", "Apple", "USD"));
+        server.verify();
+    }
+
+    @Test
+    void refreshRejectsDifferentSymbol() {
+        expectQuote("AAPL", "{\"Global Quote\":{\"01. symbol\":\"MSFT\",\"05. price\":\"10\"}}");
+        assertCode(ErrorCodes.RESPOSTA_EXTERNA_INVALIDA,
+                () -> adapter.consultarAtualizacao("AAPL", "Apple", "USD"));
+        server.verify();
+    }
+
+    @Test
     void usesExactUsSearchNameThenLatestQuoteWithoutOverview() {
         expectSearch("AAPL", """
                 {"bestMatches":[{

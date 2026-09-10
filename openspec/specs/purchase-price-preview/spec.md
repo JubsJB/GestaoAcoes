@@ -44,15 +44,27 @@ A prévia SHALL reutilizar a capacidade vigente de fechamento histórico: BRAPI 
 - **THEN** o sistema preserva respectivamente `404 TICKER_INEXISTENTE`, `429 LIMITE_REQUISICOES_EXCEDIDO`, `502 RESPOSTA_EXTERNA_INVALIDA`, `503 SERVICO_EXTERNO_INDISPONIVEL` ou `504 SERVICO_EXTERNO_TIMEOUT`
 
 ### Requirement: Prévia informativa e sem efeitos colaterais
-A prévia SHALL ser somente informativa, MUST NOT persistir cotação, Operação ou qualquer outro estado e MUST NOT alterar o contrato de `POST /operacoes`. Uma COMPRA criada posteriormente MUST continuar sem aceitar `precoUnitario` e MUST consultar e validar novamente o fechamento histórico como autoridade final, independentemente do valor anteriormente exibido.
+A previa SHALL permanecer consulta historica independente, informativa e sem efeitos colaterais. POST /operacoes SHALL exigir precoUnitario manual em COMPRA e VENDA, sem chamar a previa nem substituir o preco informado. O formulario COMPRA SHALL consumir esta previa somente como sugestao inicial editavel, preservando o preco final do campo no POST.
+
+#### Scenario: Consulta independente
+- **WHEN** uma previa retorna um fechamento e depois o cliente envia COMPRA
+- **THEN** POST usa exclusivamente o preco manual validado sem nova consulta historica
+
+#### Scenario: Preco obrigatorio
+- **WHEN** cliente omite precoUnitario ou envia nulo apos consultar previa
+- **THEN** POST rejeita com 400 REQUEST_INVALIDO sem persistir
+
+#### Scenario: Previa sem mutacao
+- **WHEN** consulta termina com sucesso ou erro
+- **THEN** nenhuma Acao, cotacao, Operacao, posicao ou snapshot e criado ou modificado
 
 #### Scenario: Consulta não reserva preço
-- **WHEN** uma prévia retorna um preço e depois o cliente envia a COMPRA correspondente
-- **THEN** o POST consulta novamente o fechamento e usa somente o resultado validado no momento da criação
+- **WHEN** o cliente consulta uma previa historica
+- **THEN** a consulta nao reserva preco e o POST exige preco manual sem reconsulta
 
 #### Scenario: Cliente tenta impor preço da COMPRA
-- **WHEN** o cliente envia `precoUnitario`, inclusive nulo, em uma COMPRA após obter uma prévia
-- **THEN** o POST continua respondendo `400 Bad Request` com `REQUEST_INVALIDO` e não persiste Operação
+- **WHEN** o cliente informa preco positivo no POST de COMPRA
+- **THEN** o preco e obrigatorio e aceito pela nova regra, independentemente da previa
 
 #### Scenario: Prévia sem mutação
 - **WHEN** a consulta termina com sucesso ou erro

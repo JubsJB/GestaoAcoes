@@ -16,6 +16,12 @@ describe('PortfolioPositionsComponent', () => {
     const row = root.querySelector('tbody tr')!;
     expect(row.querySelectorAll('td.numeric')).toHaveLength(7);
     expect(row.textContent).toContain('Petrobras');
+    expect(row.querySelector('.asset-name')?.textContent).toBe('PETR4');
+    expect(row.querySelector('.market-badge')?.textContent).toContain('BRL');
+    expect(row.querySelector('.primary-value')?.textContent).toBe('R$ 241,00');
+    expect(root.querySelector('[data-outcome="Positivo"] .outcome')?.textContent).toBe('Positivo');
+    expect(root.querySelector('[data-outcome="Negativo"] .outcome')?.textContent).toBe('Negativo');
+    expect(root.querySelector('[data-outcome="Neutro"] .outcome')?.textContent).toBe('Neutro');
     for (const value of ['R$ 40,00', 'R$ 200,00', 'R$ 48,20', 'R$ 241,00', 'R$ 41,00']) expect(row.textContent).toContain(value);
     expect(row.querySelector('.quote-reference')?.textContent).toContain('01/01/2026');
     expect(root.textContent).toContain('USD');

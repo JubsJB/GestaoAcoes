@@ -106,7 +106,7 @@ class PrecoOperacaoResourceTest {
     }
 
     @Test
-    void previewDoesNotAuthorizePurchaseAndPostConsultsAgain() throws Exception {
+    void previewRemainsIndependentAndPurchaseRequiresManualPrice() throws Exception {
         Carteira carteira = carteiras.saveAndFlush(portfolio("Carteira"));
         acoes.saveAndFlush(action("PETR4", Mercado.BRASIL, Moeda.BRL));
         LocalDate date = LocalDate.of(2026, 8, 20);
@@ -117,15 +117,16 @@ class PrecoOperacaoResourceTest {
                 .andExpect(status().isOk());
         mockMvc.perform(post("/operacoes").contentType(MediaType.APPLICATION_JSON).content("""
                 {"carteiraId":%d,"ticker":"PETR4","mercado":"BRASIL","tipo":"COMPRA",
-                 "quantidade":1,"dataOperacao":"2026-08-20"}
+                 "quantidade":1,"precoUnitario":25.50,"dataOperacao":"2026-08-20"}
                 """.formatted(carteira.getId())))
-                .andExpect(status().isCreated());
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.precoUnitario").value(25.50));
 
-        verify(brasil, times(2)).consultarFechamento("PETR4", date);
+        verify(brasil, times(1)).consultarFechamento("PETR4", date);
 
         mockMvc.perform(post("/operacoes").contentType(MediaType.APPLICATION_JSON).content("""
                 {"carteiraId":%d,"ticker":"PETR4","mercado":"BRASIL","tipo":"COMPRA",
-                 "quantidade":1,"precoUnitario":32,"dataOperacao":"2026-08-20"}
+                 "quantidade":1,"dataOperacao":"2026-08-20"}
                 """.formatted(carteira.getId())))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("REQUEST_INVALIDO"));

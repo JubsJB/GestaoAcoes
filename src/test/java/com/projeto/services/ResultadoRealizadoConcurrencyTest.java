@@ -112,7 +112,7 @@ class ResultadoRealizadoConcurrencyTest {
             List<ResultadoRealizadoResponse> committed =
                     resultadoRealizadoService.listarPorCarteira(carteira.getId());
             assertEquals(1, committed.size());
-            assertEquals(new BigDecimal("-680.000000000000"), committed.get(0).resultadoRealizado());
+            assertEquals(new BigDecimal("200.000000000000"), committed.get(0).resultadoRealizado());
             assertEquals(2, operacaoRepository.count());
         } finally {
             executor.shutdownNow();

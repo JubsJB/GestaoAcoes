@@ -46,7 +46,8 @@ describe('CorretorasListPageComponent', () => {
     expect(fixture.nativeElement.querySelector('[data-scroll-region="records"]')).toBeTruthy();
     expect(Array.from(fixture.nativeElement.querySelectorAll('thead th')).map(th => (th as HTMLElement).textContent)).toEqual(['Instituição', 'CNPJ', 'Localidade', 'Situação cadastral', 'Ações']);
     expect(fixture.nativeElement.querySelectorAll('tbody th[scope="row"]')).toHaveLength(1);
-    expect(fixture.nativeElement.querySelectorAll('tbody a')).toHaveLength(1);
+    expect(fixture.nativeElement.querySelectorAll('tbody a.details-link')).toHaveLength(1);
+    expect(fixture.nativeElement.querySelector('tbody a')?.getAttribute('href')).toBe('/' + BROKER.id);
     expect(fixture.nativeElement.textContent).toContain('11.222.333/0001-81');
     expect(fixture.nativeElement.textContent).toContain('São Paulo — SP');
     expect(fixture.nativeElement.querySelector('a[aria-label="Ver detalhes de Corretora Teste"]')).toBeTruthy();

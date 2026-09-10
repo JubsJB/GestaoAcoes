@@ -304,7 +304,7 @@ O sistema SHALL expor `PATCH /acoes/{id}/cotacao` como operação dedicada para 
 - **THEN** o sistema responde `400 Bad Request` com código `REQUEST_INVALIDO`, sem consultar provider e sem alterar a Ação
 
 ### Requirement: Seleção da Ação e do provider pelo estado persistido
-O sistema SHALL localizar a Ação pelo ID antes de qualquer chamada externa e SHALL usar exclusivamente o ticker e o mercado persistidos para solicitar a nova cotação. O sistema SHALL consultar BRAPI quando o mercado persistido for `BRASIL` e Alpha Vantage quando for `EUA`, sem permitir seleção do provider pelo cliente.
+O sistema SHALL localizar a Ação pelo ID antes de qualquer chamada externa e SHALL usar exclusivamente o ticker e o mercado persistidos para solicitar a nova cotação. O sistema SHALL consultar BRAPI quando o mercado persistido for `BRASIL` e Alpha Vantage quando for `EUA`, respeitando reutilizacao e cooldown de cotacao EUA definidos em alpha-vantage-consumption, sem permitir seleção do provider pelo cliente.
 
 #### Scenario: Ação brasileira persistida
 - **WHEN** a Ação encontrada possui `mercado=BRASIL`
@@ -312,7 +312,7 @@ O sistema SHALL localizar a Ação pelo ID antes de qualquer chamada externa e S
 
 #### Scenario: Ação americana persistida
 - **WHEN** a Ação encontrada possui `mercado=EUA`
-- **THEN** o sistema consulta somente a Alpha Vantage usando o ticker persistido
+- **THEN** o sistema reutiliza a cotacao persistida recente ou respeita cooldown ativo; quando uma consulta e necessaria, consulta somente a Alpha Vantage usando o ticker persistido e a identidade ja validada
 
 #### Scenario: Ação inexistente
 - **WHEN** o ID informado não corresponde a uma Ação persistida

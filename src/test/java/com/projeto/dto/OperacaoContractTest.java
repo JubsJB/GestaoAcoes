@@ -9,17 +9,19 @@ class OperacaoContractTest {
  private final ObjectMapper json=new ObjectMapper().findAndRegisterModules();
  private Validator validator;
  @BeforeEach void setup(){validator=Validation.buildDefaultValidatorFactory().getValidator();}
- @Test void bindsValidPurchaseWithoutPrice() throws Exception {
-  OperacaoCreateRequest value=json.readValue(valid("COMPRA",""),OperacaoCreateRequest.class);
+ @Test void bindsValidPurchaseWithRequiredPrice() throws Exception {
+  OperacaoCreateRequest value=json.readValue(valid("COMPRA",",\"precoUnitario\":10.25"),OperacaoCreateRequest.class);
   assertInstanceOf(OperacaoCompraCreateRequest.class,value);assertTrue(validator.validate(value).isEmpty());
  }
  @Test void bindsValidSaleWithRequiredPrice() throws Exception {
   OperacaoCreateRequest value=json.readValue(valid("VENDA",",\"precoUnitario\":10.25"),OperacaoCreateRequest.class);
   assertInstanceOf(OperacaoVendaCreateRequest.class,value);assertTrue(validator.validate(value).isEmpty());
  }
- @Test void rejectsPriceEvenNullOnPurchase(){
-  assertThrows(Exception.class,()->json.readValue(valid("COMPRA",",\"precoUnitario\":10"),OperacaoCreateRequest.class));
-  assertThrows(Exception.class,()->json.readValue(valid("COMPRA",",\"precoUnitario\":null"),OperacaoCreateRequest.class));
+ @Test void purchaseMissingNullOrNonPositivePriceFailsValidation() throws Exception {
+  for(String extra:new String[]{"",",\"precoUnitario\":null",",\"precoUnitario\":0",",\"precoUnitario\":-1"}) {
+   var value=json.readValue(valid("COMPRA",extra),OperacaoCreateRequest.class);
+   assertTrue(validator.validate(value).stream().anyMatch(e->e.getPropertyPath().toString().equals("precoUnitario")));
+  }
  }
  @Test void saleWithoutPriceFailsValidation() throws Exception {
   Set<ConstraintViolation<OperacaoCreateRequest>> errors=validator.validate(json.readValue(valid("VENDA",""),OperacaoCreateRequest.class));

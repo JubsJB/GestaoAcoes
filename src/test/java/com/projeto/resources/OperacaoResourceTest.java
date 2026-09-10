@@ -110,21 +110,21 @@ class OperacaoResourceTest {
                 .andExpect(jsonPath("$.corretoraId").value(Matchers.nullValue()))
                 .andExpect(jsonPath("$.tipo").value("COMPRA"))
                 .andExpect(jsonPath("$.quantidade").value(100.0))
-                .andExpect(jsonPath("$.precoUnitario").value(32.0))
+                .andExpect(jsonPath("$.precoUnitario").value(32.47))
                 .andExpect(jsonPath("$.dataOperacao").value("2026-08-10"))
                 .andExpect(jsonPath("$.ordemNoDia").value(1))
-                .andExpect(jsonPath("$.valorTotal").value(3200.0))
+                .andExpect(jsonPath("$.valorTotal").value(3247.0))
                 .andExpect(jsonPath("$.acaoId").doesNotExist())
                 .andExpect(jsonPath("$.cotacaoAtual").doesNotExist())
                 .andExpect(jsonPath("$.cotacaoHistorica").doesNotExist());
 
         var saved = operacaoRepository.findAll().get(0);
         assertNull(saved.getCorretora());
-        assertEquals(new BigDecimal("32.000000"), saved.getPrecoUnitario());
-        assertEquals(new BigDecimal("3200.000000000000"), saved.getValorTotal());
+        assertEquals(new BigDecimal("32.470000"), saved.getPrecoUnitario());
+        assertEquals(new BigDecimal("3247.000000000000"), saved.getValorTotal());
         assertEquals(new BigDecimal("88.000000"), acaoRepository.findById(acao.getId()).orElseThrow().getCotacaoAtual());
         assertEquals("Carteira BR", carteiraRepository.findById(carteira.getId()).orElseThrow().getNome());
-        verify(brapiHistorico).consultarFechamento("PETR4", LocalDate.of(2026, 8, 10));
+        verify(brapiHistorico, never()).consultarFechamento("PETR4", LocalDate.of(2026, 8, 10));
         verify(alphaHistorico, never()).consultarFechamento(anyString(), org.mockito.ArgumentMatchers.any());
         assertNoCurrentProviderCalls();
     }
@@ -141,10 +141,10 @@ class OperacaoResourceTest {
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.corretoraId").value(broker.getId()))
                 .andExpect(jsonPath("$.quantidade").value(1.5))
-                .andExpect(jsonPath("$.precoUnitario").value(32.0))
-                .andExpect(jsonPath("$.valorTotal").value(48.0));
+                .andExpect(jsonPath("$.precoUnitario").value(200.123456))
+                .andExpect(jsonPath("$.valorTotal").value(300.185184));
 
-        verify(alphaHistorico).consultarFechamento("AAPL", LocalDate.of(2026, 8, 10));
+        verify(alphaHistorico, never()).consultarFechamento("AAPL", LocalDate.of(2026, 8, 10));
         clearInvocations(brapiHistorico, alphaHistorico);
 
         mockMvc.perform(post("/operacoes")
@@ -190,8 +190,8 @@ class OperacaoResourceTest {
                 purchase.replace("\"tipo\":\"COMPRA\"", "\"tipo\":null"),
                 purchase.replace("\"COMPRA\"", "\"DIVIDENDO\""),
                 purchase.replace("\"COMPRA\"", "\"compra\""),
-                addField(purchase, "\"precoUnitario\":10"),
-                addField(purchase, "\"precoUnitario\":null"),
+                purchase.replace(",\"precoUnitario\":10", ""),
+                purchase.replace("\"precoUnitario\":10", "\"precoUnitario\":null"),
                 addField(purchase, "\"ordemNoDia\":1"),
                 addField(sale, "\"ordemNoDia\":1"),
                 sale.replace(",\"precoUnitario\":10", ""),
@@ -483,7 +483,7 @@ class OperacaoResourceTest {
             int order
     ) {
         String broker = brokerId == null ? "" : ",\"corretoraId\":" + brokerId;
-        String unitPrice = "VENDA".equals(type) ? ",\"precoUnitario\":" + price : "";
+        String unitPrice = ",\"precoUnitario\":" + price;
         return "{" +
                 "\"carteiraId\":" + portfolioId +
                 ",\"ticker\":\"" + ticker + "\"" +

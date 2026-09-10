@@ -177,6 +177,13 @@ describe('DashboardPageComponent', () => {
       expect(group.querySelectorAll('mat-card')).toHaveLength(4);
       expect(group.querySelector('.summary-primary')?.textContent).toContain('Patrimônio atual');
     });
+    for (const selector of ['app-position-analysis', 'app-cost-value-chart', 'app-portfolio-composition', 'app-portfolio-evolution']) expect(root.querySelectorAll(selector)).toHaveLength(1);
+    const actions = root.querySelector('.dashboard-actions')!;
+    expect(actions.querySelector('.portfolio-context')).not.toBeNull();
+    for (const label of ['Ver carteira', 'Registrar operação', 'Atualizar dados']) expect(actions.textContent).toContain(label);
+    expect(root.querySelector('app-portfolio-evolution')?.textContent).toContain('Registrar patrimônio atual');
+    expect(evolution.consultar).toHaveBeenCalledTimes(1);
+    expect(evolution.registrarSnapshot).not.toHaveBeenCalled();
     expect(root.querySelectorAll('app-portfolio-positions')).toHaveLength(1);
     expect(root.querySelectorAll('.result')).toHaveLength(1);
     expect(carteiras.listar).toHaveBeenCalledTimes(1);
@@ -229,7 +236,32 @@ describe('DashboardPageComponent', () => {
     expect(fixture.nativeElement.querySelector('a[href="/carteiras/1"]')).toBeTruthy();
     expect(fixture.nativeElement.querySelector('.record a')).toBeFalsy();
     const register = Array.from(fixture.nativeElement.querySelectorAll('button')).find((button: any) => button.textContent.includes('Registrar operação')) as HTMLButtonElement;
-    register.click(); expect(router.navigate).toHaveBeenCalledWith(['/operacoes/nova'], { queryParams: { carteiraId: 1, origem: 'dashboard' } });
+    await fixture.componentInstance['openOperationDialog'](); expect(TestBed.inject(MatDialog).open).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ data: { carteira: A }, restoreFocus: true })); expect(router.navigate).not.toHaveBeenCalled();
+  });
+
+  it('dialog preserva origem e nao recarrega outra carteira no sucesso', async () => {
+    query.next(convertToParamMap({carteiraId:'1'}));
+    const {fixture,dashboard,evolution}=await create(of([A,B]));
+    const closed=new Subject<unknown>(); const open=vi.mocked(TestBed.inject(MatDialog).open);
+    open.mockReturnValue({afterClosed:()=>closed} as never);
+    await fixture.componentInstance['openOperationDialog']();
+    query.next(convertToParamMap({carteiraId:'2'})); fixture.detectChanges();
+    const count=dashboard.obterResumo.mock.calls.length;
+    closed.next({id:99,carteiraId:1}); closed.complete();
+    expect(open).toHaveBeenCalledWith(expect.anything(),expect.objectContaining({data:{carteira:A}}));
+    expect(dashboard.obterResumo).toHaveBeenCalledTimes(count);
+    expect(evolution.registrarSnapshot).not.toHaveBeenCalled();
+  });
+
+  it('sucesso atualiza tres consultas da origem sem snapshots e impede abertura dupla', async () => {
+    query.next(convertToParamMap({carteiraId:'1'}));
+    const {fixture,dashboard,evolution}=await create(of([A])); const closed=new Subject<unknown>();
+    const open=vi.mocked(TestBed.inject(MatDialog).open); open.mockReturnValue({afterClosed:()=>closed} as never);
+    await Promise.all([fixture.componentInstance['openOperationDialog'](),fixture.componentInstance['openOperationDialog']()]);
+    expect(open).toHaveBeenCalledTimes(1); closed.next({id:99,carteiraId:1}); closed.complete();
+    expect(dashboard.obterResumo).toHaveBeenCalledTimes(2); expect(dashboard.listarPosicoes).toHaveBeenCalledTimes(2);
+    expect(dashboard.listarResultadosRealizados).toHaveBeenCalledTimes(2); expect(evolution.consultar).toHaveBeenCalledTimes(1);
+    expect(evolution.registrarSnapshot).not.toHaveBeenCalled();
   });
 
   it('remove a análise anterior durante troca de contexto e preserva histórico mesmo sem posições atuais', async () => {

@@ -60,7 +60,9 @@ describe.each(['result', 'return'] as const)('Performance %s', metric => {
     const values = ['1e400', '-1e400', '1e-400', '-0.00000000000001', '9007199254740993.01'];
     const { root } = await render(metric, values.map((value, i) => positionFixture({ acaoId: i, [field(metric)]: value })));
     expect(root.querySelectorAll('li')).toHaveLength(5);
-    for (const value of values.slice(0, 4)) expect(root.textContent).toContain(`Valor completo: ${value}`);
+    expect(root.textContent).toContain('Valor completo: 1' + '0'.repeat(400));
+      expect(root.textContent).toContain('Valor completo: 0,' + '0'.repeat(399) + '1');
+      expect(root.textContent).toContain('Valor completo: -0,00000000000001');
     expect(root.textContent).toContain('9.007.199.254.740.993,01');
     expect(root.textContent).toContain('Valor não nulo');
     expect(root.querySelectorAll('.value.positive')).toHaveLength(3);
@@ -97,8 +99,11 @@ it('integrates the three charts in order and removes all on an empty portfolio',
   fixture.componentRef.setInput('positions', [positionFixture({ ticker: 'ABCDEFGH', nomeEmpresa: 'Empresa com nome muito extenso '.repeat(8) })]);
   fixture.detectChanges();
   const root = fixture.nativeElement as HTMLElement;
-  expect(Array.from(root.querySelectorAll('h3')).map(e => e.textContent)).toEqual(['Custo × Valor atual', 'Resultado não realizado', 'Rentabilidade por ativo']);
-  expect(root.querySelectorAll('li')).toHaveLength(3);
+  expect(Array.from(root.querySelectorAll('h3')).map(e => e.textContent)).toEqual(['Composição da carteira', 'Custo × Valor atual', 'Resultado não realizado', 'Rentabilidade por ativo']);
+  expect(root.querySelectorAll('li')).toHaveLength(4);
+  expect(Array.from(root.querySelector('.overview-panels')!.children).map(e => e.tagName.toLowerCase())).toEqual(['app-portfolio-composition', 'app-cost-value-chart']);
+  expect(root.querySelectorAll('.performance-panels app-position-performance-chart')).toHaveLength(2);
+  expect(root.querySelectorAll('app-portfolio-composition li')).toHaveLength(1);
   fixture.componentRef.setInput('positions', []); fixture.detectChanges();
   expect(root.querySelector('app-position-performance-chart')).toBeNull();
   expect(root.textContent).toContain('Nenhuma posição aberta');

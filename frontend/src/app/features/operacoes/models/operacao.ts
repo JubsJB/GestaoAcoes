@@ -13,6 +13,7 @@ export interface OperacaoCreateRequestBase {
 
 export interface OperacaoCompraCreateRequest extends OperacaoCreateRequestBase {
   tipo: 'COMPRA';
+  precoUnitario: string;
 }
 
 export interface OperacaoVendaCreateRequest extends OperacaoCreateRequestBase {

@@ -99,6 +99,32 @@ public class AlphaVantageAdapter implements CotacaoProvider {
         }
     }
 
+    @Override
+    public CotacaoData consultarAtualizacao(String ticker, String nomeEmpresa, String moeda) {
+        ensureConfigured();
+        try {
+            QuoteEnvelope envelope = getQuote(ticker);
+            inspectPayload(envelope.note(), envelope.information(), envelope.errorMessage());
+            GlobalQuote quote = envelope.globalQuote();
+            if (quote == null || usable(quote.symbol()) == null) throw quoteUnavailable();
+            if (!ticker.equals(normalize(quote.symbol()))) {
+                throw ExternalApiErrorMapper.invalidResponse(PROVIDER);
+            }
+            return new CotacaoData(ticker, nomeEmpresa, moeda, parsePrice(quote.price()),
+                    parseTimestamp(quote.timestamp()), false);
+        } catch (ApiException exception) {
+            throw exception;
+        } catch (HttpClientErrorException.TooManyRequests exception) {
+            throw ExternalApiErrorMapper.rateLimit(PROVIDER, exception);
+        } catch (HttpServerErrorException exception) {
+            throw ExternalApiErrorMapper.unavailable(PROVIDER, exception);
+        } catch (ResourceAccessException exception) {
+            throw ExternalApiErrorMapper.accessFailure(PROVIDER, exception);
+        } catch (RestClientException exception) {
+            throw ExternalApiErrorMapper.invalidResponse(PROVIDER, exception);
+        }
+    }
+
     private SearchResponse getSearch(String ticker) {
         SearchResponse response = restClient.get()
                 .uri(uriBuilder -> uriBuilder.path("/query")

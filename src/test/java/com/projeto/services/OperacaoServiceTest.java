@@ -358,8 +358,8 @@ class OperacaoServiceTest {
                 "AAPL", Mercado.EUA, TipoOperacao.COMPRA,
                 "0.500000", "32.123456", LocalDate.of(2026, 8, 10), 1, null
         ));
-        assertEquals(new BigDecimal("32.470000"), response.precoUnitario());
-        assertEquals(new BigDecimal("16.235000000000"), response.valorTotal());
+        assertEquals(new BigDecimal("32.123456"), response.precoUnitario());
+        assertEquals(new BigDecimal("16.061728000000"), response.valorTotal());
         assertEquals(new BigDecimal("224.410000"), americanAction.getCotacaoAtual());
 
         for (String invalid : List.of("0", "-1", "1.1234567", "10000000000000")) {
@@ -608,8 +608,6 @@ class OperacaoServiceTest {
                 operacaoRepository, carteiraRepository, acaoRepository, corretoraRepository,
                 new CalculadoraPosicao(), new OperacaoMapper(), new ConstraintNameExtractor()
         );
-        CotacaoHistoricaProvider brasil = historical(Mercado.BRASIL);
-        CotacaoHistoricaProvider usa = historical(Mercado.EUA);
         return new OperacaoService(
                 operacaoRepository,
                 carteiraRepository,
@@ -618,18 +616,8 @@ class OperacaoServiceTest {
                 new TickerNormalizer(),
                 new OperacaoMapper(),
                 clock,
-                persistence,
-                new FechamentoHistoricoService(List.of(brasil, usa))
+                persistence
         );
-    }
-
-    private CotacaoHistoricaProvider historical(Mercado market) {
-        return new CotacaoHistoricaProvider() {
-            public Mercado mercado() { return market; }
-            public CotacaoHistoricaData consultarFechamento(String ticker, LocalDate date) {
-                return new CotacaoHistoricaData(ticker, date, new BigDecimal("32.470000"));
-            }
-        };
     }
 
     private DataIntegrityViolationException integrity(String name) {

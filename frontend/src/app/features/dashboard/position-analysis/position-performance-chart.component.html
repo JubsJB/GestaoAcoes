@@ -1,4 +1,4 @@
-<section class="performance app-surface" [attr.aria-labelledby]="metric() + '-title'">
+<section class="performance app-surface" [class.return-panel]="metric() === 'return'" [attr.aria-labelledby]="metric() + '-title'">
   <header>
     <h3 [id]="metric() + '-title'">{{ title() }}</h3>
     <p>{{ metric() === 'result' ? 'Ganhos e perdas das posições em aberto.' : 'O desempenho percentual de cada posição.' }}</p>
@@ -6,7 +6,7 @@
   @for (group of groups(); track group.currency) {
     <section class="currency" [attr.aria-labelledby]="metric() + '-' + group.currency">
       <h4 [id]="metric() + '-' + group.currency">{{ group.currency }}</h4>
-      <div class="axis-labels" aria-hidden="true"><span>−</span><span>{{ metric() === 'return' ? '0%' : '0' }}</span><span>+</span></div>
+      <div class="axis-labels" aria-hidden="true"><span>{{ metric() === 'result' ? 'Perda' : '−' }}</span><span>{{ metric() === 'return' ? '0%' : '0' }}</span><span>{{ metric() === 'result' ? 'Ganho' : '+' }}</span></div>
       <ul>
         @for (row of group.rows; track row.position.acaoId) {
           <li [attr.data-asset-id]="row.position.acaoId">
@@ -39,7 +39,7 @@
               }
             </svg>
             }
-            @if (row.complete) { <small>Valor completo: {{ row.authoritativeValue }} {{ metric() === 'return' ? '%' : group.currency }}</small> }
+            @if (row.complete) { <small>Valor completo: {{ row.exact }} {{ metric() === 'return' ? '%' : group.currency }}</small> }
             @if (row.small) { <small>{{ metric() === 'return' ? 'Valor não nulo; o ponto pode parecer sobre o zero.' : 'Valor não nulo; a barra pode não ser perceptível.' }}</small> }
           </li>
         }

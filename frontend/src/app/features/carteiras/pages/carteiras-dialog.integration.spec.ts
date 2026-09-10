@@ -67,9 +67,10 @@ describe('Carteiras com MatDialog real', () => {
     const purchase = dialog.open(OperacaoFormPageComponent, { data: { carteira: CARTEIRA } });
     purchase.componentInstance['form'].setValue({ carteiraId: 6, acaoKey: 'AAPL|EUA', corretoraId: null, tipo: 'COMPRA', quantidade: '1', precoUnitario: '', dataOperacao: '2026-08-31' });
     expect(operations.obterPreviaCompra).toHaveBeenCalledWith('AAPL', 'EUA', '2026-08-31');
+    purchase.componentInstance['form'].controls.precoUnitario.setValue('15');
     purchase.componentInstance['submit']();
-    expect(operations.cadastrar.mock.calls[0][0]).toEqual({ carteiraId: 6, ticker: 'AAPL', mercado: 'EUA', corretoraId: null, tipo: 'COMPRA', quantidade: '1', dataOperacao: '2026-08-31' });
-    expect(operations.cadastrar.mock.calls[0][0]).not.toHaveProperty('precoUnitario');
+    expect(operations.cadastrar.mock.calls[0][0]).toEqual({ carteiraId: 6, ticker: 'AAPL', mercado: 'EUA', corretoraId: null, tipo: 'COMPRA', quantidade: '1', precoUnitario: '15', dataOperacao: '2026-08-31' });
+    expect(operations.cadastrar.mock.calls[0][0].precoUnitario).toBe('15');
     expect(operations.cadastrar.mock.calls[0][0]).not.toHaveProperty('ordemNoDia');
     await waitForDialogClose();
 

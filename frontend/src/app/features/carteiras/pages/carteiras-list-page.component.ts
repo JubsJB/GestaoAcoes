@@ -49,7 +49,7 @@ import { CarteiraFormPageComponent } from './carteira-form-page.component';
                   <th scope="row" role="rowheader"><span class="cell-label" aria-hidden="true">Carteira</span>{{ carteira.nome }}</th>
                   <td role="cell"><span class="cell-label" aria-hidden="true">Data de criação</span>{{ dateTime(carteira.dataCriacao) }}</td>
                   <td role="cell"><span class="cell-label" aria-hidden="true">Contexto</span>@if (activeId() === carteira.id) { <span class="status-badge">Ativa</span> } @else { <span>—</span> }</td>
-                  <td role="cell"><span class="cell-label" aria-hidden="true">Ações</span><a [routerLink]="[carteira.id]" [state]="{}" [info]="{ carteira }" [attr.aria-label]="'Ver detalhes da carteira ' + carteira.nome">Ver detalhes</a></td>
+                  <td role="cell" class="actions-cell"><span class="cell-label" aria-hidden="true">Ações</span><a class="details-link" [routerLink]="[carteira.id]" [state]="{}" [info]="{ carteira }" [attr.aria-label]="'Ver detalhes da carteira ' + carteira.nome">Ver detalhes</a></td>
                 </tr>
               }
             </tbody>
@@ -58,7 +58,7 @@ import { CarteiraFormPageComponent } from './carteira-form-page.component';
       </div>
     </section>
   `,
-  styleUrl: '../../../shared/collection/collection.scss',
+  styleUrl: '../../../shared/collection/refined-collection.scss',
   styles: [`
     .collection-page{height:calc(100dvh - 8rem);overflow:hidden;display:flex;flex-direction:column}.collection-region{min-height:0;overflow:auto;padding:.125rem .25rem .75rem 0;overscroll-behavior:contain;flex:1 1 auto}
     @media(max-width:959.98px){.collection-page{height:calc(100dvh - 5.5rem)}}@media(max-width:36rem){.collection-page{height:auto;overflow:visible}.collection-region{overflow:visible;padding-right:0}}

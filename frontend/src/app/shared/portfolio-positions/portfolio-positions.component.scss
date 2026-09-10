@@ -1,4 +1,4 @@
-@use '../collection/collection';
+@use '../collection/refined-collection';
 
 // Keep the existing card reflow; only refine the desktop table.
 @media (min-width: 70.001rem) {

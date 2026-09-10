@@ -47,16 +47,15 @@ describe('Operation origin through real Router and HTTP', () => {
       http.expectOne(request => request.url === '/api/carteiras/1/operacoes/sugestao-preco-venda').flush('{"precoUnitarioSugerido":10.000000}');
       form.form.controls['precoUnitario'].setValue('12,30');
     } else {
-      const preview = http.expectOne(request => request.url === '/api/operacoes/previa-compra');
-      expect(preview.request.params.get('dataOperacao')).toBe('2026-08-31');
-      preview.flush('{"ticker":"AAPL","mercado":"EUA","moeda":"USD","dataCotacao":"2026-08-31","precoUnitario":42.300000}');
+      http.expectOne(request => request.url === '/api/operacoes/previa-compra').flush('{"ticker":"AAPL","mercado":"EUA","moeda":"USD","dataCotacao":"2026-08-31","precoUnitario":42.30}');
+      form.form.controls['precoUnitario'].setValue('12,30');
     }
     harness.detectChanges();
     expect(harness.routeNativeElement?.querySelector('.context')?.textContent).toContain('A');
     expect(harness.routeNativeElement?.querySelector('[formcontrolname="carteiraId"]')).toBeNull();
     form.submit();
     const post = http.expectOne('/api/operacoes');
-    expect(post.request.body).toEqual({ carteiraId: 1, ticker: 'AAPL', mercado: 'EUA', corretoraId: null, quantidade: '0.5', dataOperacao: '2026-08-31', tipo, ...(tipo === 'VENDA' ? { precoUnitario: '12.30' } : {}) });
+    expect(post.request.body).toEqual({ carteiraId: 1, ticker: 'AAPL', mercado: 'EUA', corretoraId: null, quantidade: '0.5', dataOperacao: '2026-08-31', tipo, precoUnitario: '12.30' });
     post.flush('{"id":9,"carteiraId":1,"ticker":"AAPL","mercado":"EUA","tipo":"COMPRA","quantidade":0.5,"precoUnitario":42.3,"valorTotal":21.15,"dataOperacao":"2026-08-31","ordemNoDia":1}');
     await harness.fixture.whenStable();
     expect(TestBed.inject(Router).url).toBe('/dashboard?carteiraId=1');

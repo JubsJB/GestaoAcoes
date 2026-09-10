@@ -245,6 +245,11 @@ Coleções tabulares SHALL usar cabeçalhos associados e semântica de tabela no
 - **WHEN** o viewport cruza o breakpoint da coleção
 - **THEN** ordem, conteúdo e contexto permanecem iguais sem novas requisições ou controles funcionais
 
+#### Scenario: Colecoes financeiras padronizadas
+- **WHEN** usuario consulta Posicoes abertas, Acoes, Corretoras ou Carteiras
+- **THEN** encontra superficies brancas delimitadas, cabecalho discreto, identidade principal destacada, metadados secundarios e acoes identificaveis, com numeros alinhados e estados textuais sem depender apenas de cor
+- **AND** todos os campos atuais, valores autoritativos, timestamps, ordem, links e requests permanecem iguais, sem totalizar moedas ou recalcular dados
+
 ### Requirement: Refinamento visual sem alteração funcional
 A modernização SHALL preservar contratos e comportamento aprovados: backend, endpoints, DTOs, banco, migrations, regras financeiras, compra/venda, preço médio, arredondamento, parsing lossless, precisão decimal, BRL/USD sem FX, snapshots manuais, rotas, query params, validações, máscaras, formatadores, payloads e conjunto funcional de requisições. MUST NOT criar dados, métricas, totalizações, enriquecimento de IDs com chamadas adicionais ou mudanças de gatilhos HTTP. Interações locais de apresentação e acessibilidade MAY ser refinadas sem efeitos de domínio.
 

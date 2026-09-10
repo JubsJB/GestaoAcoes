@@ -7,10 +7,10 @@ Definir o registro REST atômico de compras e vendas de Ações em uma Carteira,
 ## Requirements
 
 ### Requirement: Contrato REST de criação de Operação
-O sistema SHALL expor `POST /operacoes` com contrato discriminado pelo campo `tipo`. COMPRA SHALL aceitar exclusivamente `carteiraId`, `ticker`, `mercado`, `corretoraId`, `tipo=COMPRA`, `quantidade` e `dataOperacao`; `precoUnitario` e `ordemNoDia` MUST ser proibidos. VENDA SHALL aceitar os mesmos campos com `tipo=VENDA` e SHALL exigir `precoUnitario`; `ordemNoDia` MUST ser proibido. `corretoraId` SHALL aceitar omissão ou valor nulo; quando informado, SHALL referenciar uma Corretora existente. Qualquer campo desconhecido ou controlado pela aplicação SHALL ser rejeitado.
+O sistema SHALL expor `POST /operacoes` com contrato discriminado pelo campo `tipo`. COMPRA SHALL aceitar exclusivamente `carteiraId`, `ticker`, `mercado`, `corretoraId`, `tipo=COMPRA`, `quantidade`, `dataOperacao` e `precoUnitario` obrigatorio; `ordemNoDia` MUST ser proibido. VENDA SHALL aceitar os mesmos campos com `tipo=VENDA` e SHALL exigir `precoUnitario`; `ordemNoDia` MUST ser proibido. `corretoraId` SHALL aceitar omissão ou valor nulo; quando informado, SHALL referenciar uma Corretora existente. Qualquer campo desconhecido ou controlado pela aplicação SHALL ser rejeitado.
 
-#### Scenario: COMPRA sem preço
-- **WHEN** o cliente envia uma COMPRA válida sem `precoUnitario`, sem `ordemNoDia` e opcionalmente com `corretoraId`
+#### Scenario: COMPRA com preço
+- **WHEN** o cliente envia uma COMPRA válida com `precoUnitario` positivo, sem `ordemNoDia` e opcionalmente com `corretoraId`
 - **THEN** o sistema processa o request conforme o contrato de COMPRA
 
 #### Scenario: Request mínimo sem Corretora
@@ -29,8 +29,8 @@ O sistema SHALL expor `POST /operacoes` com contrato discriminado pelo campo `ti
 - **WHEN** o cliente envia uma variante válida com `corretoraId` existente
 - **THEN** o sistema processa a criação usando exatamente a Corretora persistida identificada
 
-#### Scenario: COMPRA com preço proibido
-- **WHEN** o cliente envia `precoUnitario` em uma COMPRA, inclusive nulo
+#### Scenario: COMPRA sem preco obrigatorio
+- **WHEN** o cliente omite `precoUnitario` em uma COMPRA ou informa nulo
 - **THEN** o sistema responde `400 Bad Request` com `REQUEST_INVALIDO` e não persiste Operação
 
 #### Scenario: VENDA com preço
@@ -48,6 +48,14 @@ O sistema SHALL expor `POST /operacoes` com contrato discriminado pelo campo `ti
 #### Scenario: Campo ausente ou desconhecido
 - **WHEN** o cliente envia `ordemNoDia`, `id`, `acaoId`, `valorTotal`, cotação ou qualquer propriedade não admitida em COMPRA ou VENDA
 - **THEN** o sistema responde `400 Bad Request` com `REQUEST_INVALIDO` e não persiste Operação
+
+#### Scenario: COMPRA sem preço
+- **WHEN** uma COMPRA omite precoUnitario
+- **THEN** o backend rejeita a entrada sem consultar fechamento historico
+
+#### Scenario: COMPRA com preço proibido
+- **WHEN** uma COMPRA informa precoUnitario positivo conforme a nova regra aprovada
+- **THEN** o backend aceita o preco manual; a antiga proibicao deixa de vigorar
 
 ### Requirement: Resposta da criação concluída
 Uma criação concluída SHALL responder `201 Created`, incluir `Location: /operacoes/{id}` e devolver `OperacaoResponse` contendo `id`, `carteiraId`, ticker normalizado, `mercado`, `corretoraId` anulável, `tipo`, `quantidade`, `precoUnitario`, `dataOperacao`, `ordemNoDia` e `valorTotal` efetivamente persistidos. Em COMPRA, `precoUnitario` SHALL ser o fechamento histórico bruto obtido; em VENDA, SHALL ser o preço informado.
@@ -249,19 +257,23 @@ A Operação SHALL possuir identificador próprio, referências obrigatórias a 
 - **THEN** a integridade relacional impede que a Operação seja apagada por cascade a partir dessas entidades
 
 ### Requirement: Separação dos conceitos de preço
-O sistema SHALL tratar `Acao.cotacaoAtual` como a última cotação corrente conhecida, `HistoricoCotacao` como observações dessa cotação corrente e `Operacao.precoUnitario` como o valor financeiro persistido da Operação. Para nova COMPRA, `Operacao.precoUnitario` SHALL ser preenchido exclusivamente pelo fechamento histórico bruto da data exata; para VENDA, SHALL ser o preço informado pelo cliente. Somente o `precoUnitario` persistido na Operação SHALL participar de `valorTotal`, custo, preço médio e resultado. Cotação corrente e `HistoricoCotacao` MUST NOT substituir o fechamento externo da COMPRA nem ser alterados por ela.
+O sistema SHALL manter cotacao corrente, historico de cotacoes e preco da Operacao separados. COMPRA e VENDA SHALL persistir exclusivamente o precoUnitario positivo informado pelo cliente. Apenas o preco persistido SHALL participar de valorTotal, custo, preco medio e resultado; cotacoes MUST NOT substituir o preco enviado nem ser alteradas pelo cadastro.
+
+#### Scenario: Fontes independentes
+- **WHEN** COMPRA ou VENDA informa preco diferente da cotacao corrente ou historica
+- **THEN** o preco informado e persistido participa dos calculos existentes sem alterar as cotacoes
 
 #### Scenario: Fontes de preço por tipo
-- **WHEN** novas COMPRA e VENDA são registradas
-- **THEN** a COMPRA usa o fechamento bruto exato, a VENDA usa o preço informado e ambas calculam resultados futuros somente a partir do preço persistido
+- **WHEN** COMPRA ou VENDA e registrada
+- **THEN** o preco informado pelo cliente e persistido sem substituicao por cotacao
 
 #### Scenario: Preço real como base financeira
 - **WHEN** uma Operação possui preço persistido diferente da cotação corrente ou de `HistoricoCotacao`
 - **THEN** somente o preço persistido conforme o tipo da Operação participa do valor total e dos cálculos financeiros futuros
 
 #### Scenario: Histórico corrente permanece separado
-- **WHEN** o fechamento externo usado numa COMPRA difere da cotação corrente ou de `HistoricoCotacao`
-- **THEN** a COMPRA preserva o fechamento como preço sem alterar as demais fontes
+- **WHEN** o preco manual difere do historico corrente
+- **THEN** o cadastro preserva as cotacoes e usa somente o preco manual na operacao
 
 ### Requirement: Compatibilidade das funcionalidades existentes
 A evolução SHALL preservar entidade, colunas NOT NULL, precisão, constraint cronológica, replay, posição atual, resultado realizado, consultas, snapshots e patrimônio existentes. SHALL aplicar a nova regra apenas a novos `POST /operacoes`, sem migration e sem modificar o changeSet histórico `004`. Operações existentes MUST NOT ter preços recalculados, ordens renumeradas nem consultas históricas retroativas.
@@ -279,15 +291,23 @@ A evolução SHALL preservar entidade, colunas NOT NULL, precisão, constraint c
 - **THEN** elas permanecem válidas e inalteradas
 
 ### Requirement: Preço unitário conforme o tipo da Operação
-Para COMPRA, o sistema SHALL obter `precoUnitario` exclusivamente do `close` bruto do candle exatamente correspondente a `dataOperacao`; o cliente MUST NOT informá-lo e o sistema MUST NOT usar `adjustedClose`, cotação atual, `HistoricoCotacao`, `GLOBAL_QUOTE`, pregão anterior ou preço manual como fallback. Para VENDA, `precoUnitario` SHALL ser obrigatório, informado pelo cliente, positivo e exatamente representável com precisão máxima 19 e escala máxima 6, sem consulta histórica.
+COMPRA e VENDA SHALL exigir precoUnitario informado pelo usuario, positivo e exatamente representavel em NUMERIC(19,6). POST MUST NOT consultar ou substituir preco por fechamento historico/cotacao atual. Total e replay SHALL permanecer conforme regras existentes. Endpoints historicos SHALL permanecer independentes.
+
+#### Scenario: Preco manual
+- **WHEN** COMPRA ou VENDA recebe preco valido
+- **THEN** persiste exatamente o preco validado e calcula total no backend sem consulta historica
+
+#### Scenario: Preco invalido
+- **WHEN** preco falta, e nulo, zero, negativo ou excede precisao
+- **THEN** rejeita sem persistencia e sem chamada externa
 
 #### Scenario: Preço de COMPRA obtido do fechamento exato
-- **WHEN** o provider retorna o candle da data solicitada
-- **THEN** o sistema usa e persiste seu `close` bruto como `precoUnitario`
+- **WHEN** uma COMPRA informa preco diferente do fechamento historico
+- **THEN** o preco manual prevalece; o fechamento nao e consultado
 
 #### Scenario: COMPRA sem fechamento exato
-- **WHEN** não existe fechamento exatamente em `dataOperacao` ou a data está fora do alcance determinável
-- **THEN** o sistema retorna o erro histórico correspondente e não persiste a COMPRA
+- **WHEN** nao existe fechamento exato para a data de uma COMPRA valida
+- **THEN** o registro manual independe desse fechamento
 
 #### Scenario: Preço válido de VENDA
 - **WHEN** o cliente informa em VENDA um preço positivo dentro da precisão e escala vigentes
@@ -317,15 +337,23 @@ Para COMPRA, o sistema SHALL obter `precoUnitario` exclusivamente do `close` bru
 - **THEN** o sistema responde conflito de integridade padronizado sem orientar o cliente a informar ou alterar `ordemNoDia`
 
 ### Requirement: Cotação histórica integrada somente à COMPRA
-`POST /operacoes` SHALL consultar fechamento histórico exclusivamente para nova COMPRA, depois das verificações preliminares de referências e antes da transação curta. Sua indisponibilidade SHALL impedir essa COMPRA. VENDA e consultas de Operação MUST permanecer independentes de BRAPI e Alpha Vantage. O fechamento obtido MUST ser usado somente no novo registro e MUST NOT modificar Operações existentes, cotação corrente ou `HistoricoCotacao`.
+COMPRA e VENDA SHALL exigir precoUnitario informado pelo usuario, positivo e exatamente representavel em NUMERIC(19,6). POST MUST NOT consultar ou substituir preco por fechamento historico/cotacao atual. Total e replay SHALL permanecer conforme regras existentes. Endpoints historicos SHALL permanecer independentes.
+
+#### Scenario: Preco manual
+- **WHEN** COMPRA ou VENDA recebe preco valido
+- **THEN** persiste exatamente o preco validado e calcula total no backend sem consulta historica
+
+#### Scenario: Preco invalido
+- **WHEN** preco falta, e nulo, zero, negativo ou excede precisao
+- **THEN** rejeita sem persistencia e sem chamada externa
 
 #### Scenario: Provider chamado somente para COMPRA
-- **WHEN** requests válidos de COMPRA e VENDA são processados
-- **THEN** somente a COMPRA consulta o provider histórico do mercado
+- **WHEN** COMPRA ou VENDA e registrada
+- **THEN** nenhum provider historico e chamado pelo POST
 
 #### Scenario: Falha histórica impede nova COMPRA
-- **WHEN** o fechamento exato não pode ser obtido com classificação sustentada
-- **THEN** a nova COMPRA falha com o erro correspondente e nenhuma escrita ocorre
+- **WHEN** o provider historico esta indisponivel
+- **THEN** a COMPRA manual valida continua permitida pela nova regra
 
 #### Scenario: Operações existentes preservadas
 - **WHEN** a nova regra entra em vigor
