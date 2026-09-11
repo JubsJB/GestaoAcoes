@@ -33,6 +33,7 @@ import { AcaoResponse } from '../models/acao';
 
       @if (loadError()) { <app-feedback-alert variant="error" [message]="loadError()!.message" [details]="loadError()!.details" /> }
       @else if (updateError()) { <app-feedback-alert variant="error" [message]="updateError()!.message" [details]="updateError()!.details" /> }
+      @if (quotePreserved() && acao()) { <app-feedback-alert variant="warning" message="A atualização não foi concluída. Estamos usando a última cotação válida disponível, com o valor e a data apresentados abaixo." /> }
       @if(updating()){<p class="progress" role="status" aria-live="polite">Atualizando cotação…</p>}
 
       @if(loading()){<div class="app-state" role="status" aria-live="polite"><mat-spinner diameter="36"/>Carregando ação…</div>}
@@ -64,6 +65,7 @@ export class AcaoDetailPageComponent {
   protected readonly notFound = signal(false);
   protected readonly updating = signal(false);
   protected readonly updateError = signal<NormalizedHttpError | null>(null);
+  protected readonly quotePreserved = signal(false);
   protected readonly market = formatMercado;
   protected readonly quote = formatCotacao;
   protected readonly dateTime = formatOffsetDateTime;
@@ -85,8 +87,8 @@ export class AcaoDetailPageComponent {
     this.updating.set(true);
     this.updateError.set(null);
     this.service.atualizarCotacao(this.id).pipe(finalize(() => this.updating.set(false)), takeUntilDestroyed(this.destroyRef)).subscribe({
-      next: (item) => { this.acao.set(item); this.successToast.show('Cotação atualizada com sucesso.'); },
-      error: (error: NormalizedHttpError) => this.updateError.set(error)
+      next: (item) => { this.acao.set(item); this.quotePreserved.set(false); this.successToast.show('Cotação atualizada com sucesso.'); },
+      error: (error: NormalizedHttpError) => { this.updateError.set(error); this.quotePreserved.set(true); }
     });
   }
 
