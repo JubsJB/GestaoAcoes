@@ -20,6 +20,8 @@ public final class ErrorCodes {
     public static final String TICKER_CANONICO_DIVERGENTE = "TICKER_CANONICO_DIVERGENTE";
     public static final String ACAO_DUPLICADA = "ACAO_DUPLICADA";
     public static final String COTACAO_INDISPONIVEL = "COTACAO_INDISPONIVEL";
+    public static final String COTACAO_HISTORICA_INDISPONIVEL = "COTACAO_HISTORICA_INDISPONIVEL";
+    public static final String HISTORICO_COTACAO_FORA_DO_ALCANCE = "HISTORICO_COTACAO_FORA_DO_ALCANCE";
     public static final String COTACAO_FORA_DA_PRECISAO = "COTACAO_FORA_DA_PRECISAO";
     public static final String ORDEM_OPERACAO_DUPLICADA = "ORDEM_OPERACAO_DUPLICADA";
     public static final String POSICAO_INSUFICIENTE = "POSICAO_INSUFICIENTE";

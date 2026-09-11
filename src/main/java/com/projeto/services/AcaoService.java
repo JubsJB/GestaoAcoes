@@ -21,6 +21,11 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Clock;
+import java.time.Duration;
+import java.time.Instant;
+import java.util.concurrent.ConcurrentHashMap;
+import org.springframework.beans.factory.annotation.Value;
+import jakarta.annotation.PostConstruct;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.EnumMap;
@@ -42,6 +47,25 @@ public class AcaoService {
     private final AcaoRepository repository;
     private final AcaoMapper mapper;
     private final Clock clock;
+
+    @Value("${integration.alpha-vantage.quote-reuse-interval:15m}")
+    private Duration quoteReuseInterval = Duration.ofMinutes(15);
+    @Value("${integration.alpha-vantage.refresh-cooldown:15m}")
+    private Duration refreshCooldown = Duration.ofMinutes(15);
+    private final Map<String, RefreshAttempt> refreshAttempts = new ConcurrentHashMap<>();
+    private final Object[] refreshLocks = java.util.stream.IntStream.range(0, 64)
+            .mapToObj(i -> new Object()).toArray();
+
+    @PostConstruct
+    void validateRefreshIntervals() {
+        if (quoteReuseInterval.isNegative() || quoteReuseInterval.isZero()
+                || refreshCooldown.isNegative() || refreshCooldown.isZero()) {
+            throw new IllegalArgumentException("Alpha Vantage refresh intervals must be positive");
+        }
+    }
+
+    private record RefreshAttempt(Instant completedAt, AcaoResponse result, ApiException failure) { }
+
 
     public AcaoService(
             TickerNormalizer tickerNormalizer,
@@ -129,9 +153,43 @@ public class AcaoService {
                         "Ação não encontrada para o id: " + id
                 ));
 
+        if (acao.getMercado() != Mercado.EUA) return atualizarCotacaoPersistida(acao);
+        // Local coordination includes the database reread and final persistence.
+        synchronized (refreshLocks[Math.floorMod(acao.getTicker().hashCode(), refreshLocks.length)]) {
+            Acao current = repository.findById(id).orElseThrow(() ->
+                    new ObjectNotFoundException("Acao nao encontrada para o id: " + id));
+            Instant now = clock.instant();
+            RefreshAttempt previous = refreshAttempts.get(current.getTicker());
+            if (previous != null && now.isBefore(previous.completedAt().plus(refreshCooldown))) {
+                if (previous.failure() != null) throw withPreservedQuote(previous.failure(), current);
+                // A concurrent request may still hold an older JPA first-level-cache entity.
+                if (current.getDataHoraCotacao() == null || previous.result().dataHoraCotacao()
+                        .isAfter(current.getDataHoraCotacao())) return previous.result();
+                return mapper.toResponse(current);
+            }
+            if (current.getCotacaoAtual() != null && current.getCotacaoAtual().signum() > 0
+                    && current.getDataHoraCotacao() != null
+                    && !current.getDataHoraCotacao().toInstant().isAfter(now)
+                    && now.isBefore(current.getDataHoraCotacao().toInstant().plus(quoteReuseInterval))) {
+                return mapper.toResponse(current);
+            }
+            try {
+                AcaoResponse result = atualizarCotacaoPersistida(current);
+                refreshAttempts.put(current.getTicker(), new RefreshAttempt(clock.instant(), result, null));
+                return result;
+            } catch (ApiException failure) {
+                refreshAttempts.put(current.getTicker(), new RefreshAttempt(clock.instant(), null, failure));
+                throw failure;
+            }
+        }
+    }
+
+    private AcaoResponse atualizarCotacaoPersistida(Acao acao) {
         try {
             CotacaoProvider provider = providerFor(acao.getMercado());
-            CotacaoData externalData = provider.consultar(acao.getTicker());
+            CotacaoData externalData = acao.getMercado() == Mercado.EUA
+                    ? provider.consultarAtualizacao(acao.getTicker(), acao.getNomeEmpresa(), acao.getMoeda().name())
+                    : provider.consultar(acao.getTicker());
             ValidatedQuote validated = validateUpdateExternalData(externalData, acao);
             OffsetDateTime quoteTime = externalData.dataHoraCotacao() == null
                     ? OffsetDateTime.now(clock).withOffsetSameInstant(ZoneOffset.UTC)

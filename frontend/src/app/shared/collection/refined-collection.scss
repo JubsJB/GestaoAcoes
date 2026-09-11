@@ -1,0 +1,38 @@
+@use './collection';
+
+// Opt-in presentation; the semantic table and existing reflow stay intact.
+.collection-table {
+  border: 1px solid var(--app-border-subtle);
+  border-spacing: 0;
+  border-collapse: separate;
+  border-radius: 0 0 var(--app-card-radius) var(--app-card-radius);
+  caption {
+    padding: 1rem;
+    border: 1px solid var(--app-border-subtle);
+    border-bottom: 0;
+    border-radius: var(--app-card-radius) var(--app-card-radius) 0 0;
+    background: var(--app-surface-card);
+    color: var(--app-text-primary);
+    font-weight: 650;
+  }
+  thead th { padding: .75rem; vertical-align: bottom; }
+  tbody th, td { padding: 1rem .75rem; }
+  tbody tr:last-child > * { border-bottom: 0; }
+  .asset-name { display: block; font-size: 1rem; }
+  .market-badge { display: inline-flex; margin-top: .35rem; font-size: .75rem; font-weight: 550; }
+  .outcome { color: inherit; font-weight: 550; }
+  [data-outcome="Positivo"] { color: var(--app-financial-positive); }
+  [data-outcome="Negativo"] { color: var(--app-negative); }
+  [data-outcome="Neutro"] { color: var(--app-text-secondary); }
+  .details-link { padding: .25rem .65rem; border: 1px solid var(--app-border-subtle); border-radius: .5rem; text-decoration: none; font-weight: 600; }
+  .details-link:hover { background: var(--app-surface-selected); }
+}
+@media (min-width: 70.001rem) {
+  .collection-table .actions-cell { text-align: right; }
+}
+@media (max-width: 70rem) {
+  .collection-table { border: 0; background: transparent; }
+  .collection-table tr { background: var(--app-surface-card); }
+  .collection-table caption { border: 0; border-radius: var(--app-card-radius); margin-bottom: .75rem; }
+  .collection-table tbody th, .collection-table td { padding: .4rem; }
+}

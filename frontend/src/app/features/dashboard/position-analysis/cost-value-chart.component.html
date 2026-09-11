@@ -1,0 +1,45 @@
+<section aria-labelledby="cost-value-title">
+  <h3 id="cost-value-title">Custo × Valor atual</h3>
+  <p class="chart-description">Compare quanto foi investido em cada ativo com o valor atual da posição.</p>
+  <div class="chart-groups">
+    @for (group of groups(); track group.currency) {
+      <section class="chart-group app-surface" [attr.aria-labelledby]="'cost-value-' + group.currency">
+        <h4 [id]="'cost-value-' + group.currency">{{ group.currency }}</h4>
+        <p class="legend" aria-hidden="true"><span><i class="current-key"></i>Valor atual</span><span><i class="cost-key"></i>Custo</span></p>
+        <ul class="chart-assets">
+          @for (row of group.rows; track row.position.acaoId) {
+            <li class="chart-asset" [attr.data-asset-id]="row.position.acaoId">
+              <div class="asset-heading"><strong>{{ row.position.ticker }}</strong><span>{{ row.position.nomeEmpresa }}</span></div>
+              <dl class="comparison-plot">
+                @for (series of row.series; track series.kind) {
+                  <div class="chart-series" [class]="series.kind">
+                    <dt>{{ series.label }}</dt>
+                    <dd>
+                      <span class="amount">{{ series.formatted }}</span>
+                      @if (series.complete) { <small>Valor completo: {{ series.exact }} {{ group.currency }}</small> }
+                      @if (series.sign === null || series.sign === -1) {
+                        <small>Valor indisponível nesta escala de comparação.</small>
+                      } @else if (series.small) {
+                        <small>Valor não nulo; a marca pode não ser perceptível nesta escala.</small>
+                      }
+                    </dd>
+
+                  </div>
+                }
+              </dl>
+              <svg class="bar" viewBox="-4 0 1008 32" preserveAspectRatio="none" aria-hidden="true" focusable="false">
+                <path class="baseline" d="M 0 28 H 1000 M 0 24 V 32" />
+                @if (row.series[1].sign === 1 && row.series[1].ratio !== null) {
+                  <rect class="current" x="0" y="9" [attr.width]="row.series[1].ratio! * 1000" height="14" />
+                }
+                @if (row.series[0].sign !== null && row.series[0].sign !== -1 && row.series[0].ratio !== null) {
+                  <line class="cost" [attr.x1]="row.series[0].ratio! * 1000" [attr.x2]="row.series[0].ratio! * 1000" y1="2" y2="30" />
+                }
+              </svg>
+            </li>
+          }
+        </ul>
+      </section>
+    }
+  </div>
+</section>

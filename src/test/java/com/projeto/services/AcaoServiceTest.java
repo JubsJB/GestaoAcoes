@@ -256,7 +256,7 @@ class AcaoServiceTest {
         Acao persistida = action(11L, "AAPL", "Apple", Mercado.EUA, Moeda.USD,
                 new BigDecimal("224.410000"), OffsetDateTime.parse("2026-08-20T15:30:00Z"));
         when(repository.findById(11L)).thenReturn(Optional.of(existente));
-        when(alphaVantage.consultar("AAPL")).thenReturn(
+        when(alphaVantage.consultarAtualizacao("AAPL", "Apple", "USD")).thenReturn(
                 new CotacaoData("AAPL", "Apple Inc.", "USD", new BigDecimal("224.41"), null, false));
         when(cotacaoPersistenceService.atualizarSePosterior(
                 11L, new BigDecimal("224.410000"), OffsetDateTime.parse("2026-08-20T15:30:00Z")))
@@ -266,7 +266,7 @@ class AcaoServiceTest {
 
         assertEquals(Moeda.USD, resposta.moeda());
         assertEquals(new BigDecimal("224.410000"), resposta.cotacaoAtual());
-        verify(alphaVantage).consultar("AAPL");
+        verify(alphaVantage).consultarAtualizacao("AAPL", "Apple", "USD");
         verifyNoInteractions(brapi);
     }
 

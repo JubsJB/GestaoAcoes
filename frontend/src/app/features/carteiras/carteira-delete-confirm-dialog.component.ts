@@ -1,0 +1,54 @@
+import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { DestroyRef } from '@angular/core';
+import { MatButtonModule } from '@angular/material/button';
+import { MAT_DIALOG_DATA, MatDialogModule, MatDialogRef } from '@angular/material/dialog';
+
+import { CarteiraContextService } from '../../core/carteira/carteira-context.service';
+import { NormalizedHttpError } from '../../core/errors/normalized-http-error';
+import { FeedbackAlertComponent } from '../../shared/feedback-alert/feedback-alert.component';
+import { CarteirasService } from './carteiras.service';
+import { CarteiraResponse } from './models/carteira';
+
+@Component({
+  selector: 'app-carteira-delete-confirm-dialog',
+  imports: [FeedbackAlertComponent, MatButtonModule, MatDialogModule],
+  template: `
+    <h2 mat-dialog-title>Excluir carteira?</h2>
+    <mat-dialog-content>
+      <p>Você está prestes a excluir <strong>{{ data.nome }}</strong>. Esta ação só será executada após sua confirmação.</p>
+      @if (error()) { <app-feedback-alert variant="error" [message]="error()!.message" [details]="error()!.details" /> }
+    </mat-dialog-content>
+    <mat-dialog-actions class="app-dialog-actions" align="end">
+      <button mat-button type="button" [disabled]="deleting()" (click)="cancel()">Cancelar</button>
+      <button class="app-destructive" mat-flat-button type="button" [disabled]="deleting()" [attr.aria-busy]="deleting()" (click)="confirm()">Excluir</button>
+    </mat-dialog-actions>
+  `,
+  styleUrl: '../../shared/dialog/dialog.scss',
+  styles: [`
+    .app-destructive { --mat-button-filled-container-color: var(--app-destructive); --mat-button-filled-label-text-color: var(--app-on-brand-primary); }
+    .app-destructive:not(:disabled):hover { --mat-button-filled-container-color: var(--app-destructive-hover); }
+  `],
+  changeDetection: ChangeDetectionStrategy.OnPush
+})
+export class CarteiraDeleteConfirmDialogComponent {
+  protected readonly data = inject<CarteiraResponse>(MAT_DIALOG_DATA);
+  private readonly dialogRef = inject(MatDialogRef<CarteiraDeleteConfirmDialogComponent, boolean>);
+  private readonly service = inject(CarteirasService);
+  private readonly context = inject(CarteiraContextService);
+  private readonly destroyRef = inject(DestroyRef);
+  protected readonly deleting = signal(false);
+  protected readonly error = signal<NormalizedHttpError | null>(null);
+
+  protected cancel(): void { if (!this.deleting()) this.dialogRef.close(false); }
+
+  protected confirm(): void {
+    if (this.deleting()) return;
+    this.deleting.set(true);
+    this.error.set(null);
+    this.service.excluir(this.data.id).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: () => { this.context.remove(this.data.id); this.dialogRef.close(true); },
+      error: (error: NormalizedHttpError) => { this.error.set(error); this.deleting.set(false); }
+    });
+  }
+}

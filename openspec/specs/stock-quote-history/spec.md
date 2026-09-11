@@ -98,24 +98,27 @@ O sistema SHALL permitir no máximo uma observação por combinação de Ação 
 - **THEN** cada Ação pode possuir sua própria observação
 
 ### Requirement: Manter histórico desacoplado de Operações e consultas atuais
-O histórico de cotação SHALL representar somente referência de mercado e MUST NOT substituir `Operacao.precoUnitario`, participar de preço médio, custo ou resultado realizado, nem adicionar consultas a histórico em posição, patrimônio ou resumo atuais.
+`HistoricoCotacao` SHALL continuar representando observações da cotação corrente efetivamente persistidas, com sua granularidade e semântica temporal vigentes. Ele MUST NOT ser reutilizado como armazenamento de candles OHLC, como fonte do fechamento diário de COMPRA ou como cache obrigatório da consulta histórica externa. O registro de uma nova COMPRA MUST NOT criar, alterar ou inferir registros nessa tabela.
+
+#### Scenario: Compra com fechamento externo
+- **WHEN** uma COMPRA obtém o fechamento bruto diário do provider
+- **THEN** esse valor é persistido somente como preço da Operação e não cria observação em `HistoricoCotacao`
 
 #### Scenario: Operação com preço diferente
-- **WHEN** `Operacao.precoUnitario` difere da cotação histórica
-- **THEN** o preço informado permanece a única fonte financeira da Operação
+- **WHEN** o preço persistido na Operação difere da cotação corrente ou de observações existentes
+- **THEN** o histórico de cotação corrente permanece inalterado
 
 #### Scenario: Consulta da posição atual
-- **WHEN** posição, patrimônio ou resumo atuais são consultados
-- **THEN** eles continuam usando `Acao.cotacaoAtual` sem query adicional ao histórico, provider ou N+1
+- **WHEN** posição, patrimônio ou snapshots usam cotações correntes conforme seus contratos
+- **THEN** a nova consulta histórica de fechamento não substitui essa fonte nem altera os cálculos existentes
 
 ### Requirement: Não expor consulta pública nesta primeira fatia
-Esta capability SHALL somente persistir o fundamento temporal para consumidores futuros e MUST NOT introduzir endpoint REST de histórico, paginação pública, filtros, backfill, reconstrução retroativa, consulta de anos anteriores, preenchimento de pregões ausentes, scheduler, job, cron ou coleta automática diária.
+A capability de fechamento histórico SHALL ser usada internamente pelo registro de COMPRA e MUST NOT criar endpoint público de histórico ou persistência pública de candles nesta change. APIs existentes de Ação e histórico de cotação corrente SHALL manter seus contratos.
 
 #### Scenario: Consulta das APIs atuais
-- **WHEN** um cliente utiliza os endpoints existentes de Ação ou Carteira
-- **THEN** nenhum novo campo ou contrato de histórico é exposto
+- **WHEN** clientes usam endpoints existentes fora de `POST /operacoes`
+- **THEN** não recebem novo endpoint, campo OHLC ou mudança de semântica do histórico corrente
 
 #### Scenario: Ausência de histórico externo retroativo
-- **WHEN** a capability entra em operação
-- **THEN** ela começa a registrar apenas novas cotações aceitas pelo fluxo atual
-- **AND** não consulta endpoints históricos dos providers nem fabrica observações anteriores ou ausentes
+- **WHEN** o backend consulta fechamento para uma COMPRA
+- **THEN** não preenche retroativamente `historico_cotacao`

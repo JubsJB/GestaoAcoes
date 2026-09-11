@@ -2,6 +2,7 @@ package com.projeto.services;
 
 import com.projeto.GestaoacoesApplication;
 import com.projeto.dto.OperacaoCreateRequest;
+import com.projeto.TestOperacaoRequests;
 import com.projeto.dto.SnapshotCarteiraResponse;
 import com.projeto.entities.Acao;
 import com.projeto.entities.Carteira;
@@ -83,9 +84,9 @@ class SnapshotCarteiraConcurrencyTest {
             });
             Future<?> operation = executor.submit(() -> {
                 start.await(5, TimeUnit.SECONDS);
-                return operacaoService.cadastrar(new OperacaoCreateRequest(
+                return operacaoService.cadastrar(TestOperacaoRequests.request(
                         carteira.getId(), "PETR4", Mercado.BRASIL, null, TipoOperacao.COMPRA,
-                        new BigDecimal("100"), new BigDecimal("32"), LocalDate.of(2026, 8, 10), 1));
+                        new BigDecimal("100"), new BigDecimal("32"), LocalDate.of(2026, 8, 10)));
             });
             start.countDown();
             SnapshotCarteiraResponse response = snapshot.get(10, TimeUnit.SECONDS);
@@ -106,9 +107,9 @@ class SnapshotCarteiraConcurrencyTest {
     void concurrentQuoteChangeProducesOnlyCompleteOldOrNewValueWithoutHistoryDependency() throws Exception {
         Carteira carteira = carteiraRepository.saveAndFlush(carteira());
         Acao acao = acaoRepository.saveAndFlush(acao("VALE3", "10.000000"));
-        operacaoService.cadastrar(new OperacaoCreateRequest(carteira.getId(), "VALE3", Mercado.BRASIL,
+        operacaoService.cadastrar(TestOperacaoRequests.request(carteira.getId(), "VALE3", Mercado.BRASIL,
                 null, TipoOperacao.COMPRA, BigDecimal.ONE, BigDecimal.ONE,
-                LocalDate.of(2026, 8, 10), 1));
+                LocalDate.of(2026, 8, 10)));
         CountDownLatch start = new CountDownLatch(1);
         ExecutorService executor = Executors.newFixedThreadPool(2);
         try {

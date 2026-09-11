@@ -1,0 +1,69 @@
+<section class="app-page dashboard" aria-labelledby="dashboard-title">
+  <app-page-header headingId="dashboard-title" eyebrow="Visão geral" icon="dashboard" title="Dashboard" description="Acompanhe seu patrimônio e suas posições, sempre separados por moeda." />
+
+  @if (portfoliosError()) {
+    <app-feedback-alert variant="error" [message]="portfoliosError()!.message" [details]="portfoliosError()!.details" />
+    <div class="app-state"><button mat-stroked-button type="button" (click)="loadPortfolios()">Tentar novamente</button></div>
+  } @else if (portfoliosLoading()) {
+    <div class="app-state" role="status" aria-live="polite"><mat-spinner diameter="36" /> Carregando carteiras…</div>
+  } @else if (carteiras().length === 0) {
+    <div class="app-state app-surface"><span class="app-state__icon" aria-hidden="true"><app-icon name="empty" /></span><h2>Nenhuma carteira cadastrada</h2><p>Cadastre uma carteira para visualizar seus indicadores.</p><a mat-flat-button routerLink="/carteiras/nova">Nova carteira</a></div>
+  } @else {
+
+    @if (invalidSelection()) {
+      <app-feedback-alert variant="warning" message="A carteira indicada na URL não está disponível. Selecione uma carteira válida." />
+    }
+
+    @if (!selected()) {
+      <div class="app-state app-surface"><h2>Selecione uma carteira</h2><p>Os indicadores são sempre apresentados no contexto de uma única carteira.</p></div>
+    } @else {
+      <div class="dashboard-actions app-actions app-actions--stack-compact">
+        <p class="portfolio-context">Carteira: <strong>{{ selected()!.nome }}</strong></p>
+        <a mat-stroked-button [routerLink]="['/carteiras', selected()!.id]">Ver carteira</a>
+        <button mat-flat-button type="button" (click)="openOperationDialog()">Registrar operação</button>
+        <button mat-button type="button" (click)="reload()" [disabled]="financialLoading()">Atualizar dados</button>
+      </div>
+
+      @if (financialError()) {
+        <app-feedback-alert variant="error" [message]="financialError()!.message" [details]="financialError()!.details" />
+        <div class="app-state"><button mat-stroked-button type="button" (click)="reload()">Tentar novamente</button></div>
+      } @else if (financialLoading()) {
+        <div class="app-state" role="status" aria-live="polite"><mat-spinner diameter="36" /> Atualizando indicadores de {{ selected()!.nome }}…</div>
+      } @else if (data(); as dashboard) {
+        <section aria-labelledby="summary-title">
+          <header class="summary-heading"><h2 id="summary-title">Resumo por moeda</h2><p class="position-count" role="status">{{ dashboard.posicoes.length }} {{ dashboard.posicoes.length === 1 ? 'posição aberta' : 'posições abertas' }}</p></header>
+          @if (dashboard.resumo.resumos.length === 0) { <div class="app-state app-surface"><h3>Resumo ainda indisponível</h3><p>Esta carteira não possui posições abertas.</p></div> }
+          @else { <div class="currency-groups">@for (item of dashboard.resumo.resumos; track item.moeda) {
+            <section class="currency-group" [attr.aria-labelledby]="'currency-' + item.moeda"><h3 [id]="'currency-' + item.moeda">{{ item.moeda }}</h3><div class="summary-grid">
+              <mat-card appearance="outlined" class="summary-primary"><mat-card-content><span>Patrimônio atual</span><strong>{{ money(item.patrimonioAtual, item.moeda) }}</strong></mat-card-content></mat-card>
+              <mat-card appearance="outlined"><mat-card-content><span>Custo total das posições</span><strong>{{ money(item.custoTotalPosicoes, item.moeda) }}</strong></mat-card-content></mat-card>
+              <mat-card appearance="outlined"><mat-card-content><span>Resultado não realizado</span><strong>{{ money(item.resultadoNaoRealizadoTotal, item.moeda) }}</strong><small>{{ outcome(item.resultadoNaoRealizadoTotal) }}</small></mat-card-content></mat-card>
+              <mat-card appearance="outlined"><mat-card-content><span>Rentabilidade</span><strong>{{ percent(item.rentabilidadePercentual) }}</strong><small>{{ outcome(item.rentabilidadePercentual) }}</small></mat-card-content></mat-card>
+            </div></section>
+          }</div> }
+        </section>
+        <app-position-analysis [positions]="dashboard.posicoes" />
+      }
+
+      <app-portfolio-evolution
+        [carteiraId]="selected()!.id"
+        [carteiraNome]="selected()!.nome"
+        [refreshToken]="evolutionRefresh()"
+      />
+
+      @if (data(); as dashboard) {
+        <section aria-labelledby="positions-title"><h2 id="positions-title">Posições abertas</h2>
+          <app-portfolio-positions [positions]="dashboard.posicoes" />
+        </section>
+
+        <section aria-labelledby="results-title"><h2 id="results-title">Resultados realizados por ação</h2>
+          @if (dashboard.resultados.length === 0) { <div class="app-state app-surface"><h3>Nenhum resultado realizado</h3><p>Os resultados aparecerão individualmente após vendas registradas.</p></div> }
+          @else { <div class="results" role="list">@for (result of dashboard.resultados; track result.acaoId) {
+            <article class="result app-surface" role="listitem"><div><strong>{{ result.ticker }}</strong><span>{{ result.nomeEmpresa }} · {{ result.mercado }} · {{ result.moeda }}</span></div><div><strong>{{ money(result.resultadoRealizado, result.moeda) }}</strong><span>{{ outcome(result.resultadoRealizado) }}</span></div></article>
+          }</div> }
+        </section>
+      }
+
+    }
+  }
+</section>

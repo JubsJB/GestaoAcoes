@@ -1,0 +1,56 @@
+import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { ActivatedRoute, Router, provideRouter } from '@angular/router';
+import { of, Subject, throwError } from 'rxjs';
+import { NormalizedHttpError } from '../../../core/errors/normalized-http-error';
+import { SuccessToastService } from '../../../shared/success-toast/success-toast.service';
+import { AcoesService } from '../acoes.service';
+import { AcaoResponse } from '../models/acao';
+import { AcaoDetailPageComponent } from './acao-detail-page.component';
+
+const OLD:AcaoResponse={id:3,ticker:'AAPL',nomeEmpresa:'Apple Inc.',mercado:'EUA',moeda:'USD',cotacaoAtual:190,dataHoraCotacao:'2026-08-28T12:00:00Z'};
+const UPDATED:AcaoResponse={...OLD,cotacaoAtual:200,dataHoraCotacao:'2026-08-29T12:00:00Z'};
+const failure=(status:number,code:string|null,message='Falha',details={})=>({status,code,message,details}) as NormalizedHttpError;
+describe('AcaoDetailPageComponent',()=>{
+ async function create(info?:AcaoResponse,error?:NormalizedHttpError,routeId=3){const service={buscarPorId:vi.fn().mockReturnValue(error?throwError(()=>error):of(OLD)),atualizarCotacao:vi.fn().mockReturnValue(of(UPDATED))};const toast={show:vi.fn()};await TestBed.configureTestingModule({imports:[AcaoDetailPageComponent],providers:[provideRouter([]),{provide:ActivatedRoute,useValue:{snapshot:{paramMap:{get:()=>String(routeId)}}}},{provide:AcoesService,useValue:service},{provide:SuccessToastService,useValue:toast}]}).compileComponents();const router=TestBed.inject(Router);vi.spyOn(router,'currentNavigation').mockReturnValue(info?({extras:{info:{acao:info}}} as never):null);const fixture=TestBed.createComponent(AcaoDetailPageComponent);fixture.detectChanges();return{fixture,service,toast};}
+ afterEach(()=>TestBed.resetTestingModule());
+ it('does not announce a preserved quote before an update failure or when loading fails', async () => {
+   const initial = await create(OLD);
+   expect(initial.fixture.nativeElement.textContent).not.toContain('Estamos usando a última cotação válida');
+   TestBed.resetTestingModule();
+   const failed = await create(undefined, failure(503, null));
+   expect(failed.fixture.nativeElement.textContent).not.toContain('Estamos usando a última cotação válida');
+ });
+ it.each([429, 502, 503, 504])('announces preservation after %s until a manual retry succeeds', async status => {
+   const { fixture, service } = await create(OLD);
+   const pending = new Subject<AcaoResponse>();
+   service.atualizarCotacao.mockReturnValueOnce(throwError(() => failure(status, null, 'Falha do serviço'))).mockReturnValueOnce(pending);
+   const button = fixture.nativeElement.querySelector('button') as HTMLButtonElement;
+   button.click();
+   fixture.detectChanges();
+   const warning = () => fixture.nativeElement.querySelector('.feedback-alert--warning') as HTMLElement | null;
+   expect(warning()?.textContent).toContain('Estamos usando a última cotação válida disponível');
+   expect(warning()?.getAttribute('role')).toBe('alert');
+   expect(fixture.nativeElement.textContent).toContain('Falha do serviço');
+   expect(service.atualizarCotacao).toHaveBeenCalledTimes(1);
+   button.click();
+   fixture.detectChanges();
+   expect(warning()).not.toBeNull();
+   expect(fixture.nativeElement.textContent).toContain('190');
+   expect(button.disabled).toBe(true);
+   pending.next(UPDATED);
+   pending.complete();
+   fixture.detectChanges();
+   expect(warning()).toBeNull();
+   expect(fixture.nativeElement.textContent).toContain('200');
+   expect(fixture.nativeElement.textContent).not.toContain('Falha do serviço');
+   expect(service.atualizarCotacao).toHaveBeenCalledTimes(2);
+   expect(service.buscarPorId).not.toHaveBeenCalled();
+ });
+ it('uses a matching transient DTO without GET and presents the complete contract',async()=>{const{fixture,service}=await create(OLD);const text=fixture.nativeElement.textContent;expect(service.buscarPorId).not.toHaveBeenCalled();expect(text).toContain('AAPL');expect(text).toContain('Apple Inc.');expect(text).toContain('EUA');expect(text).toContain('USD');expect(text).toContain('US$');expect(text).toContain('Última cotação registrada');expect(text).toContain('pode não refletir o preço em tempo real');expect(fixture.nativeElement.querySelector('h1')?.textContent).toBe('AAPL');expect(fixture.nativeElement.querySelector('table')).toBeNull();});
+ it('falls back to GET for missing or mismatched transient DTO',async()=>{const direct=await create();expect(direct.service.buscarPorId).toHaveBeenCalledWith(3);TestBed.resetTestingModule();const mismatch=await create({...OLD,id:99});expect(mismatch.service.buscarPorId).toHaveBeenCalledWith(3);});
+ it('renders a dedicated local 404 without provider classification',async()=>{const{fixture}=await create(undefined,failure(404,null,'Ação não existe'));expect(fixture.nativeElement.textContent).toContain('Ação não encontrada');expect(fixture.nativeElement.textContent).toContain('Voltar para a listagem de ações');});
+ it('renders non-404 error and retries with a real GET',async()=>{const{fixture,service}=await create(undefined,failure(503,'SERVICO_EXTERNO_INDISPONIVEL','Indisponível'));service.buscarPorId.mockReturnValueOnce(of(OLD));expect(fixture.nativeElement.textContent).toContain('Não foi possível carregar a ação');(fixture.nativeElement.querySelector('button') as HTMLButtonElement).click();fixture.detectChanges();expect(service.buscarPorId).toHaveBeenCalledTimes(2);expect(fixture.nativeElement.textContent).toContain('Apple Inc.');});
+ it('PATCHes once while busy, replaces DTO, announces success and performs no GET',async()=>{const{fixture,service,toast}=await create(OLD);const pending=new Subject<AcaoResponse>();service.atualizarCotacao.mockReturnValueOnce(pending);const button=fixture.nativeElement.querySelector('button') as HTMLButtonElement;button.click();button.click();fixture.detectChanges();expect(service.atualizarCotacao).toHaveBeenCalledTimes(1);expect(service.atualizarCotacao).toHaveBeenCalledWith(3);expect(button.disabled).toBe(true);expect(button.getAttribute('aria-busy')).toBe('true');expect(fixture.nativeElement.textContent).toContain('Atualizando cotação');pending.next(UPDATED);pending.complete();fixture.detectChanges();expect(fixture.nativeElement.textContent).toContain('200');expect(toast.show).toHaveBeenCalledWith('Cotação atualizada com sucesso.');expect(service.buscarPorId).not.toHaveBeenCalled();});
+ it('keeps the back action navigable in the sticky workspace structure',async()=>{const{fixture}=await create(OLD);const back=fixture.nativeElement.querySelector('a.app-back-action') as HTMLAnchorElement;expect(back).toBeTruthy();expect(back.getAttribute('href')).toBe('/acoes');});
+ it.each([[409,'TICKER_CANONICO_DIVERGENTE'],[422,'COTACAO_INDISPONIVEL'],[422,'COTACAO_FORA_DA_PRECISAO'],[429,'LIMITE_REQUISICOES_EXCEDIDO'],[502,'RESPOSTA_EXTERNA_INVALIDA'],[503,'SERVICO_EXTERNO_INDISPONIVEL'],[504,'SERVICO_EXTERNO_TIMEOUT']] as const)('preserves the prior DTO after PATCH failure %s/%s and only retries manually',async(status,code)=>{const{fixture,service}=await create(OLD);const expectedError=failure(status,code,`Erro ${code}`,{cotacaoPreservada:true});service.atualizarCotacao.mockReturnValueOnce(throwError(()=>expectedError));(fixture.nativeElement.querySelector('button') as HTMLButtonElement).click();fixture.detectChanges();const component=fixture.componentInstance as unknown as {acao():AcaoResponse|null;updateError():NormalizedHttpError|null};const currentError=component.updateError();const text=fixture.nativeElement.textContent;expect(currentError?.status).toBe(expectedError.status);expect(currentError?.code).toBe(expectedError.code);expect(currentError?.message).toBe(expectedError.message);expect(currentError?.details).toEqual(expectedError.details);expect(component.acao()).toEqual(OLD);expect(text).toContain('190');expect(text).toContain('AAPL');expect(text).toContain(`Erro ${code}`);expect(text).toContain('cotacaoPreservada');expect(service.atualizarCotacao).toHaveBeenCalledTimes(1);expect((fixture.nativeElement.querySelector('button') as HTMLButtonElement).disabled).toBe(false);expect(service.buscarPorId).not.toHaveBeenCalled();if(code==='TICKER_CANONICO_DIVERGENTE')expect(document.querySelector('[role="dialog"]')).toBeNull();});
+});

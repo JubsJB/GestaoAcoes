@@ -2,6 +2,7 @@ package com.projeto.services;
 
 import com.projeto.GestaoacoesApplication;
 import com.projeto.dto.OperacaoCreateRequest;
+import com.projeto.TestOperacaoRequests;
 import com.projeto.dto.ResumoCarteiraResponse;
 import com.projeto.entities.Acao;
 import com.projeto.entities.Carteira;
@@ -86,10 +87,10 @@ class ResumoCarteiraConcurrencyTest {
             });
             Future<?> registration = executor.submit(() -> {
                 start.await(5, TimeUnit.SECONDS);
-                return operacaoService.cadastrar(new OperacaoCreateRequest(
+                return operacaoService.cadastrar(TestOperacaoRequests.request(
                         carteira.getId(), "PETR4", Mercado.BRASIL, null,
                         TipoOperacao.COMPRA, new BigDecimal("100"),
-                        new BigDecimal("32"), LocalDate.of(2026, 8, 10), 1
+                        new BigDecimal("32"), LocalDate.of(2026, 8, 10)
                 ));
             });
 

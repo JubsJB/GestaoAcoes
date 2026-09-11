@@ -1,0 +1,1543 @@
+{
+  "info": {
+    "name": "Gestão de Ações — MVP",
+    "description": "Coleção documental do MVP: 26 operações de negócio distintas, organizadas por domínio, mais exemplos alternativos/negativos e documentação técnica. Importe no Postman e execute manualmente em banco de desenvolvimento. Não é uma sequência idempotente: POSTs criam dados e DELETE exclui a carteira descartável. Defina cnpj real e dataOperacao apropriada; execute criação de carteira/ação antes das operações. IDs são capturados somente após sucesso, ou podem ser preenchidos com registros existentes. Não há autenticação da aplicação; chaves de providers ficam exclusivamente no backend. Exemplos de preços/quantidades são ilustrativos, não cotações. Cada request testa o status esperado; erros de provider fazem o teste de sucesso falhar. Ver README raiz para configuração e limitações.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "noauth"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080",
+      "type": "string"
+    },
+    {
+      "key": "nomeCarteira",
+      "value": "Carteira de demonstração",
+      "type": "string"
+    },
+    {
+      "key": "carteiraId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "carteiraDescartavelId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "cnpj",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "corretoraId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "corretoraOperacaoId",
+      "value": "null",
+      "type": "string"
+    },
+    {
+      "key": "ticker",
+      "value": "PETR4",
+      "type": "string"
+    },
+    {
+      "key": "mercado",
+      "value": "BRASIL",
+      "type": "string"
+    },
+    {
+      "key": "tickerEua",
+      "value": "AAPL",
+      "type": "string"
+    },
+    {
+      "key": "acaoId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "acaoEuaId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "operacaoId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "quantidadeCompra",
+      "value": "10",
+      "type": "string"
+    },
+    {
+      "key": "quantidadeVenda",
+      "value": "5",
+      "type": "string"
+    },
+    {
+      "key": "precoCompra",
+      "value": "30.00",
+      "type": "string"
+    },
+    {
+      "key": "precoVenda",
+      "value": "35.00",
+      "type": "string"
+    },
+    {
+      "key": "dataOperacao",
+      "value": "2026-09-09",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Carteiras",
+      "item": [
+        {
+          "name": "Criar carteira",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/carteiras",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "carteiras"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"nome\":\"{{nomeCarteira}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status esperado: 201\", function () { pm.response.to.have.status(201); });",
+                  "pm.test(\"Resposta JSON\", function () { pm.response.json(); });",
+                  "if (pm.response.code === 201) { const body = pm.response.json(); if (body.id != null) pm.collectionVariables.set(\"carteiraId\", String(body.id)); }"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Listar carteiras",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/carteiras",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "carteiras"
+              ]
+            },
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status esperado: 200\", function () { pm.response.to.have.status(200); });",
+                  "pm.test(\"Resposta JSON\", function () { pm.response.json(); });"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Consultar carteira",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/carteiras/{{carteiraId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "carteiras",
+                "{{carteiraId}}"
+              ]
+            },
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status esperado: 200\", function () { pm.response.to.have.status(200); });",
+                  "pm.test(\"Resposta JSON\", function () { pm.response.json(); });"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Renomear carteira",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/carteiras/{{carteiraId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "carteiras",
+                "{{carteiraId}}"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"nome\":\"{{nomeCarteira}} - revisada\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status esperado: 200\", function () { pm.response.to.have.status(200); });",
+                  "pm.test(\"Resposta JSON\", function () { pm.response.json(); });"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Criar carteira descartável para exclusão",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/carteiras",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "carteiras"
+              ]
+            },
+            "description": "Cria uma carteira separada; não registre operações nem snapshots nela.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"nome\":\"Teste de exclusão\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status esperado: 201\", function () { pm.response.to.have.status(201); });",
+                  "pm.test(\"Resposta JSON\", function () { pm.response.json(); });",
+                  "if (pm.response.code === 201) { const body = pm.response.json(); if (body.id != null) pm.collectionVariables.set(\"carteiraDescartavelId\", String(body.id)); }"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Excluir somente a carteira descartável",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/carteiras/{{carteiraDescartavelId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "carteiras",
+                "{{carteiraDescartavelId}}"
+              ]
+            },
+            "description": "Exclusão efetiva. Execute após criar a carteira descartável. Carteiras com operações ou snapshots retornam 409. Não usa carteiraId do fluxo principal."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status esperado: 204\", function () { pm.response.to.have.status(204); });"
+                ]
+              }
+            }
+          ],
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Corretoras",
+      "item": [
+        {
+          "name": "Cadastrar corretora por CNPJ",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/corretoras",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "corretoras"
+              ]
+            },
+            "description": "Preencha cnpj com CNPJ real. Consulta BrasilAPI e valida o CEP retornado via ViaCEP. Em 409 SITUACAO_CADASTRAL_NAO_ATIVA, revise os dados antes de reenviar com confirmação true. Duplicidade também retorna 409.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"cnpj\":\"{{cnpj}}\",\"confirmarSituacaoCadastralNaoAtiva\":false}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status esperado: 201\", function () { pm.response.to.have.status(201); });",
+                  "pm.test(\"Resposta JSON\", function () { pm.response.json(); });",
+                  "if (pm.response.code === 201) { const body = pm.response.json(); if (body.id != null) pm.collectionVariables.set(\"corretoraId\", String(body.id)); }"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Listar corretoras",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/corretoras",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "corretoras"
+              ]
+            },
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status esperado: 200\", function () { pm.response.to.have.status(200); });",
+                  "pm.test(\"Resposta JSON\", function () { pm.response.json(); });"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Consultar corretora por ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/corretoras/{{corretoraId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "corretoras",
+                "{{corretoraId}}"
+              ]
+            },
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status esperado: 200\", function () { pm.response.to.have.status(200); });",
+                  "pm.test(\"Resposta JSON\", function () { pm.response.json(); });"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Consultar corretora por CNPJ",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/corretoras/por-cnpj?cnpj={{cnpj}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "corretoras",
+                "por-cnpj"
+              ],
+              "query": [
+                {
+                  "key": "cnpj",
+                  "value": "{{cnpj}}"
+                }
+              ]
+            },
+            "description": "Consulta apenas o cadastro local; não consulta BrasilAPI."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status esperado: 200\", function () { pm.response.to.have.status(200); });",
+                  "pm.test(\"Resposta JSON\", function () { pm.response.json(); });"
+                ]
+              }
+            }
+          ],
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Ações",
+      "item": [
+        {
+          "name": "Cadastrar ação brasileira",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/acoes",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "acoes"
+              ]
+            },
+            "description": "Padrão PETR4/BRASIL. Requer BRAPI configurada no backend. Duplicidade: 409; use a consulta por ticker para recuperar o ID existente.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"ticker\":\"{{ticker}}\",\"mercado\":\"{{mercado}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status esperado: 201\", function () { pm.response.to.have.status(201); });",
+                  "pm.test(\"Resposta JSON\", function () { pm.response.json(); });",
+                  "if (pm.response.code === 201) { const body = pm.response.json(); if (body.id != null) pm.collectionVariables.set(\"acaoId\", String(body.id)); }"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Cadastrar ação americana",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/acoes",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "acoes"
+              ]
+            },
+            "description": "Exemplo alternativo AAPL/EUA. Requer Alpha Vantage configurada. Não altera ticker/mercado do fluxo brasileiro.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"ticker\":\"{{tickerEua}}\",\"mercado\":\"EUA\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status esperado: 201\", function () { pm.response.to.have.status(201); });",
+                  "pm.test(\"Resposta JSON\", function () { pm.response.json(); });",
+                  "if (pm.response.code === 201) { const body = pm.response.json(); if (body.id != null) pm.collectionVariables.set(\"acaoEuaId\", String(body.id)); }"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Listar ações",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/acoes",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "acoes"
+              ]
+            },
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status esperado: 200\", function () { pm.response.to.have.status(200); });",
+                  "pm.test(\"Resposta JSON\", function () { pm.response.json(); });"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Consultar ação por ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/acoes/{{acaoId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "acoes",
+                "{{acaoId}}"
+              ]
+            },
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status esperado: 200\", function () { pm.response.to.have.status(200); });",
+                  "pm.test(\"Resposta JSON\", function () { pm.response.json(); });"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Consultar ação por ticker e mercado",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/acoes/por-ticker?ticker={{ticker}}&mercado={{mercado}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "acoes",
+                "por-ticker"
+              ],
+              "query": [
+                {
+                  "key": "ticker",
+                  "value": "{{ticker}}"
+                },
+                {
+                  "key": "mercado",
+                  "value": "{{mercado}}"
+                }
+              ]
+            },
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status esperado: 200\", function () { pm.response.to.have.status(200); });",
+                  "pm.test(\"Resposta JSON\", function () { pm.response.json(); });",
+                  "if (pm.response.code === 200) { const body = pm.response.json(); if (body.id != null) pm.collectionVariables.set(\"acaoId\", String(body.id)); }"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Atualizar cotação manualmente",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/acoes/{{acaoId}}/cotacao",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "acoes",
+                "{{acaoId}}",
+                "cotacao"
+              ]
+            },
+            "description": "Sem corpo. Pode consumir quota externa. EUA respeita cooldown; falha preserva a última cotação. Não modifica operações históricas."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status esperado: 200\", function () { pm.response.to.have.status(200); });",
+                  "pm.test(\"Resposta JSON\", function () { pm.response.json(); });"
+                ]
+              }
+            }
+          ],
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Operações",
+      "item": [
+        {
+          "name": "Registrar COMPRA",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/operacoes",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "operacoes"
+              ]
+            },
+            "description": "Preço manual obrigatório, sem consulta externa no POST. Ação e carteira devem existir. corretoraOperacaoId=null omite associação; use ID numérico para associar. Ordem no dia e valor total são gerados. Execute COMPRA antes de VENDA; venda exige saldo cronológico e valida todo o histórico posterior.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"carteiraId\":{{carteiraId}},\"ticker\":\"{{ticker}}\",\"mercado\":\"{{mercado}}\",\"corretoraId\":{{corretoraOperacaoId}},\"tipo\":\"COMPRA\",\"quantidade\":{{quantidadeCompra}},\"precoUnitario\":{{precoCompra}},\"dataOperacao\":\"{{dataOperacao}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status esperado: 201\", function () { pm.response.to.have.status(201); });",
+                  "pm.test(\"Resposta JSON\", function () { pm.response.json(); });",
+                  "if (pm.response.code === 201) { const body = pm.response.json(); if (body.id != null) pm.collectionVariables.set(\"operacaoId\", String(body.id)); }"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Registrar VENDA",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/operacoes",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "operacoes"
+              ]
+            },
+            "description": "Preço manual obrigatório, sem consulta externa no POST. Ação e carteira devem existir. corretoraOperacaoId=null omite associação; use ID numérico para associar. Ordem no dia e valor total são gerados. Execute COMPRA antes de VENDA; venda exige saldo cronológico e valida todo o histórico posterior.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"carteiraId\":{{carteiraId}},\"ticker\":\"{{ticker}}\",\"mercado\":\"{{mercado}}\",\"corretoraId\":{{corretoraOperacaoId}},\"tipo\":\"VENDA\",\"quantidade\":{{quantidadeVenda}},\"precoUnitario\":{{precoVenda}},\"dataOperacao\":\"{{dataOperacao}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status esperado: 201\", function () { pm.response.to.have.status(201); });",
+                  "pm.test(\"Resposta JSON\", function () { pm.response.json(); });",
+                  "if (pm.response.code === 201) { const body = pm.response.json(); if (body.id != null) pm.collectionVariables.set(\"operacaoId\", String(body.id)); }"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Listar todas as operações",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/operacoes",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "operacoes"
+              ]
+            },
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status esperado: 200\", function () { pm.response.to.have.status(200); });",
+                  "pm.test(\"Resposta JSON\", function () { pm.response.json(); });"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Consultar operação por ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/operacoes/{{operacaoId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "operacoes",
+                "{{operacaoId}}"
+              ]
+            },
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status esperado: 200\", function () { pm.response.to.have.status(200); });",
+                  "pm.test(\"Resposta JSON\", function () { pm.response.json(); });"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Listar operações da carteira",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/carteiras/{{carteiraId}}/operacoes",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "carteiras",
+                "{{carteiraId}}",
+                "operacoes"
+              ]
+            },
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status esperado: 200\", function () { pm.response.to.have.status(200); });",
+                  "pm.test(\"Resposta JSON\", function () { pm.response.json(); });"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Consultar prévia histórica de compra",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/operacoes/previa-compra?ticker={{ticker}}&mercado={{mercado}}&dataOperacao={{dataOperacao}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "operacoes",
+                "previa-compra"
+              ],
+              "query": [
+                {
+                  "key": "ticker",
+                  "value": "{{ticker}}"
+                },
+                {
+                  "key": "mercado",
+                  "value": "{{mercado}}"
+                },
+                {
+                  "key": "dataOperacao",
+                  "value": "{{dataOperacao}}"
+                }
+              ]
+            },
+            "description": "Consulta externa independente, opcional. Fechamento bruto da data exata; sem substituir data por outro pregão. Pode retornar 422 se indisponível/fora do alcance ou 429 por limite. Não preenche automaticamente precoCompra."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status esperado: 200\", function () { pm.response.to.have.status(200); });",
+                  "pm.test(\"Resposta JSON\", function () { pm.response.json(); });"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Consultar sugestão de preço de venda",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/carteiras/{{carteiraId}}/operacoes/sugestao-preco-venda?ticker={{ticker}}&mercado={{mercado}}&dataOperacao={{dataOperacao}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "carteiras",
+                "{{carteiraId}}",
+                "operacoes",
+                "sugestao-preco-venda"
+              ],
+              "query": [
+                {
+                  "key": "ticker",
+                  "value": "{{ticker}}"
+                },
+                {
+                  "key": "mercado",
+                  "value": "{{mercado}}"
+                },
+                {
+                  "key": "dataOperacao",
+                  "value": "{{dataOperacao}}"
+                }
+              ]
+            },
+            "description": "Consulta local baseada na última compra cronologicamente aplicável; sugestão pode ser null. Não é preço médio nem recomendação e não altera precoVenda."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status esperado: 200\", function () { pm.response.to.have.status(200); });",
+                  "pm.test(\"Resposta JSON\", function () { pm.response.json(); });"
+                ]
+              }
+            }
+          ],
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Indicadores da Carteira",
+      "item": [
+        {
+          "name": "Posições abertas",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/carteiras/{{carteiraId}}/posicoes",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "carteiras",
+                "{{carteiraId}}",
+                "posicoes"
+              ]
+            },
+            "description": "Consulta local baseada nas operações e últimas cotações persistidas. BRL e USD permanecem separados, sem conversão cambial."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status esperado: 200\", function () { pm.response.to.have.status(200); });",
+                  "pm.test(\"Resposta JSON\", function () { pm.response.json(); });"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Resultados realizados por ação",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/carteiras/{{carteiraId}}/resultados-realizados",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "carteiras",
+                "{{carteiraId}}",
+                "resultados-realizados"
+              ]
+            },
+            "description": "Consulta local baseada nas operações e últimas cotações persistidas. BRL e USD permanecem separados, sem conversão cambial."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status esperado: 200\", function () { pm.response.to.have.status(200); });",
+                  "pm.test(\"Resposta JSON\", function () { pm.response.json(); });"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Patrimônio por moeda",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/carteiras/{{carteiraId}}/patrimonio",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "carteiras",
+                "{{carteiraId}}",
+                "patrimonio"
+              ]
+            },
+            "description": "Consulta local baseada nas operações e últimas cotações persistidas. BRL e USD permanecem separados, sem conversão cambial."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status esperado: 200\", function () { pm.response.to.have.status(200); });",
+                  "pm.test(\"Resposta JSON\", function () { pm.response.json(); });"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Resumo por moeda",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/carteiras/{{carteiraId}}/resumo",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "carteiras",
+                "{{carteiraId}}",
+                "resumo"
+              ]
+            },
+            "description": "Consulta local baseada nas operações e últimas cotações persistidas. BRL e USD permanecem separados, sem conversão cambial."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status esperado: 200\", function () { pm.response.to.have.status(200); });",
+                  "pm.test(\"Resposta JSON\", function () { pm.response.json(); });"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Criar snapshot manual",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/carteiras/{{carteiraId}}/snapshots",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "carteiras",
+                "{{carteiraId}}",
+                "snapshots"
+              ]
+            },
+            "description": "Sem corpo. Persiste uma observação do patrimônio atual. Não agenda snapshots nem reconstrói datas passadas. Location não implica endpoint GET individual de snapshot."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status esperado: 201\", function () { pm.response.to.have.status(201); });",
+                  "pm.test(\"Resposta JSON\", function () { pm.response.json(); });"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Consultar evolução patrimonial",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/carteiras/{{carteiraId}}/evolucao-patrimonial",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "carteiras",
+                "{{carteiraId}}",
+                "evolucao-patrimonial"
+              ]
+            },
+            "description": "Todos os snapshots persistidos em ordem cronológica. Não aceita filtros de período ou paginação."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status esperado: 200\", function () { pm.response.to.have.status(200); });",
+                  "pm.test(\"Resposta JSON\", function () { pm.response.json(); });"
+                ]
+              }
+            }
+          ],
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Validações",
+      "item": [
+        {
+          "name": "Nome de carteira vazio (400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/carteiras",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "carteiras"
+              ]
+            },
+            "description": "Exemplo negativo sem criação de carteira.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"nome\":\"\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status esperado: 400\", function () { pm.response.to.have.status(400); });",
+                  "pm.test(\"Resposta JSON\", function () { pm.response.json(); });",
+                  "pm.test(\"Erro padronizado\", function () { const error = pm.response.json(); pm.expect(error.status).to.eql(400); pm.expect(error.message).to.be.a(\"string\"); pm.expect(error).to.have.property(\"details\"); });"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Cotação com corpo proibido (400)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/acoes/{{acaoId}}/cotacao",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "acoes",
+                "{{acaoId}}",
+                "cotacao"
+              ]
+            },
+            "description": "Rejeitado antes de consultar provider; a atualização válida não envia corpo.",
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status esperado: 400\", function () { pm.response.to.have.status(400); });",
+                  "pm.test(\"Resposta JSON\", function () { pm.response.json(); });",
+                  "pm.test(\"Erro padronizado\", function () { const error = pm.response.json(); pm.expect(error.status).to.eql(400); pm.expect(error.message).to.be.a(\"string\"); pm.expect(error).to.have.property(\"details\"); });"
+                ]
+              }
+            }
+          ],
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Documentação técnica",
+      "item": [
+        {
+          "name": "OpenAPI JSON",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v3/api-docs",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v3",
+                "api-docs"
+              ]
+            },
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status esperado: 200\", function () { pm.response.to.have.status(200); });",
+                  "pm.test(\"Resposta JSON\", function () { pm.response.json(); });"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "OpenAPI YAML",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "*/*"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v3/api-docs.yaml",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v3",
+                "api-docs.yaml"
+              ]
+            },
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status esperado: 200\", function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Swagger UI",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "*/*"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/swagger-ui/index.html",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "swagger-ui",
+                "index.html"
+              ]
+            },
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status esperado: 200\", function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ],
+          "response": []
+        }
+      ]
+    }
+  ]
+}

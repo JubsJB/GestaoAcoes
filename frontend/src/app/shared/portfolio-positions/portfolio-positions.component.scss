@@ -1,0 +1,17 @@
+@use '../collection/refined-collection';
+
+// Keep the existing card reflow; only refine the desktop table.
+@media (min-width: 70.001rem) {
+  .collection-table {
+    font-size: .875rem;
+
+    thead th { vertical-align: bottom; }
+    thead th:not(:first-child) { text-align: right; }
+    th, td { padding: .875rem .4rem; }
+    th:first-child { width: 16%; }
+    th:nth-child(2) { width: 9%; }
+    .numeric { line-height: 1.5; }
+    small { font-size: .75rem; line-height: 1.4; }
+    .quote-reference { margin-top: .5rem; text-wrap: balance; }
+  }
+}

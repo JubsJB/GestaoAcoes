@@ -1,0 +1,142 @@
+<section class="evolution" aria-labelledby="evolution-title" (keydown.escape)="dismissPoint($event)">
+  <header class="evolution__header">
+    <div>
+      <h2 id="evolution-title">Histórico do patrimônio</h2>
+      <p>Seu patrimônio nos momentos em que você registrou. Registros manuais, separados por moeda.</p>
+      <p class="evolution__timezone">Datas e horários são apresentados no horário local.</p>
+    </div>
+    <button mat-stroked-button type="button" (click)="registerSnapshot()" [disabled]="creating()">
+      {{ creating() ? 'Registrando patrimônio…' : 'Registrar patrimônio atual' }}
+    </button>
+  </header>
+
+  @if (creating()) {
+    <div class="evolution__progress" role="status" aria-live="polite"><mat-spinner diameter="22" /> Registrando patrimônio de {{ carteiraNome() }}…</div>
+  }
+  @if (creationError()) {
+    <app-feedback-alert variant="error" [message]="creationError()!.message" [details]="creationError()!.details" />
+  }
+
+  @if (loading()) {
+    <div class="app-state" role="status" aria-live="polite"><mat-spinner diameter="32" /> Carregando histórico do patrimônio…</div>
+  } @else if (error()) {
+    <app-feedback-alert variant="error" [message]="error()!.message" [details]="error()!.details" />
+    <div class="app-state"><button mat-stroked-button type="button" (click)="retry()">Tentar novamente o histórico</button></div>
+  } @else if (data(); as evolution) {
+    @if (evolution.pontos.length === 0) {
+      <div class="app-state app-surface"><h3>Nenhum registro de patrimônio</h3><p>Registre o patrimônio atual para iniciar este histórico.</p></div>
+    } @else {
+      @if (evolution.pontos.length === 1) {
+        <p class="evolution__notice" role="status">Existe somente uma observação histórica; ainda não há tendência a apresentar.</p>
+      }
+
+      <div class="charts">
+        @for (chart of [brl(), usd()]; track chart?.currency) {
+          @if (chart; as series) {
+            <section class="chart app-surface" [attr.aria-labelledby]="'chart-title-' + series.currency" (mouseleave)="leaveChart(series.currency)">
+              <header><h3 [id]="'chart-title-' + series.currency"><span class="chart__title-prefix">Histórico do patrimônio — </span>{{ series.currency }}</h3><span class="chart__legend chart__legend--{{ series.currency.toLowerCase() }}">{{ series.currency === 'BRL' ? 'R$ · linha contínua' : 'US$ · linha tracejada' }}</span></header>
+              <p [id]="'chart-description-' + series.currency" class="chart__description">{{ series.points.length }} {{ series.points.length === 1 ? 'observação' : 'observações' }} registradas. Consulte os pontos ou o histórico abaixo.</p>
+              @if (series.points[series.points.length - 1]; as latest) {
+                <div class="chart__latest"><span>Último registro em {{ series.currency }}</span><strong>{{ money(latest.authoritativeValue, series.currency) }}</strong><time [attr.datetime]="latest.timestamp">{{ localDate(latest.timestamp) }}</time></div>
+              }
+              <svg viewBox="0 0 720 260" role="group" [attr.aria-labelledby]="'chart-title-' + series.currency + ' chart-description-' + series.currency">
+                <defs>
+                  <linearGradient [id]="'area-' + series.currency" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stop-color="currentColor" stop-opacity=".20" />
+                    <stop offset="100%" stop-color="currentColor" stop-opacity=".015" />
+                  </linearGradient>
+                </defs>
+                @for (segment of series.segments; track $index) {
+                  @if (segment.length > 1) {
+                    <path class="series-area" aria-hidden="true" [attr.fill]="'url(#area-' + series.currency + ')'"
+                      [attr.d]="path(segment) + ' L ' + segment[segment.length - 1].x + ' 222 L ' + segment[0].x + ' 222 Z'" />
+                  }
+                }
+                <g class="chart-grid" aria-hidden="true">
+                  <line x1="44" y1="30" x2="702" y2="30" />
+                  <line x1="44" y1="94" x2="702" y2="94" />
+                  <line x1="44" y1="158" x2="702" y2="158" />
+                </g>
+                <line class="axis" x1="44" y1="222" x2="702" y2="222" />
+                @for (segment of series.segments; track $index) {
+                  @if (segment.length > 1) { <path class="series-line series-line--{{ series.currency.toLowerCase() }}" [attr.d]="path(segment)" /> }
+                }
+                @for (point of series.points; track point.snapshotId) {
+                  <g class="point" tabindex="0" role="button" [attr.aria-label]="pointLabel(series.currency, point)"
+                     [class.point--active]="activePoint() === pointKey(series.currency, point)"
+                     [attr.aria-describedby]="activePoint() === pointKey(series.currency, point) ? 'tooltip-' + series.currency : null"
+                     (mouseenter)="showPoint(series.currency, point)"
+                     (focus)="showPoint(series.currency, point, 'focus')" (blur)="blurPoint()"
+                     (keydown.enter)="activatePoint($event, series.currency, point)"
+                     (keydown.space)="activatePoint($event, series.currency, point)"
+                     (click)="activatePoint($event, series.currency, point)">
+                    <rect class="point-target" [attr.x]="point.x - 12" [attr.y]="point.y - 12" width="24" height="24" />
+                    <circle [attr.cx]="point.x" [attr.cy]="point.y" r="5" />
+                  </g>
+                }
+              </svg>
+              <div class="axis-labels" appAxisLabels aria-hidden="true">
+                @for (label of series.xLabels; track label.snapshotId) {
+                  <span [style.left.%]="label.x / 720 * 100" [attr.data-full]="shortDate(label.timestamp)" [attr.data-compact]="shortDate(label.timestamp, true)">{{ shortDate(label.timestamp) }}</span>
+                }
+              </div>
+              <div class="record-picker" role="group" [attr.aria-label]="'Selecionar registro em ' + series.currency">
+                <p>Selecione um registro. Pontos próximos podem aparecer sobrepostos.</p>
+                <div>
+                  @for (point of series.points; track point.snapshotId) {
+                    <button type="button" [attr.aria-label]="'Registro #' + point.snapshotId + ', ' + pointLabel(series.currency, point)"
+                      [attr.aria-pressed]="activePoint() === pointKey(series.currency, point)"
+                      (focus)="showPoint(series.currency, point, 'focus')" (blur)="blurPoint()"
+                      (click)="activatePoint($event, series.currency, point)">
+                      #{{ point.snapshotId }} · {{ shortDate(point.timestamp) }}
+                    </button>
+                  }
+                </div>
+              </div>
+              <div class="chart__inspection">
+                @if (activeSelection(); as active) {
+                  @if (active.currency === series.currency) {
+                    <div class="tooltip" role="tooltip" [id]="'tooltip-' + series.currency">
+                      <strong>{{ series.currency }} · {{ money(active.point.authoritativeValue, series.currency) }}</strong>
+                      <time [attr.datetime]="active.point.timestamp">{{ localDate(active.point.timestamp) }}</time>
+                      <span>Registro #{{ active.point.snapshotId }}</span>
+                    </div>
+                  } @else { <p>Consulte um ponto ou seu registro no histórico abaixo.</p> }
+                } @else { <p>Consulte um ponto ou seu registro no histórico abaixo.</p> }
+              </div>
+            </section>
+          }
+        }
+      </div>
+
+      <section class="history app-surface" aria-labelledby="evolution-history-title">
+        <h3 id="evolution-history-title">Registros do patrimônio</h3>
+        <p>Todos os registros, com valores por moeda e horário local. Os botões permitem consultar também observações sobrepostas no gráfico.</p>
+        <ol>
+          @for (snapshot of evolution.pontos; track snapshot.snapshotId) {
+            <li>
+              <div><strong>Registro #{{ snapshot.snapshotId }}</strong><time [attr.datetime]="snapshot.dataHoraSnapshot">{{ localDate(snapshot.dataHoraSnapshot) }}</time></div>
+              @if (snapshot.patrimonios.length === 0) {
+                <span class="empty-snapshot">Observação sem patrimônio por moeda.</span>
+              } @else {
+                <dl>@for (item of snapshot.patrimonios; track item.moeda) {
+                  <div><dt>{{ item.moeda }}</dt><dd>
+                    @if (historyPoint(item.moeda, snapshot.snapshotId); as point) {
+                      <button class="history-point" type="button" [attr.aria-label]="pointLabel(item.moeda, point)"
+                        (focus)="showPoint(item.moeda, point, 'focus')" (blur)="blurPoint()"
+                        (mouseenter)="showPoint(item.moeda, point)" (mouseleave)="leaveChart(item.moeda)"
+                        (click)="activatePoint($event, item.moeda, point)">{{ money(item.patrimonioAtual, item.moeda) }}</button>
+                      @if (activePoint() === pointKey(item.moeda, point)) {
+                        <small class="history-inspection">{{ localDate(point.timestamp) }} · Registro #{{ point.snapshotId }}</small>
+                      }
+                    } @else { {{ money(item.patrimonioAtual, item.moeda) }} }
+                  </dd></div>
+                }</dl>
+              }
+            </li>
+          }
+        </ol>
+      </section>
+    }
+  }
+</section>
