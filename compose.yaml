@@ -1,0 +1,63 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-gestaoacoesdb}
+      POSTGRES_USER: ${POSTGRES_USER:-gestaoacoes}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-dev}
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-gestaoacoesdb}
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-gestaoacoes}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:?Defina POSTGRES_PASSWORD no arquivo .env}
+      BRASIL_API_BASE_URL: ${BRASIL_API_BASE_URL:-https://brasilapi.com.br}
+      BRASIL_API_CONNECT_TIMEOUT: ${BRASIL_API_CONNECT_TIMEOUT:-2s}
+      BRASIL_API_READ_TIMEOUT: ${BRASIL_API_READ_TIMEOUT:-5s}
+      VIA_CEP_BASE_URL: ${VIA_CEP_BASE_URL:-https://viacep.com.br}
+      VIA_CEP_CONNECT_TIMEOUT: ${VIA_CEP_CONNECT_TIMEOUT:-2s}
+      VIA_CEP_READ_TIMEOUT: ${VIA_CEP_READ_TIMEOUT:-5s}
+      BRAPI_BASE_URL: ${BRAPI_BASE_URL:-https://brapi.dev}
+      BRAPI_API_KEY: ${BRAPI_API_KEY:-}
+      BRAPI_CONNECT_TIMEOUT: ${BRAPI_CONNECT_TIMEOUT:-2s}
+      BRAPI_READ_TIMEOUT: ${BRAPI_READ_TIMEOUT:-5s}
+      ALPHA_VANTAGE_BASE_URL: ${ALPHA_VANTAGE_BASE_URL:-https://www.alphavantage.co}
+      ALPHA_VANTAGE_API_KEY: ${ALPHA_VANTAGE_API_KEY:-}
+      ALPHA_VANTAGE_CONNECT_TIMEOUT: ${ALPHA_VANTAGE_CONNECT_TIMEOUT:-2s}
+      ALPHA_VANTAGE_READ_TIMEOUT: ${ALPHA_VANTAGE_READ_TIMEOUT:-5s}
+      ALPHA_VANTAGE_QUOTE_REUSE_INTERVAL: ${ALPHA_VANTAGE_QUOTE_REUSE_INTERVAL:-15m}
+      ALPHA_VANTAGE_REFRESH_COOLDOWN: ${ALPHA_VANTAGE_REFRESH_COOLDOWN:-15m}
+    ports:
+      - "${BACKEND_PORT:-8080}:8080"
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "${FRONTEND_PORT:-4200}:80"
+
+volumes:
+  postgres_data:

@@ -199,3 +199,28 @@ docs/                      PRD e coleção de API
 openspec/                  specs e changes
 graphify-out/              grafo de conhecimento local
 ```
+
+## Execução com Docker
+
+Requer Docker Desktop/Engine com Docker Compose, WSL2 no Windows e o contexto Linux ativo. Os artefatos seguem o padrão multi-stage da Aula 12: o backend usa Maven 3.9.11/Temurin 17 e runtime JRE não-root; o frontend usa build Node 22 e Nginx; o PostgreSQL usa `postgres:17-alpine`.
+
+```powershell
+Copy-Item .env.example .env
+# edite .env e troque pelo menos POSTGRES_PASSWORD; informe as chaves dos providers quando necessário
+docker compose config
+docker compose up -d --build
+docker compose ps
+```
+
+Serviços: `postgres` (5432 interno), `backend` (8080 interno) e `frontend` (80 interno). Portas publicadas são `POSTGRES_PORT` (5432), `BACKEND_PORT` (8080) e `FRONTEND_PORT` (4200). O backend conecta ao banco pelo hostname Compose `postgres`, aguarda o healthcheck `pg_isready` e aplica Liquibase na inicialização. O Nginx serve o Angular e encaminha `/api` para `backend:8080`, mantendo a URL relativa usada pelo frontend.
+
+URLs padrão: frontend `http://localhost:4200`, backend `http://localhost:8080`, Swagger `http://localhost:8080/swagger-ui.html` e OpenAPI `http://localhost:8080/v3/api-docs`.
+
+```powershell
+docker compose logs -f backend
+docker compose logs -f postgres
+docker compose down       # remove containers, preserva postgres_data
+docker compose down -v    # remove também o volume e os dados; use somente conscientemente
+```
+
+O arquivo `.env` é ignorado pelo Git e pelo contexto Docker; use `.env.example` apenas como modelo e nunca coloque secrets no Dockerfile ou no Compose versionado. Para confirmar persistência, execute `docker compose down` (sem `-v`), suba novamente e confira os registros existentes. A primeira construção requer acesso ao Docker Hub e aos repositórios Maven/npm. O build Docker não repete a suíte de testes; valide-a separadamente com os comandos desta documentação.

@@ -1,0 +1,24 @@
+# Controle de versao e configuracoes das IDEs
+.git
+.gitignore
+.idea
+.vscode
+*.iml
+
+# Arquivos gerados pelo build e pela aplicacao
+target
+build
+*.class
+*.log
+
+# Segredos e configuracoes locais
+.env
+.env.*
+
+# Arquivos que nao sao necessarios para compilar a aplicacao
+docs
+README.md
+.DS_Store
+**/.DS_Store
+**/*.tmp
+**/*.temp
