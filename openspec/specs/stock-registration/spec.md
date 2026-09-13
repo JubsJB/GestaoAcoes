@@ -80,7 +80,7 @@ O sistema SHALL concluir o cadastro somente quando o provedor correspondente con
 
 #### Scenario: Busca americana exata sem nome utilizável
 - **WHEN** a Alpha Vantage confirma símbolo exato e mercado ou região compatível, mas a busca não fornece nome utilizável
-- **THEN** o sistema consulta os dados da empresa para obter o nome e somente prossegue para a cotação quando o nome obrigatório estiver disponível
+- **THEN** o sistema SHALL responder 422 com DADOS_EXTERNOS_INCOMPLETOS sem consultar OVERVIEW ou cotação e sem persistir a Ação
 
 ### Requirement: Obtenção dos dados da Ação e da cotação no cadastro
 O sistema SHALL obter do provedor o ticker confirmado, o nome da empresa e a última cotação disponibilizada pelo provider durante o cadastro. O cadastro SHALL falhar sem persistência quando o nome estiver ausente, a cotação estiver ausente, não numérica, igual a zero ou negativa. `cotacaoAtual` SHALL representar a última cotação disponibilizada pelo provider e SHALL NOT ser apresentada como garantia de preço em tempo real.

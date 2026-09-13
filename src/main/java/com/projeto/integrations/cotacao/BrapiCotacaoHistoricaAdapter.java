@@ -62,7 +62,7 @@ public class BrapiCotacaoHistoricaAdapter implements CotacaoHistoricaProvider {
         JsonNode prices = data.get("historicalDataPrice");
         if (prices == null || !prices.isArray()) throw invalid();
         if (prices.isEmpty()) throw historical(ErrorCodes.COTACAO_HISTORICA_INDISPONIVEL,
-                "CotaÃ§Ã£o histÃ³rica indisponÃ­vel para a data solicitada");
+                "Cotação histórica indisponível para a data solicitada");
 
         Map<LocalDate, BigDecimal> candles = new HashMap<>();
         for (JsonNode candle : prices) {
@@ -79,10 +79,10 @@ public class BrapiCotacaoHistoricaAdapter implements CotacaoHistoricaProvider {
         LocalDate max = Collections.max(candles.keySet());
         if (!expectedDate.isBefore(min) && !expectedDate.isAfter(max)) {
             throw historical(ErrorCodes.COTACAO_HISTORICA_INDISPONIVEL,
-                    "CotaÃ§Ã£o histÃ³rica indisponÃ­vel para a data solicitada");
+                    "Cotação histórica indisponível para a data solicitada");
         }
         throw historical(ErrorCodes.HISTORICO_COTACAO_FORA_DO_ALCANCE,
-                "Data fora do alcance do histÃ³rico de cotaÃ§Ã£o disponÃ­vel");
+                "Data fora do alcance do histórico de cotação disponível");
     }
     private LocalDate marketDate(JsonNode node) {
         if (node == null || !node.isIntegralNumber() || !node.canConvertToLong()) throw invalid();

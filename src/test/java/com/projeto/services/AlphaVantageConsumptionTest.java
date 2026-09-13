@@ -110,6 +110,24 @@ class AlphaVantageConsumptionTest {
         verifyNoInteractions(persistence);
     }
 
+    @Test void recoveredProviderIsUsedAtCooldownExpiry() {
+        Acao a = action(now.minusSeconds(3600), Mercado.EUA);
+        when(alpha.consultarAtualizacao("AAPL", "Apple", "USD")).thenThrow(
+                new ApiException(HttpStatus.TOO_MANY_REQUESTS,
+                        ErrorCodes.LIMITE_REQUISICOES_EXCEDIDO, "Rate limit"));
+        assertEquals(HttpStatus.TOO_MANY_REQUESTS,
+                assertThrows(ApiException.class, () -> service.atualizarCotacao(1L)).getStatus());
+        reset(alpha);
+        success(a);
+        when(clock.instant()).thenReturn(now.plusSeconds(899));
+        assertEquals(HttpStatus.TOO_MANY_REQUESTS,
+                assertThrows(ApiException.class, () -> service.atualizarCotacao(1L)).getStatus());
+        verifyNoInteractions(alpha, persistence);
+        when(clock.instant()).thenReturn(now.plusSeconds(900));
+        assertEquals(new BigDecimal("101.123456"), service.atualizarCotacao(1L).cotacaoAtual());
+        verify(alpha, times(1)).consultarAtualizacao("AAPL", "Apple", "USD");
+    }
+
     @Test void concurrentUpdatesShareOneRequest() throws Exception {
         Acao a = action(now.minusSeconds(3600), Mercado.EUA); success(a);
         ExecutorService executor = Executors.newFixedThreadPool(2);

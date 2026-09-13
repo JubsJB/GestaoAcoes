@@ -1,6 +1,8 @@
 package com.projeto.integrations.cotacao;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import jakarta.annotation.PostConstruct;
+import org.springframework.beans.factory.annotation.Autowired;
 import com.projeto.entities.Mercado;
 import com.projeto.integrations.ExternalApiErrorMapper;
 import com.projeto.services.exceptions.ApiException;
@@ -30,13 +32,44 @@ public class AlphaVantageAdapter implements CotacaoProvider {
 
     private final RestClient restClient;
     private final String apiKey;
+    private final Sleeper sleeper;
 
+    @Value("${integration.alpha-vantage.registration-interval-ms:1100}")
+    private long registrationIntervalMs = 1100;
+
+    @Autowired
     public AlphaVantageAdapter(
             @Qualifier("alphaVantageRestClient") RestClient restClient,
             @Value("${integration.alpha-vantage.api-key:}") String apiKey
     ) {
+        this(restClient, apiKey, Thread::sleep);
+    }
+
+    AlphaVantageAdapter(RestClient restClient, String apiKey, Sleeper sleeper) {
         this.restClient = restClient;
         this.apiKey = apiKey;
+        this.sleeper = sleeper;
+    }
+
+    @FunctionalInterface
+    interface Sleeper {
+        void sleep(long millis) throws InterruptedException;
+    }
+
+    @PostConstruct
+    void validateRegistrationInterval() {
+        if (registrationIntervalMs <= 0) {
+            throw new IllegalArgumentException("Alpha Vantage registration interval must be positive (milliseconds)");
+        }
+    }
+
+    private void waitBeforeRegistrationQuote() {
+        try {
+            sleeper.sleep(registrationIntervalMs);
+        } catch (InterruptedException interrupted) {
+            Thread.currentThread().interrupt();
+            throw ExternalApiErrorMapper.unavailable(PROVIDER);
+        }
     }
 
     @Override
@@ -60,14 +93,11 @@ public class AlphaVantageAdapter implements CotacaoProvider {
 
             String companyName = usable(exact.name());
             if (companyName == null) {
-                OverviewResponse overview = getOverview(ticker);
-                inspectPayload(overview.note(), overview.information(), overview.errorMessage());
-                companyName = usable(overview.name());
-                if (companyName == null) {
-                    throw incompleteData();
-                }
+                throw incompleteData();
             }
 
+            // Space the two registration requests after a successful, validated search.
+            waitBeforeRegistrationQuote();
             QuoteEnvelope envelope = getQuote(ticker);
             inspectPayload(envelope.note(), envelope.information(), envelope.errorMessage());
             GlobalQuote quote = envelope.globalQuote();
@@ -134,21 +164,6 @@ public class AlphaVantageAdapter implements CotacaoProvider {
                         .build())
                 .retrieve()
                 .body(SearchResponse.class);
-        if (response == null) {
-            throw ExternalApiErrorMapper.invalidResponse(PROVIDER);
-        }
-        return response;
-    }
-
-    private OverviewResponse getOverview(String ticker) {
-        OverviewResponse response = restClient.get()
-                .uri(uriBuilder -> uriBuilder.path("/query")
-                        .queryParam("function", "OVERVIEW")
-                        .queryParam("symbol", ticker)
-                        .queryParam("apikey", apiKey)
-                        .build())
-                .retrieve()
-                .body(OverviewResponse.class);
         if (response == null) {
             throw ExternalApiErrorMapper.invalidResponse(PROVIDER);
         }
@@ -267,14 +282,6 @@ public class AlphaVantageAdapter implements CotacaoProvider {
             @JsonProperty("2. name") String name,
             @JsonProperty("4. region") String region,
             @JsonProperty("8. currency") String currency
-    ) {
-    }
-
-    private record OverviewResponse(
-            @JsonProperty("Name") String name,
-            @JsonProperty("Note") String note,
-            @JsonProperty("Information") String information,
-            @JsonProperty("Error Message") String errorMessage
     ) {
     }
 

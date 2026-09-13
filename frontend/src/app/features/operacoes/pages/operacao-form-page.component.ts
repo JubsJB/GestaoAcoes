@@ -248,11 +248,12 @@ export class OperacaoFormPageComponent {
     const guidance: Record<string, string> = {
       POSICAO_INSUFICIENTE: 'A quantidade excede a posição disponível nesse ponto cronológico.',
       COTACAO_HISTORICA_INDISPONIVEL: 'Não foi encontrado fechamento para a data informada. Escolha uma data em que tenha ocorrido pregão.',
-      HISTORICO_COTACAO_FORA_DO_ALCANCE: 'A data informada está fora do histórico disponível para consulta.',
+      HISTORICO_COTACAO_FORA_DO_ALCANCE: 'A data informada está fora do histórico de cotações disponível. Selecione uma data de negociação.',
       TICKER_INEXISTENTE: 'O ticker informado não foi encontrado pelo provedor de mercado.',
       LIMITE_REQUISICOES_EXCEDIDO: 'O provedor de cotações atingiu temporariamente o limite de requisições. Tente novamente mais tarde.'
     };
     const context = current.code ? guidance[current.code] : undefined;
+    if (current.code === 'HISTORICO_COTACAO_FORA_DO_ALCANCE' && context) return context;
     return context ? `${context} ${current.message}` : current.message;
   }
 

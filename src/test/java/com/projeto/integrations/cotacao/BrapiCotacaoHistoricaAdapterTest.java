@@ -162,6 +162,14 @@ class BrapiCotacaoHistoricaAdapterTest {
     private void assertCode(String code, Runnable call) {
         ApiException error = assertThrows(ApiException.class, call::run);
         assertEquals(code, error.getCode());
+        if (ErrorCodes.HISTORICO_COTACAO_FORA_DO_ALCANCE.equals(code)) {
+            assertEquals(422, error.getStatus().value());
+            assertEquals("Data fora do alcance do histórico de cotação disponível", error.getMessage());
+        }
+        if (ErrorCodes.COTACAO_HISTORICA_INDISPONIVEL.equals(code)) {
+            assertEquals(422, error.getStatus().value());
+            assertEquals("Cotação histórica indisponível para a data solicitada", error.getMessage());
+        }
     }
 
     private JsonNode node(String body) throws Exception { return json.readTree(body); }

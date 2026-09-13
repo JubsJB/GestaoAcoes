@@ -14,6 +14,7 @@ import java.net.http.HttpTimeoutException;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withStatus;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
@@ -24,12 +25,54 @@ class AlphaVantageAdapterTest {
 
     private MockRestServiceServer server;
     private AlphaVantageAdapter adapter;
+    private long elapsedMillis;
+    private boolean interruptSleep;
 
     @BeforeEach
     void setUp() {
         RestClient.Builder builder = RestClient.builder().baseUrl("http://alpha.test");
         server = MockRestServiceServer.bindTo(builder).build();
-        adapter = new AlphaVantageAdapter(builder.build(), KEY);
+        adapter = new AlphaVantageAdapter(builder.build(), KEY, millis -> {
+            if (interruptSleep) throw new InterruptedException();
+            elapsedMillis += millis;
+        });
+    }
+
+    @Test
+    void configuredIntervalElapsesBeforeQuoteWithoutAdditionalRequests() {
+        org.springframework.test.util.ReflectionTestUtils.setField(adapter, "registrationIntervalMs", 1700L);
+        adapter.validateRegistrationInterval();
+        expectSearch("AAPL", exactSearch("AAPL", "Apple Inc."));
+        server.expect(requestTo("http://alpha.test/query?function=GLOBAL_QUOTE&symbol=AAPL&apikey=" + KEY))
+                .andExpect(request -> assertEquals(1700L, elapsedMillis))
+                .andRespond(withSuccess("{\"Global Quote\":{\"01. symbol\":\"AAPL\",\"05. price\":\"10\"}}",
+                        MediaType.APPLICATION_JSON));
+        assertEquals("10", adapter.consultar("AAPL").cotacao().toPlainString());
+        server.verify();
+    }
+
+    @Test
+    void registrationIntervalMustBePositive() {
+        adapter.validateRegistrationInterval();
+        for (long invalid : new long[]{0, -1}) {
+            org.springframework.test.util.ReflectionTestUtils.setField(adapter, "registrationIntervalMs", invalid);
+            assertThrows(IllegalArgumentException.class, adapter::validateRegistrationInterval);
+        }
+        org.springframework.test.util.ReflectionTestUtils.setField(adapter, "registrationIntervalMs", 1L);
+        adapter.validateRegistrationInterval();
+    }
+
+    @Test
+    void interruptedWaitStopsBeforeQuoteAndRestoresInterruptFlag() {
+        expectSearch("AAPL", exactSearch("AAPL", "Apple Inc."));
+        interruptSleep = true;
+        try {
+            assertCode(ErrorCodes.SERVICO_EXTERNO_INDISPONIVEL, () -> adapter.consultar("AAPL"));
+            assertTrue(Thread.currentThread().isInterrupted());
+            server.verify();
+        } finally {
+            Thread.interrupted();
+        }
     }
 
     @Test
@@ -92,26 +135,20 @@ class AlphaVantageAdapterTest {
         assertEquals("224.4100", result.cotacao().toPlainString());
         assertEquals("USD", result.moeda());
         assertNull(result.dataHoraCotacao());
+        assertEquals(1100L, elapsedMillis);
         server.verify();
     }
 
     @Test
-    void callsOverviewOnlyWhenExactSearchHasNoUsableName() {
+    void missingSearchNameStopsAfterOneRequestWithoutOverviewOrQuote() {
         expectSearch("MSFT", """
                 {"bestMatches":[{
                   "1. symbol":"MSFT","2. name":" ",
                   "4. region":"USA","8. currency":"USD"
                 }]}
                 """);
-        server.expect(requestTo("http://alpha.test/query?function=OVERVIEW&symbol=MSFT&apikey=" + KEY))
-                .andRespond(withSuccess("{\"Name\":\"Microsoft Corporation\"}", MediaType.APPLICATION_JSON));
-        expectQuote("MSFT", """
-                {"Global Quote":{"01. symbol":"MSFT","05. price":"510.20"}}
-                """);
-
-        CotacaoData result = adapter.consultar("MSFT");
-
-        assertEquals("Microsoft Corporation", result.nomeEmpresa());
+        assertCode(ErrorCodes.DADOS_EXTERNOS_INCOMPLETOS, () -> adapter.consultar("MSFT"));
+        assertEquals(0L, elapsedMillis);
         server.verify();
     }
 
@@ -130,15 +167,13 @@ class AlphaVantageAdapterTest {
     }
 
     @Test
-    void rejectsMissingOverviewNameAndEmptyQuote() {
+    void rejectsMissingSearchNameAndEmptyQuote() {
         expectSearch("AAPL", """
                 {"bestMatches":[{
                   "1. symbol":"AAPL","2. name":"",
                   "4. region":"United States","8. currency":"USD"
                 }]}
                 """);
-        server.expect(requestTo("http://alpha.test/query?function=OVERVIEW&symbol=AAPL&apikey=" + KEY))
-                .andRespond(withSuccess("{}", MediaType.APPLICATION_JSON));
         assertCode(ErrorCodes.DADOS_EXTERNOS_INCOMPLETOS, () -> adapter.consultar("AAPL"));
         server.verify();
         server.reset();
