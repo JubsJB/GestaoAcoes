@@ -190,7 +190,7 @@ export class OperacaoFormPageComponent {
     this.originParams = params;
     this.returnUrl.set(operationReturnUrl(this.router, params));
     this.portfolioLoading.set(true);
-    const contextual = params.get('origem') === 'dashboard' || params.get('origem') === 'carteira';
+    const contextual = params.get('origem') === 'dashboard' || params.get('origem') === 'carteira' || params.get('origem') === 'operacoes';
     this.context.resolveUrl(raw === null && contextual ? '' : raw);
     this.captureRequest = this.context.initialize().pipe(takeUntilDestroyed(this.destroyRef)).subscribe(ready => {
       if (generation !== this.generation) return;
@@ -282,7 +282,10 @@ export class OperacaoFormPageComponent {
     const generation = this.generation;
     this.postRequest = this.service.cadastrar(request).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: item => { if (generation === this.generation) this.complete(item); },
-      error: (error: NormalizedHttpError) => { this.error.set(error); this.submitting.set(false); if (this.dialogRef) this.dialogRef.disableClose = false; }
+      error: (error: NormalizedHttpError) => {
+        if (generation !== this.generation) return;
+        this.error.set(error); this.submitting.set(false); if (this.dialogRef) this.dialogRef.disableClose = false;
+      }
     });
   }
 

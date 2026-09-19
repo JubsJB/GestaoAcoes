@@ -12,6 +12,10 @@ class DashboardStub {
   constructor() { inject(CarteiraNavigationService).bindDashboard(inject(ActivatedRoute), inject(DestroyRef)); }
 }
 @Component({ template: '' })
+class OperationsStub {
+  constructor() { inject(CarteiraNavigationService).bindOperations(inject(ActivatedRoute), inject(DestroyRef)); }
+}
+@Component({ template: '' })
 class PageStub {}
 
 describe('CarteiraNavigationService', () => {
@@ -19,7 +23,7 @@ describe('CarteiraNavigationService', () => {
   beforeEach(() => {
     storage = { getItem: vi.fn().mockReturnValue(null), setItem: vi.fn(), removeItem: vi.fn() };
     TestBed.configureTestingModule({ providers: [
-      provideRouter([{ path: 'dashboard', component: DashboardStub }, { path: 'carteiras/:id', component: PageStub }, { path: 'operacoes/nova', component: PageStub }]),
+      provideRouter([{ path: 'dashboard', component: DashboardStub }, { path: 'carteiras/:id', component: PageStub }, { path: 'operacoes', component: OperationsStub }, { path: 'operacoes/nova', component: PageStub }, { path: 'operacoes/:id', component: PageStub }]),
       { provide: CARTEIRA_STORAGE, useValue: storage },
       { provide: CarteirasService, useValue: { listar: () => of([{ id: 2, nome: 'B', dataCriacao: '' }, { id: 1, nome: 'A', dataCriacao: '' }]) } }
     ] });
@@ -47,5 +51,32 @@ describe('CarteiraNavigationService', () => {
     await harness.navigateByUrl('/operacoes/nova?carteiraId=1&origem=carteira');
     navigation.select(1); navigation.select(2); await harness.fixture.whenStable();
     expect(TestBed.inject(Router).url).toBe('/operacoes/nova?carteiraId=1&origem=carteira');
+  });
+  it('normalizes only the exact operations list, preserves params, and synchronizes explicit selection', async () => {
+    const navigation = TestBed.inject(CarteiraNavigationService); navigation.start();
+    const harness = await RouterTestingHarness.create('/operacoes?extra=kept');
+    await harness.fixture.whenStable();
+    expect(TestBed.inject(Router).url).toBe('/operacoes?extra=kept&carteiraId=1');
+    expect(storage.setItem).not.toHaveBeenCalled();
+    navigation.select(2); await harness.fixture.whenStable();
+    expect(TestBed.inject(Router).url).toBe('/operacoes?extra=kept&carteiraId=2');
+    expect(storage.setItem).toHaveBeenLastCalledWith('gestaoacoes.carteira-ativa.v1', '2');
+    navigation.select(2); await harness.fixture.whenStable();
+    expect(TestBed.inject(Router).url).toBe('/operacoes?extra=kept&carteiraId=2');
+    await harness.navigateByUrl('/operacoes?carteiraId=1');
+    expect(TestBed.inject(CarteiraContextService).activeId()).toBe(1);
+    await harness.navigateByUrl('/operacoes?carteiraId=bad');
+    expect(TestBed.inject(CarteiraContextService).invalidSelection()).toBe(true);
+    navigation.select(2); await harness.fixture.whenStable();
+    expect(TestBed.inject(Router).url).toBe('/operacoes?carteiraId=2');
+  });
+  it('does not bind operation create or detail routes to the global selector', async () => {
+    const navigation = TestBed.inject(CarteiraNavigationService); navigation.start();
+    const harness = await RouterTestingHarness.create('/operacoes/nova?carteiraId=1&origem=operacoes');
+    navigation.select(2); await harness.fixture.whenStable();
+    expect(TestBed.inject(Router).url).toBe('/operacoes/nova?carteiraId=1&origem=operacoes');
+    await harness.navigateByUrl('/operacoes/9?carteiraId=1&origem=operacoes');
+    navigation.select(1); navigation.select(2); await harness.fixture.whenStable();
+    expect(TestBed.inject(Router).url).toBe('/operacoes/9?carteiraId=1&origem=operacoes');
   });
 });

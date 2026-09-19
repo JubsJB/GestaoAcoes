@@ -112,7 +112,7 @@ describe('application routes', () => {
         httpTesting.expectOne('/api/carteiras').flush([]);
       }
       if (url === '/operacoes') {
-        httpTesting.expectOne('/api/operacoes').flush('[]');
+        httpTesting.expectNone(request => request.url.includes('/operacoes'));
       }
       expect(harness.routeNativeElement?.querySelector('h1')?.textContent).toBe(heading);
     }
@@ -135,7 +135,7 @@ describe('application routes', () => {
     );
   });
 
-  it('opens the global operation history from the menu without filtering when the portfolio changes', async () => {
+  it('opens contextual operation history from the menu and follows the global portfolio selector', async () => {
     const harness = await RouterTestingHarness.create('/rota-inexistente');
     httpTesting.expectOne('/api/carteiras').flush([
       { id: 1, nome: 'Carteira A', dataCriacao: '' },
@@ -146,26 +146,28 @@ describe('application routes', () => {
     expect(link.getAttribute('href')).toBe('/operacoes');
     link.click();
     await harness.fixture.whenStable();
-    const request = httpTesting.expectOne('/api/operacoes');
+    const request = httpTesting.expectOne('/api/carteiras/1/operacoes');
     expect(request.request.method).toBe('GET');
     expect(request.request.params.keys()).toEqual([]);
-    request.flush(JSON.stringify([
-      { id: 1, carteiraId: 1, ticker: 'PETR4', mercado: 'BRASIL', corretoraId: null, tipo: 'COMPRA', quantidade: 10, precoUnitario: 30, valorTotal: 300, dataOperacao: '2026-01-01', ordemNoDia: 1 },
-      { id: 2, carteiraId: 2, ticker: 'AAPL', mercado: 'EUA', corretoraId: null, tipo: 'COMPRA', quantidade: 1, precoUnitario: 200, valorTotal: 200, dataOperacao: '2026-01-02', ordemNoDia: 1 }
-    ]));
+    request.flush(JSON.stringify([{ id: 1, carteiraId: 1, ticker: 'PETR4', mercado: 'BRASIL', corretoraId: null, tipo: 'COMPRA', quantidade: 10, precoUnitario: 30, valorTotal: 300, dataOperacao: '2026-01-01', ordemNoDia: 1 }]));
     harness.detectChanges();
+    expect(TestBed.inject(Router).url).toBe('/operacoes?carteiraId=1');
     const select = harness.routeNativeElement?.querySelector('#global-carteira') as HTMLSelectElement;
     expect(select.value).toBe('1');
     select.value = '2';
     select.dispatchEvent(new Event('change'));
     await harness.fixture.whenStable();
+    httpTesting.expectOne('/api/carteiras/2/operacoes').flush(JSON.stringify([{ id: 2, carteiraId: 2, ticker: 'AAPL', mercado: 'EUA', corretoraId: null, tipo: 'COMPRA', quantidade: 1, precoUnitario: 200, valorTotal: 200, dataOperacao: '2026-01-02', ordemNoDia: 1 }]));
     harness.detectChanges();
     expect(select.value).toBe('2');
-    expect(TestBed.inject(Router).url).toBe('/operacoes');
+    expect(TestBed.inject(Router).url).toBe('/operacoes?carteiraId=2');
     const rows = harness.routeNativeElement?.querySelectorAll('tbody tr');
-    expect(rows).toHaveLength(2);
-    expect(rows?.[0].textContent).toContain('PETR4');
-    expect(rows?.[1].textContent).toContain('AAPL');
+    expect(rows).toHaveLength(1);
+    expect(rows?.[0].textContent).toContain('AAPL');
+    expect(rows?.[0].textContent).not.toContain('PETR4');
+    expect(harness.routeNativeElement?.textContent).toContain('Carteira B');
+    expect(harness.routeNativeElement?.querySelector('app-operacoes-list-page select')).toBeNull();
+    httpTesting.expectNone('/api/operacoes');
     httpTesting.expectNone(() => true);
     expect(link.getAttribute('aria-current')).toBe('page');
 
