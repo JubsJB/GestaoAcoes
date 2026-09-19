@@ -24,27 +24,47 @@
   </div>
 </mat-toolbar>
 
-<mat-sidenav-container class="shell-container" (backdropClick)="closeCompactDrawer()">
+<mat-sidenav-container class="shell-container" autosize (backdropClick)="closeCompactDrawer()">
   <mat-sidenav
     #drawer
     id="primary-navigation"
     class="app-sidenav"
+    [class.app-sidenav--collapsed]="navigationCollapsed()"
     [mode]="isCompact() ? 'over' : 'side'"
     [opened]="!isCompact() || compactDrawerOpened()"
     [disableClose]="!isCompact()"
     (keydown.escape)="closeCompactDrawer()"
   >
+    @if (!isCompact()) {
+      <div class="navigation-controls">
+        <button
+          matIconButton
+          type="button"
+          class="navigation-toggle"
+          [attr.aria-label]="desktopCollapsed() ? 'Expandir navegação' : 'Recolher navegação'"
+          [attr.title]="desktopCollapsed() ? 'Expandir navegação' : 'Recolher navegação'"
+          aria-controls="primary-navigation"
+          [attr.aria-expanded]="!desktopCollapsed()"
+          (click)="toggleDesktopNavigation()"
+        >
+          <span aria-hidden="true">{{ desktopCollapsed() ? '»' : '«' }}</span>
+        </button>
+      </div>
+    }
     <nav aria-label="Navegação principal">
       <mat-nav-list>
         @for (item of navigationItems; track item.route) {
           <a
             mat-list-item
             [routerLink]="item.route"
+            [attr.aria-label]="item.label"
+            [attr.title]="navigationCollapsed() ? item.label : null"
+            (click)="closeCompactDrawer()"
             routerLinkActive="active-navigation-item"
             ariaCurrentWhenActive="page"
           >
             <app-icon matListItemIcon class="navigation-icon" [name]="item.icon" />
-            <span matListItemTitle>{{ item.label }}</span>
+            <span matListItemTitle [class.navigation-label--hidden]="navigationCollapsed()">{{ item.label }}</span>
           </a>
         }
       </mat-nav-list>

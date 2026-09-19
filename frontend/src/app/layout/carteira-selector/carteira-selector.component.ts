@@ -23,7 +23,7 @@ import { CarteiraNavigationService } from '../../core/carteira/carteira-navigati
     :host{display:grid;grid-template-columns:auto minmax(0,1fr);align-items:center;gap:.125rem .5rem;min-width:0;width:clamp(9rem,30vw,22rem);font-size:.8rem;line-height:1.2}
     label{font-weight:600}select{min-width:0;width:100%;min-height:2rem;font:inherit;color:var(--app-text-primary);background:var(--app-surface-card);border:1px solid var(--app-border-subtle);border-radius:var(--app-control-radius);padding:.25rem}select:focus-visible,button:focus-visible,a:focus-visible{outline:3px solid var(--app-brand-primary);outline-offset:2px}
     span{grid-column:1/-1;font-size:.7rem;white-space:normal;overflow-wrap:anywhere}span:empty{display:none}button,a{font:inherit;color:var(--app-brand-primary)}button{cursor:pointer;background:none;border:0;text-decoration:underline}
-    @media(max-width:36rem){:host{grid-template-columns:minmax(0,1fr)}label{font-size:.7rem}}
+    @media(max-width:36rem){label{font-size:.7rem}select{min-height:2.75rem}}
   `],
   changeDetection: ChangeDetectionStrategy.OnPush
 })

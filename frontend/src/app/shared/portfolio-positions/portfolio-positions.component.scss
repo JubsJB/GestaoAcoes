@@ -1,7 +1,7 @@
 @use '../collection/refined-collection';
 
 // Keep the existing card reflow; only refine the desktop table.
-@media (min-width: 70.001rem) {
+@container collection (min-width: 70.001rem) {
   .collection-table {
     font-size: .875rem;
 

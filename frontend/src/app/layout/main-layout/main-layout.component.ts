@@ -1,5 +1,5 @@
 import { BreakpointObserver } from '@angular/cdk/layout';
-import { ChangeDetectionStrategy, Component, ElementRef, inject, signal, viewChild } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, ElementRef, inject, signal, viewChild } from '@angular/core';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { MatButtonModule } from '@angular/material/button';
 import { MatNavList, MatListItem, MatListItemIcon, MatListItemTitle } from '@angular/material/list';
@@ -41,12 +41,20 @@ export class MainLayoutComponent {
   private readonly mainContent = viewChild.required<ElementRef<HTMLElement>>('mainContent');
   protected readonly navigationItems = NAVIGATION_ITEMS;
   protected readonly compactDrawerOpened = signal(false);
+  protected readonly desktopCollapsed = signal(false);
   protected readonly isCompact = toSignal(
     this.breakpointObserver.observe(COMPACT_VIEWPORT).pipe(map((result) => result.matches)),
     { initialValue: false }
   );
+  protected readonly navigationCollapsed = computed(() => !this.isCompact() && this.desktopCollapsed());
 
   constructor() {
+    effect(() => {
+      // Every viewport mode starts with a closed mobile drawer, independently of desktop state.
+      this.isCompact();
+      this.compactDrawerOpened.set(false);
+    });
+
     this.router.events
       .pipe(
         filter((event): event is NavigationEnd => event instanceof NavigationEnd),
@@ -64,6 +72,10 @@ export class MainLayoutComponent {
 
   protected toggleDrawer(): void {
     this.compactDrawerOpened.update((opened) => !opened);
+  }
+
+  protected toggleDesktopNavigation(): void {
+    this.desktopCollapsed.update((collapsed) => !collapsed);
   }
 
   protected closeCompactDrawer(): void {

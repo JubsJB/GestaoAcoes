@@ -50,14 +50,17 @@ describe('MainLayoutComponent', () => {
           { path: 'corretoras', component: TestDestinationComponent },
           { path: 'acoes', component: TestDestinationComponent },
           { path: 'carteiras', component: TestDestinationComponent },
-          { path: 'operacoes', component: TestDestinationComponent }
+          { path: 'operacoes', component: TestDestinationComponent },
+          { path: 'operacoes/nova', component: TestDestinationComponent },
+          { path: 'operacoes/:id', component: TestDestinationComponent },
+          { path: 'acoes/:id', component: TestDestinationComponent }
         ]),
         { provide: BreakpointObserver, useValue: breakpointObserver }
       ]
     });
   });
 
-  it('creates a cohesive shell with the application title and four destinations', async () => {
+  it('creates a cohesive shell with five ordered destinations and local decorative icons', async () => {
     await createLayout();
     const navigationLinks = fixture.nativeElement.querySelectorAll('nav a');
 
@@ -65,17 +68,19 @@ describe('MainLayoutComponent', () => {
     expect(fixture.nativeElement.querySelector('mat-toolbar').textContent).toContain('Gestão de Ações');
     expect(Array.from(navigationLinks).map((link) => (link as HTMLAnchorElement).textContent?.trim())).toEqual([
       'Dashboard',
-      'Corretoras',
-      'Ações',
-      'Carteiras'
+      'Carteiras',
+      'Operações',
+      'Ativos',
+      'Corretoras'
     ]);
     expect(Array.from(navigationLinks).map((link) => (link as HTMLAnchorElement).getAttribute('href'))).toEqual([
       '/dashboard',
-      '/corretoras',
+      '/carteiras',
+      '/operacoes',
       '/acoes',
-      '/carteiras'
+      '/corretoras'
     ]);
-    expect(fixture.nativeElement.querySelectorAll('nav a app-icon')).toHaveLength(4);
+    expect(fixture.nativeElement.querySelectorAll('nav a app-icon')).toHaveLength(5);
     expect(Array.from(fixture.nativeElement.querySelectorAll('nav a app-icon svg')).every((icon) => (icon as SVGElement).getAttribute('aria-hidden') === 'true')).toBe(true);
     expect(Array.from(navigationLinks).every((link) => {
       const icon = (link as HTMLElement).querySelector('app-icon');
@@ -216,7 +221,110 @@ describe('MainLayoutComponent', () => {
     expect(fixture.nativeElement.querySelectorAll('app-carteira-selector')).toHaveLength(1);
     expect(select.value).toBe(value);
     expect(Array.from(fixture.nativeElement.querySelectorAll('nav [matListItemTitle]')).map(e => (e as HTMLElement).textContent))
-      .toEqual(['Dashboard', 'Corretoras', 'Ações', 'Carteiras']);
+      .toEqual(['Dashboard', 'Carteiras', 'Operações', 'Ativos', 'Corretoras']);
+  });
+
+  it('collapses and expands desktop without removing destinations or losing control focus', async () => {
+    await createLayout();
+    const button = fixture.nativeElement.querySelector('.navigation-toggle') as HTMLButtonElement;
+    const sidenav = fixture.debugElement.query(By.directive(MatSidenav)).componentInstance as MatSidenav;
+    expect(button.type).toBe('button');
+    expect(button.getAttribute('aria-label')).toBe('Recolher navegação');
+    expect(button.getAttribute('aria-controls')).toBe('primary-navigation');
+    expect(button.getAttribute('aria-expanded')).toBe('true');
+    button.focus();
+    button.click();
+    fixture.detectChanges();
+    await fixture.whenStable();
+    expect(document.activeElement).toBe(button);
+    expect(button.getAttribute('aria-label')).toBe('Expandir navegação');
+    expect(button.getAttribute('aria-expanded')).toBe('false');
+    expect(sidenav.opened).toBe(true);
+    expect(sidenav.mode).toBe('side');
+    expect(fixture.nativeElement.querySelector('.app-sidenav--collapsed')).toBeTruthy();
+    expect(fixture.nativeElement.querySelectorAll('.navigation-label--hidden')).toHaveLength(5);
+    const links = Array.from(fixture.nativeElement.querySelectorAll('nav a')) as HTMLAnchorElement[];
+    expect(links.map(link => link.getAttribute('aria-label'))).toEqual(['Dashboard', 'Carteiras', 'Operações', 'Ativos', 'Corretoras']);
+    for (const link of links) {
+      expect(link.tabIndex).toBe(0);
+      link.focus();
+      expect(document.activeElement).toBe(link);
+    }
+    button.focus();
+    button.click();
+    fixture.detectChanges();
+    expect(document.activeElement).toBe(button);
+    expect(button.getAttribute('aria-expanded')).toBe('true');
+    expect(fixture.nativeElement.querySelector('.app-sidenav--collapsed')).toBeNull();
+  });
+
+  it.each(['/operacoes', '/operacoes/nova', '/operacoes/9?carteiraId=1&origem=carteira', '/acoes/3'])
+    ('keeps the parent destination active for %s in both desktop states', async url => {
+      await createLayout();
+      await TestBed.inject(Router).navigateByUrl(url);
+      await fixture.whenStable();
+      fixture.detectChanges();
+      const route = url.startsWith('/acoes') ? '/acoes' : '/operacoes';
+      const link = fixture.nativeElement.querySelector(`nav a[href="${route}"]`) as HTMLAnchorElement;
+      expect(link.getAttribute('aria-current')).toBe('page');
+      (fixture.nativeElement.querySelector('.navigation-toggle') as HTMLButtonElement).click();
+      fixture.detectChanges();
+      expect(link.getAttribute('aria-current')).toBe('page');
+      expect(link.classList.contains('active-navigation-item')).toBe(true);
+      expect(fixture.nativeElement.querySelectorAll('nav [aria-current="page"]')).toHaveLength(1);
+    });
+
+  it.each([false, true])('isolates mobile drawer state from desktop collapsed=%s', async collapsed => {
+    await createLayout();
+    const sidenav = fixture.debugElement.query(By.directive(MatSidenav)).componentInstance as MatSidenav;
+    if (collapsed) (fixture.nativeElement.querySelector('.navigation-toggle') as HTMLButtonElement).click();
+    fixture.detectChanges();
+    breakpointObserver.setCompact(true);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    expect(sidenav.mode).toBe('over');
+    expect(sidenav.opened).toBe(false);
+    expect(fixture.nativeElement.querySelector('.navigation-toggle')).toBeNull();
+    expect(fixture.nativeElement.querySelector('.navigation-label--hidden')).toBeNull();
+    (fixture.nativeElement.querySelector('.menu-button') as HTMLButtonElement).click();
+    fixture.detectChanges();
+    expect(sidenav.opened).toBe(true);
+    breakpointObserver.setCompact(false);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    expect(sidenav.mode).toBe('side');
+    expect(sidenav.opened).toBe(true);
+    expect(fixture.nativeElement.querySelector('.navigation-toggle').getAttribute('aria-expanded')).toBe(String(!collapsed));
+    expect(fixture.nativeElement.querySelector('.mat-drawer-backdrop.mat-drawer-shown')).toBeNull();
+    breakpointObserver.setCompact(true);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    expect(sidenav.opened).toBe(false);
+  });
+
+  it('preserves collapse across navigation but starts a fresh layout expanded', async () => {
+    await createLayout();
+    (fixture.nativeElement.querySelector('.navigation-toggle') as HTMLButtonElement).click();
+    (fixture.nativeElement.querySelector('nav a[href="/operacoes"]') as HTMLAnchorElement).click();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(TestBed.inject(Router).url).toBe('/operacoes');
+    expect(fixture.nativeElement.querySelector('.app-sidenav--collapsed')).toBeTruthy();
+    fixture.destroy();
+    await createLayout();
+    expect(fixture.nativeElement.querySelector('.navigation-toggle').getAttribute('aria-expanded')).toBe('true');
+  });
+
+  it('closes mobile even when selecting the already active destination', async () => {
+    await createLayout(true);
+    await TestBed.inject(Router).navigateByUrl('/operacoes');
+    await fixture.whenStable();
+    (fixture.nativeElement.querySelector('.menu-button') as HTMLButtonElement).click();
+    fixture.detectChanges();
+    (fixture.nativeElement.querySelector('nav a[href="/operacoes"]') as HTMLAnchorElement).click();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(fixture.debugElement.query(By.directive(MatSidenav)).componentInstance.opened).toBe(false);
   });
 
 });

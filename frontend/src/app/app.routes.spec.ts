@@ -80,7 +80,7 @@ describe('application routes', () => {
     harness.detectChanges();
     expect(harness.routeNativeElement?.querySelector('select')?.value).toBe('2');
     expect(harness.routeNativeElement?.querySelector('app-dashboard-page mat-select')).toBeNull();
-    expect(harness.routeNativeElement?.querySelector('nav a[href="/operacoes"]')).toBeNull();
+    expect(harness.routeNativeElement?.querySelector('nav a[href="/operacoes"]')?.textContent).toContain('Operações');
   });
 
   it('resolves all functional features including dashboard', async () => {
@@ -133,5 +133,48 @@ describe('application routes', () => {
     expect(harness.routeNativeElement?.querySelector('section a[href="/dashboard"]')?.textContent).toContain(
       'Voltar para o Dashboard'
     );
+  });
+
+  it('opens the global operation history from the menu without filtering when the portfolio changes', async () => {
+    const harness = await RouterTestingHarness.create('/rota-inexistente');
+    httpTesting.expectOne('/api/carteiras').flush([
+      { id: 1, nome: 'Carteira A', dataCriacao: '' },
+      { id: 2, nome: 'Carteira B', dataCriacao: '' }
+    ]);
+    harness.detectChanges();
+    const link = harness.routeNativeElement?.querySelector('nav a[href="/operacoes"]') as HTMLAnchorElement;
+    expect(link.getAttribute('href')).toBe('/operacoes');
+    link.click();
+    await harness.fixture.whenStable();
+    const request = httpTesting.expectOne('/api/operacoes');
+    expect(request.request.method).toBe('GET');
+    expect(request.request.params.keys()).toEqual([]);
+    request.flush(JSON.stringify([
+      { id: 1, carteiraId: 1, ticker: 'PETR4', mercado: 'BRASIL', corretoraId: null, tipo: 'COMPRA', quantidade: 10, precoUnitario: 30, valorTotal: 300, dataOperacao: '2026-01-01', ordemNoDia: 1 },
+      { id: 2, carteiraId: 2, ticker: 'AAPL', mercado: 'EUA', corretoraId: null, tipo: 'COMPRA', quantidade: 1, precoUnitario: 200, valorTotal: 200, dataOperacao: '2026-01-02', ordemNoDia: 1 }
+    ]));
+    harness.detectChanges();
+    const select = harness.routeNativeElement?.querySelector('#global-carteira') as HTMLSelectElement;
+    expect(select.value).toBe('1');
+    select.value = '2';
+    select.dispatchEvent(new Event('change'));
+    await harness.fixture.whenStable();
+    harness.detectChanges();
+    expect(select.value).toBe('2');
+    expect(TestBed.inject(Router).url).toBe('/operacoes');
+    const rows = harness.routeNativeElement?.querySelectorAll('tbody tr');
+    expect(rows).toHaveLength(2);
+    expect(rows?.[0].textContent).toContain('PETR4');
+    expect(rows?.[1].textContent).toContain('AAPL');
+    httpTesting.expectNone(() => true);
+    expect(link.getAttribute('aria-current')).toBe('page');
+
+    (harness.routeNativeElement?.querySelector('nav a[href="/acoes"]') as HTMLAnchorElement).click();
+    await harness.fixture.whenStable();
+    httpTesting.expectOne('/api/acoes').flush([]);
+    harness.detectChanges();
+    expect(TestBed.inject(Router).url).toBe('/acoes');
+    expect(harness.routeNativeElement?.querySelector('h1')?.textContent).toBe('Ações');
+    expect(harness.routeNativeElement?.querySelector('nav a[aria-current="page"]')?.getAttribute('aria-label')).toBe('Ativos');
   });
 });

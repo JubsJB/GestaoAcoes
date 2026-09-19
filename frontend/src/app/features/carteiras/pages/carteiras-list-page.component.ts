@@ -59,10 +59,6 @@ import { CarteiraFormPageComponent } from './carteira-form-page.component';
     </section>
   `,
   styleUrl: '../../../shared/collection/refined-collection.scss',
-  styles: [`
-    .collection-page{height:calc(100dvh - 8rem);overflow:hidden;display:flex;flex-direction:column}.collection-region{min-height:0;overflow:auto;padding:.125rem .25rem .75rem 0;overscroll-behavior:contain;flex:1 1 auto}
-    @media(max-width:959.98px){.collection-page{height:calc(100dvh - 5.5rem)}}@media(max-width:36rem){.collection-page{height:auto;overflow:visible}.collection-region{overflow:visible;padding-right:0}}
-  `],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class CarteirasListPageComponent {

@@ -51,12 +51,10 @@ import { AcaoCreatePageComponent } from './acao-create-page.component';
       </div>
     </section>`,
   styleUrl:'../../../shared/collection/refined-collection.scss',styles: [`
-    .collection-page{height:calc(100dvh - 8rem);overflow:hidden}.collection-region{min-height:0;overflow:auto;padding:.125rem .25rem .75rem 0;overscroll-behavior:contain}.search{display:grid;grid-template-columns:minmax(12rem,1fr) minmax(12rem,1fr) auto;align-items:start;gap:1rem}.search-progress{margin:0;color:var(--app-text-secondary)}
-    .collection-page{display:flex;flex-direction:column}.collection-region{flex:1 1 auto}
-    @media(min-width:70.001rem){.collection-table .quote-column{width:10rem;text-align:right}.collection-table thead th{vertical-align:bottom}}
-    @media(max-width:959.98px){.collection-page{height:calc(100dvh - 5.5rem)}}
-    @media(max-width:48rem){.search{grid-template-columns:1fr 1fr}.search .app-actions{grid-column:1/-1}}
-    @media(max-width:36rem){.collection-page{height:auto;overflow:visible}.collection-region{overflow:visible;padding-right:0}.search{grid-template-columns:1fr}.search .app-actions{grid-column:auto}}
+    .search{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) auto;align-items:start;gap:1rem}.search mat-form-field{min-width:0}.search-progress{margin:0;color:var(--app-text-secondary)}
+    @container collection (min-width:70.001rem){.collection-table .quote-column{width:10rem;text-align:right}.collection-table thead th{vertical-align:bottom}}
+    @container collection (max-width:48rem){.search{grid-template-columns:1fr 1fr}.search .app-actions{grid-column:1/-1}}
+    @container collection (max-width:36rem){.search{grid-template-columns:1fr}.search .app-actions{grid-column:auto}}
   `],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
