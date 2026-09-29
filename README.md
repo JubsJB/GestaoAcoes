@@ -19,7 +19,7 @@ O núcleo atual é focado em carteiras de ações, com posição consolidada por
 | **Carteiras** | Criação, consulta, renomeação e exclusão de carteiras sem operações ou snapshots vinculados. Seleção de carteira compartilhada entre telas. |
 | **Compras e vendas** | Registro e consulta de operações, corretora opcional, prévia histórica de compra e sugestão de preço de venda, ambas editáveis. |
 | **Posições e resultados** | Quantidade atual, preço médio, custo, cotação persistida, valor atual, resultados realizados e não realizados e rentabilidade. |
-| **Dashboard** | Resumo por moeda, composição por ativo, comparação entre custo e valor atual, resultado e rentabilidade por ativo. Registro de operação em dialog contextual. |
+| **Dashboard** | Resumo por moeda, histórico patrimonial, distribuição da carteira, desempenho por ativo com resultado não realizado e rentabilidade complementar, e resultados realizados individuais. Registro de operação em dialog contextual; posições detalhadas disponíveis na Carteira. |
 | **Evolução patrimonial** | Criação manual de snapshots e visualização das observações históricas por moeda. |
 
 “Atualizar dados” no dashboard recarrega as informações persistidas. A consulta de uma nova cotação é uma ação separada, disponível no detalhe da ação. Falhas nessa atualização preservam a última cotação válida e são informadas na interface.
@@ -28,19 +28,25 @@ O núcleo atual é focado em carteiras de ações, com posição consolidada por
 
 ### Dashboard
 
-Resumo da carteira em BRL e USD, com patrimônio das posições, custo, resultado não realizado e rentabilidade.
+Resumo da carteira em BRL e USD, com patrimônio e resultado não realizado em destaque, custo e rentabilidade complementares, seguido por histórico patrimonial, distribuição, desempenho e resultados realizados.
+
+**Captura histórica:** a imagem abaixo antecede a reorganização do Dashboard e não representa seu layout atual.
 
 ![Dashboard com resumo financeiro separado por moeda](docs/img/dashboard.png)
 
 ### Análise por ativo
 
-Composição da carteira e comparação entre custo e valor atual, complementadas por visualizações de resultado e rentabilidade por ativo.
+Distribuição da carteira por ativo e moeda, seguida por desempenho com resultado não realizado monetário e rentabilidade percentual complementar na mesma leitura por ativo. O comparativo independente Custo × Valor atual e o gráfico percentual separado foram removidos do Dashboard.
+
+**Captura histórica:** a imagem abaixo mostra a organização anterior, incluindo o comparativo removido. Não há captura atualizada disponível no projeto.
 
 ![Análise por ativo com composição e comparação de valores](docs/img/dashboard-analise-por-ativo.png)
 
 ### Registro de operações
 
 Compras e vendas recebem ativo, data, quantidade e preço unitário, com corretora opcional. Na compra, a prévia histórica pode preencher uma sugestão de preço que permanece editável.
+
+A carteira capturada é identificada no cabeçalho do formulário, tanto na página quanto no dialog, sem bloco contextual duplicado. **Captura histórica:** a imagem abaixo ainda apresenta esse bloco, removido na reorganização; regras, envio e navegação das operações permanecem preservados.
 
 ![Formulário de registro de compra com preço unitário e corretora opcional](docs/img/operacao-compra.png)
 

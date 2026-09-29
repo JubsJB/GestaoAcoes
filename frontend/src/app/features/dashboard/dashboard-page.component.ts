@@ -14,7 +14,6 @@ import { NormalizedHttpError } from '../../core/errors/normalized-http-error';
 import { AppIconComponent } from '../../shared/app-icon/app-icon.component';
 import { FeedbackAlertComponent } from '../../shared/feedback-alert/feedback-alert.component';
 import { financialOutcomeLabel, formatFinancialMoney, formatFinancialPercent } from '../../shared/formatters/financial-value.formatter';
-import { PortfolioPositionsComponent } from '../../shared/portfolio-positions/portfolio-positions.component';
 import { PageHeaderComponent } from '../../shared/page-header/page-header.component';
 import { DashboardService } from './dashboard.service';
 import { PortfolioEvolutionComponent } from './evolution/portfolio-evolution.component';
@@ -23,7 +22,7 @@ import { PositionAnalysisComponent } from './position-analysis/position-analysis
 
 @Component({
   selector: 'app-dashboard-page',
-  imports: [PositionAnalysisComponent, PortfolioPositionsComponent, AppIconComponent, FeedbackAlertComponent, MatButtonModule, MatCardModule, MatProgressSpinnerModule, PageHeaderComponent, PortfolioEvolutionComponent, RouterLink],
+  imports: [PositionAnalysisComponent, AppIconComponent, FeedbackAlertComponent, MatButtonModule, MatCardModule, MatProgressSpinnerModule, PageHeaderComponent, PortfolioEvolutionComponent, RouterLink],
   templateUrl: './dashboard-page.component.html',
   styleUrl: './dashboard-page.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush

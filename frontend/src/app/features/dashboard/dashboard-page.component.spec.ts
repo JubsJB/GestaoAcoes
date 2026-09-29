@@ -110,14 +110,48 @@ describe('DashboardPageComponent', () => {
     expect(text).toContain('US$ 90,00');
     expect(text).toContain('-US$ 10,00');
     expect(text).not.toContain('Patrimônio total');
+    const groups = fixture.nativeElement.querySelectorAll('.currency-group');
+    expect(groups).toHaveLength(2);
+    expect(Array.from(groups).every(group => !(group as HTMLElement).classList.contains('currency-group--single'))).toBe(true);
   });
 
-  it('exibe posições completas, contagem estrutural e resultados individuais', async () => {
+  it.each([
+    ['BRL', 'USD'],
+    ['USD', 'BRL']
+  ] as const)('apresenta somente o grupo %s recebido sem criar %s', async (present, absent) => {
+    const summary = { carteiraId: 1, resumos: DATA.resumo.resumos.filter(item => item.moeda === present) };
+    const positions = DATA.posicoes.map(position => ({ ...position, moeda: present, mercado: present === 'BRL' ? 'BRASIL' : 'EUA' }));
+    const { fixture } = await create(of([A]), { resumo: of(summary), posicoes: of(positions) });
+    fixture.detectChanges();
+    const groups = fixture.nativeElement.querySelectorAll('.currency-group');
+    expect(groups).toHaveLength(1);
+    expect(groups[0].querySelector('h3')?.textContent).toBe(present);
+    expect(fixture.nativeElement.querySelector(`#currency-${absent}`)).toBeNull();
+    expect(groups[0].classList).toContain('currency-group--single');
+    expect(groups[0].querySelectorAll('mat-card')).toHaveLength(4);
+  });
+
+  it('usa toda a largura com quatro indicadores em linha e reflow responsivo para uma moeda', async () => {
+    const summary = { carteiraId: 1, resumos: [DATA.resumo.resumos[0]] };
+    const { fixture } = await create(of([A]), { resumo: of(summary) });
+    fixture.detectChanges();
+    const styles = (DashboardPageComponent as unknown as { ɵcmp: { styles: string[] } }).ɵcmp.styles.join('');
+    const groups = fixture.nativeElement.querySelectorAll('.currency-group');
+    expect(groups).toHaveLength(1);
+    expect(groups[0].classList).toContain('currency-group--single');
+    expect(styles).toMatch(/\.currency-group--single[^\{]*\{[^}]*grid-column:\s*1\s*\/\s*-1[^}]*justify-self:\s*stretch[^}]*width:\s*100%/);
+    expect(styles).toMatch(/\.currency-group--single[^\{]*\.summary-grid[^\{]*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1\.4fr\)\s*repeat\(3,\s*minmax\(0,\s*1fr\)\)/);
+    expect(styles).toMatch(/@container\s*\(max-width:\s*70rem\)[^{]*\{[^}]*\.summary-grid[^\{]*\{[^}]*grid-template-columns:\s*repeat\(2/);
+    expect(styles).toMatch(/@container\s*\(max-width:\s*42rem\)[^{]*\{[^}]*\.summary-grid[^\{]*\{[^}]*grid-template-columns:\s*1fr/);
+  });
+
+  it('exibe análise resumida, contagem estrutural e resultados individuais sem tabela de posições', async () => {
     query.next(convertToParamMap({ carteiraId: '1' }));
     const { fixture } = await create(of([A])); fixture.detectChanges();
     const text = fixture.nativeElement.textContent as string;
     expect(text).toContain('1 posição aberta');
-    expect(text).toContain('PETR4'); expect(text).toContain('Preço médio'); expect(text).toContain('R$ 48,20');
+    expect(text).toContain('PETR4'); expect(text).toContain('Resultado não realizado'); expect(text).toContain('20,50%');
+    expect(text).not.toContain('Preço médio'); expect(fixture.nativeElement.querySelector('app-portfolio-positions')).toBeNull();
     expect(text).toContain('AAPL'); expect(text).toContain('-US$ 50,12'); expect(text).toContain('Negativo');
     expect(fixture.nativeElement.querySelectorAll('.result')).toHaveLength(1);
   });
@@ -129,6 +163,8 @@ describe('DashboardPageComponent', () => {
     expect(fixture.nativeElement.textContent).toContain('Resumo ainda indisponível');
     expect(fixture.nativeElement.textContent).toContain('Nenhuma posição aberta');
     expect(fixture.nativeElement.textContent).toContain('Nenhum resultado realizado');
+    expect(fixture.nativeElement.querySelector('.currency-groups')).toBeNull();
+    expect(fixture.nativeElement.querySelector('.currency-group')).toBeNull();
   });
 
   it('apresenta erro financeiro e retry refaz as três consultas', async () => {
@@ -165,26 +201,29 @@ describe('DashboardPageComponent', () => {
     expect(evolution.registrarSnapshot).not.toHaveBeenCalled();
   });
 
-  it('ordena indicadores, evolução, posições e resultados, com quatro indicadores por moeda e sem seletor local', async () => {
+  it('ordena resumo, evolução, distribuição, desempenho e resultados, com quatro indicadores por moeda e sem seletor local', async () => {
     const { fixture, dashboard, evolution, carteiras } = await create(of([A])); fixture.detectChanges();
     const root = fixture.nativeElement as HTMLElement;
-    expect(Array.from(root.querySelectorAll('h2')).map(heading => heading.id).filter(id => ['summary-title', 'position-analysis-title', 'evolution-title', 'positions-title', 'results-title'].includes(id)))
-      .toEqual(['summary-title', 'position-analysis-title', 'evolution-title', 'positions-title', 'results-title']);
-    expect(root.querySelector('app-position-analysis')?.textContent).toContain('Custo × Valor atual');
+    expect(Array.from(root.querySelectorAll('h2')).map(heading => heading.id).filter(id => ['summary-title', 'evolution-title', 'portfolio-distribution-title', 'asset-performance-title', 'results-title'].includes(id)))
+      .toEqual(['summary-title', 'evolution-title', 'portfolio-distribution-title', 'asset-performance-title', 'results-title']);
+    expect(root.querySelector('app-position-analysis')?.textContent).not.toContain('Custo × Valor atual');
     expect(root.querySelector('select, mat-select, app-carteira-selector')).toBeNull();
     expect(root.querySelectorAll('.currency-group')).toHaveLength(2);
     root.querySelectorAll('.summary-grid').forEach(group => {
       expect(group.querySelectorAll('mat-card')).toHaveLength(4);
       expect(group.querySelector('.summary-primary')?.textContent).toContain('Patrimônio atual');
+      expect(group.querySelector('.summary-result')?.textContent).toContain('Resultado não realizado');
+      expect(group.querySelectorAll('.summary-supporting')).toHaveLength(2);
     });
-    for (const selector of ['app-position-analysis', 'app-cost-value-chart', 'app-portfolio-composition', 'app-portfolio-evolution']) expect(root.querySelectorAll(selector)).toHaveLength(1);
+    for (const selector of ['app-position-analysis', 'app-portfolio-composition', 'app-position-performance-chart', 'app-portfolio-evolution']) expect(root.querySelectorAll(selector)).toHaveLength(1);
+    expect(root.querySelector('app-cost-value-chart')).toBeNull();
     const actions = root.querySelector('.dashboard-actions')!;
     expect(actions.querySelector('.portfolio-context')).not.toBeNull();
     for (const label of ['Ver carteira', 'Registrar operação', 'Atualizar dados']) expect(actions.textContent).toContain(label);
     expect(root.querySelector('app-portfolio-evolution')?.textContent).toContain('Registrar patrimônio atual');
     expect(evolution.consultar).toHaveBeenCalledTimes(1);
     expect(evolution.registrarSnapshot).not.toHaveBeenCalled();
-    expect(root.querySelectorAll('app-portfolio-positions')).toHaveLength(1);
+    expect(root.querySelector('app-portfolio-positions')).toBeNull();
     expect(root.querySelectorAll('.result')).toHaveLength(1);
     expect(carteiras.listar).toHaveBeenCalledTimes(1);
     expect(dashboard.obterResumo).toHaveBeenCalledTimes(1);
@@ -309,9 +348,9 @@ describe('DashboardPageComponent', () => {
     expect(fixture.nativeElement.textContent).toContain('R$ 241,00');
     expect(fixture.nativeElement.textContent).toContain('Carregando histórico do patrimônio');
     expect(fixture.nativeElement.querySelector('app-position-analysis')?.textContent).toContain('PETR4');
-    expect(fixture.nativeElement.querySelectorAll('app-position-analysis .chart-series')).toHaveLength(2);
-    expect(fixture.nativeElement.querySelectorAll('app-position-performance-chart')).toHaveLength(2);
-    expect(fixture.nativeElement.querySelectorAll('app-position-performance-chart li')).toHaveLength(2);
+    expect(fixture.nativeElement.querySelectorAll('app-position-analysis .currency')).toHaveLength(1);
+    expect(fixture.nativeElement.querySelectorAll('app-position-performance-chart')).toHaveLength(1);
+    expect(fixture.nativeElement.querySelectorAll('app-position-performance-chart li')).toHaveLength(1);
     evolution.flush('falha', { status: 500, statusText: 'Erro' }); fixture.detectChanges();
     expect(fixture.nativeElement.textContent).toContain('R$ 241,00');
     http.expectNone(() => true);

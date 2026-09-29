@@ -51,7 +51,7 @@ describe('Operation origin through real Router and HTTP', () => {
       form.form.controls['precoUnitario'].setValue('12,30');
     }
     harness.detectChanges();
-    expect(harness.routeNativeElement?.querySelector('.context')?.textContent).toContain('A');
+    expect(harness.routeNativeElement?.querySelector('.page-header__description')?.textContent?.trim()).toBe('Registre a movimentação na carteira A.');
     expect(harness.routeNativeElement?.querySelector('[formcontrolname="carteiraId"]')).toBeNull();
     form.submit();
     const post = http.expectOne('/api/operacoes');
@@ -68,7 +68,7 @@ describe('Operation origin through real Router and HTTP', () => {
     await harness.navigateByUrl('/operacoes');
     TestBed.inject(CarteiraContextService).select(2);
     await harness.navigateByUrl('/operacoes/nova?carteiraId=1&origem=carteira');
-    expect(harness.routeNativeElement?.querySelector('.context')?.textContent).toContain('A');
+    expect(harness.routeNativeElement?.querySelector('.page-header__description')?.textContent?.trim()).toBe('Registre a movimentação na carteira A.');
     expect(harness.routeNativeElement?.querySelector('a.app-back-action')?.getAttribute('href')).toBe('/carteiras/1');
     await harness.navigateByUrl('/operacoes');
     await harness.navigateByUrl('/operacoes/nova'); await harness.fixture.whenStable();

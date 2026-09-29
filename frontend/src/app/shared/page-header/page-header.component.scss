@@ -8,7 +8,7 @@ h1 { margin: 0; color: var(--app-text-primary); font-size: var(--app-title-size)
 .page-header__eyebrow { margin: 0 0 var(--app-space-1); color: var(--app-brand-primary); font-size: var(--app-text-small); font-weight: 650; }
 p { margin: var(--app-space-2) 0 0; color: var(--app-text-secondary); line-height: 1.5; }
 .page-header__action:empty { display: none; }
-@media (max-width: 36rem) {
+@container (max-width: 36rem) {
   .page-header { grid-template-columns: minmax(0,1fr); align-items: start; }
   .page-header--with-icon { grid-template-columns: auto minmax(0,1fr); }
   .page-header__action { grid-column: 1 / -1; width: 100%; }

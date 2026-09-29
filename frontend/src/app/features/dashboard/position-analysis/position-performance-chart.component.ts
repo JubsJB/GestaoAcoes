@@ -12,26 +12,36 @@ import { exactPresentation, groupPositions } from './position-chart-presentation
 })
 export class PositionPerformanceChartComponent {
   readonly positions = input.required<readonly PosicaoResponse[]>();
-  readonly metric = input.required<'result' | 'return'>();
-  protected readonly title = computed(() => this.metric() === 'result' ? 'Resultado não realizado' : 'Rentabilidade por ativo');
   protected readonly groups = computed(() => groupPositions(this.positions()).map(group => {
-    const percent = this.metric() === 'return';
-    // Project only the authoritative field. Each currency/metric owns its geometry domain.
-    const projections = projectFinancialValues(group.positions.map(p => percent ? p.rentabilidadePercentual : p.resultadoNaoRealizado));
+    // Each currency owns one monetary geometry domain. Percentages never enter this axis.
+    const resultProjections = projectFinancialValues(group.positions.map(position => position.resultadoNaoRealizado));
+    const returnProjections = projectFinancialValues(group.positions.map(position => position.rentabilidadePercentual));
     return {
       currency: group.currency,
       rows: group.positions.map((position, index) => {
-        const projection = projections[index];
-        const value = projection.authoritativeValue;
-        const formatted = percent ? formatFinancialPercent(value) : formatFinancialMoney(value, group.currency);
+        const result = resultProjections[index];
+        const resultValue = result.authoritativeValue;
+        const resultFormatted = formatFinancialMoney(resultValue, group.currency);
+        const returnProjection = returnProjections[index];
+        const returnValue = returnProjection.authoritativeValue;
+        const returnFormatted = formatFinancialPercent(returnValue);
         return {
-          position, ...projection,
-          formatted: /[eE][+-]?\d/.test(formatted) ? `${exactPresentation(value).exact} ${percent ? '%' : group.currency}` : !percent && projection.sign === 1 ? `+${formatted}` : formatted,
-          outcome: projection.sign === null ? 'Indisponível' : projection.sign === 0 ? 'Neutro' : projection.sign === 1 ? 'Positivo' : 'Negativo',
-          ...exactPresentation(value),
-          small: projection.sign !== 0 && projection.sign !== null && projection.ratio !== null && projection.ratio < .005
+          position,
+          ...result,
+          resultFormatted: /[eE][+-]?\d/.test(resultFormatted) ? `${exactPresentation(resultValue).exact} ${group.currency}` : result.sign === 1 ? `+${resultFormatted}` : resultFormatted,
+          resultOutcome: this.outcome(result.sign),
+          resultExact: exactPresentation(resultValue),
+          resultSmall: result.sign !== 0 && result.sign !== null && result.ratio !== null && result.ratio < .005,
+          returnSign: returnProjection.sign,
+          returnFormatted: /[eE][+-]?\d/.test(returnFormatted) ? `${exactPresentation(returnValue).exact}%` : returnFormatted,
+          returnOutcome: this.outcome(returnProjection.sign),
+          returnExact: exactPresentation(returnValue)
         };
       })
     };
   }));
+
+  private outcome(sign: -1 | 0 | 1 | null): string {
+    return sign === null ? 'Indisponível' : sign === 0 ? 'Neutro' : sign === 1 ? 'Positivo' : 'Negativo';
+  }
 }

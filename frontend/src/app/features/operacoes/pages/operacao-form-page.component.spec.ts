@@ -38,6 +38,13 @@ describe('OperacaoFormPageComponent', () => {
     return { fixture, component: fixture.componentInstance as unknown as TestComponent, operations };
   }
 
+  it('identifica a carteira capturada somente no cabeçalho, sem bloco informativo redundante', async () => {
+    const { fixture } = await create({ context: CARTEIRA, dialogRef: { close: vi.fn() } });
+    expect(fixture.nativeElement.querySelector('.page-header__description')?.textContent).toContain('Registre a movimentação na carteira Principal.');
+    expect(fixture.nativeElement.querySelector('.operation-form .context')).toBeNull();
+    expect(fixture.nativeElement.textContent).not.toContain('Esta operação será registrada nesta carteira.');
+  });
+
   it('dialog em modo contextual fecha somente em sucesso e conserva erro', async () => {
     const post=new Subject<OperacaoResponse>(); const dialogRef={close:vi.fn(),disableClose:false};
     const {component,operations}=await create({post,context:CARTEIRA,dialogRef});

@@ -117,7 +117,7 @@ A visualização SHALL usar diretamente rentabilidadePercentual em dot plot est�
 - **WHEN** rentabilidadePercentual="0"
 - **THEN** o marcador fica exatamente em 0%, com texto 0,00% e Neutro, sem barra mínima, inclusive quando todo o conjunto é zero
 
-#### Scenario: Revisão est?tica da rentabilidade no Bloco 2
+#### Scenario: Revisão estética da rentabilidade no Bloco 2
 - **WHEN** a rentabilidade por ativo ? apresentada
 - **THEN** ticker, empresa, percentual autoritativo e estado permanecem visíveis com pontos proporcionais em grupos BRL/USD independentes; não há série temporal, corte de extremos, novos requests ou interpretação do patrimônio como retorno
 

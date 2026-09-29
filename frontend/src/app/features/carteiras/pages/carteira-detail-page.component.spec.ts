@@ -88,6 +88,7 @@ describe('CarteiraDetailPageComponent', () => {
     expect(result.fixture.nativeElement.textContent).toContain('Outra');
     expect(result.fixture.nativeElement.textContent).toContain('PETR4');
     expect(result.fixture.nativeElement.textContent).toContain('R$ 241,00');
+    expect(result.fixture.nativeElement.querySelector('app-portfolio-positions table')).toBeTruthy();
     expect(result.fixture.nativeElement.textContent).toContain('Falha no histórico');
     expect(result.dashboard.listarPosicoes).toHaveBeenLastCalledWith(4);
   });
