@@ -175,7 +175,7 @@ O shell SHALL permitir navegação por teclado, expor foco visível e contraste 
 O shell SHALL disponibilizar um único seletor de Carteira próximo à identificação da aplicação, com coleção validada, identificação da Carteira ativa e estados de inicialização, vazio e erro recuperável. O contexto compartilhado MUST NOT armazenar posições, operações, resumos, resultados, cotações, evolução ou snapshots. O seletor SHALL ter label acessível, foco visível e operação por teclado em desktop e mobile.
 
 #### Scenario: Inicialização compartilhada
-- **WHEN** shell e Dashboard precisam da coleção durante a mesma inicialização
+- **WHEN** shell, Dashboard e histórico de Operações precisam da coleção durante a mesma inicialização
 - **THEN** compartilham a carga de Carteiras sem listagens duplicadas entre esses consumidores e nenhum dado financeiro é solicitado antes de contexto válido
 
 #### Scenario: Vazio ou falha
@@ -203,7 +203,27 @@ Uma URL explícita válida SHALL prevalecer sobre seleção em memória e prefer
 
 #### Scenario: Troca e navegação do histórico
 - **WHEN** o usuário troca a seleção ou usa voltar e avançar do navegador
-- **THEN** o contexto acompanha a URL válida sem loops, e trocar no detalhe abre `/carteiras/{novoId}` enquanto trocar no Dashboard atualiza `carteiraId`
+- **THEN** o contexto acompanha a URL válida sem loops, e trocar no detalhe abre `/carteiras/{novoId}` enquanto trocar no Dashboard ou na listagem `/operacoes` atualiza `carteiraId`; cadastro e detalhe de Operação mantêm suas identidades capturadas
+
+#### Scenario: Normalização da listagem sem parâmetro
+- **WHEN** `/operacoes` é acessada sem carteiraId e o contexto resolve uma Carteira válida
+- **THEN** a URL passa a `/operacoes?carteiraId={id}` substituindo a entrada atual, sem duplicar consulta, criar loop ou persistir fallback automático como preferência explícita
+
+#### Scenario: Acesso direto e reload contextual
+- **WHEN** `/operacoes?carteiraId=A` é aberta diretamente ou recarregada
+- **THEN** A é validada na coleção compartilhada, prevalece sobre memória/preferência e determina header e histórico, sem consulta de operações antes da validação
+
+#### Scenario: Troca de Carteira e histórico do navegador
+- **WHEN** o usuário troca de A para B na listagem e depois usa voltar ou avançar
+- **THEN** a troca explícita cria entrada com carteiraId=B e a navegação do navegador restaura A ou B conforme a URL, sincronizando seletor e dados sem reescrever a entrada restaurada ou produzir loops
+
+#### Scenario: Seleção repetida e outros parâmetros
+- **WHEN** o usuário seleciona a Carteira já ativa ou normaliza a URL da listagem
+- **THEN** não há entrada nem consulta redundante para o mesmo contexto; parâmetros não relacionados permanecem preservados sem aceitar destinos de retorno arbitrários
+
+#### Scenario: Recuperação de seleção inválida
+- **WHEN** carteiraId é malformado ou inexistente e o usuário escolhe uma Carteira válida no seletor global
+- **THEN** a URL inválida é substituída pela seleção explícita na navegação e a página carrega somente a Carteira escolhida; até essa escolha não há fallback nem consulta financeira
 
 ### Requirement: Recolhimento desktop acessível
 O shell SHALL oferecer controle desktop por teclado com nome acessível correspondente a recolher ou expandir a navegação, associação com a região controlada e estado expandido comunicado semanticamente. A alternância SHALL manter foco visível no controle. Destinos recolhidos SHALL conservar nomes acessíveis completos, acionamento por teclado e indicação ativa por marcador além de cor e `aria-current`. O estado SHALL ser local à instância do layout, iniciar expandido e ser preservado entre navegações, sem persistência após reload. O shell SHALL preservar suporte a movimento reduzido e MUST NOT exigir animação para comunicar estado.
