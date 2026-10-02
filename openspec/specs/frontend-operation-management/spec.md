@@ -211,7 +211,7 @@ A feature SHALL preservar message e details dos erros normalizados dos GETs e PO
 
 
 ### Requirement: Submissão explícita sem deduplicação
-O envio SHALL bloquear nova submissão enquanto o POST atual estiver pendente e, para COMPRA, enquanto não existir prévia válida correspondente ao contexto atual. O preço da prévia MUST NOT integrar o request. A feature MUST NOT realizar retry automático, criar idempotency key nem rejeitar operações legitimamente idênticas por comparação de payload.
+O envio SHALL bloquear nova submissão enquanto o POST atual estiver pendente. O request SHALL utilizar o preço final válido presente no campo precoUnitario, que MAY ter sido inicialmente sugerido pela prévia. Uma prévia válida MUST NOT ser condição para realizar COMPRA; falha da prévia MUST NOT impedir o cadastro quando houver preço manual válido e as demais validações forem satisfeitas. A feature MUST NOT realizar retry automático, criar idempotency key nem rejeitar operações legitimamente idênticas por comparação de payload.
 
 #### Scenario: Clique duplicado pendente
 - **WHEN** o usuário aciona o submit novamente enquanto o POST está pendente
@@ -284,7 +284,7 @@ Cada abertura de cadastro SHALL capturar uma Carteira válida e mantê-la visív
 
 #### Scenario: Contratos de compra e venda preservados
 - **WHEN** um formulário contextual ou global é submetido
-- **THEN** reutiliza o construtor vigente: COMPRA sem preço e ordem, VENDA com preço e sem ordem, mantendo Corretora opcional, validações e bloqueio de submissão concorrente
+- **THEN** reutiliza o construtor vigente: COMPRA e VENDA com precoUnitario e sem ordemNoDia, mantendo a Carteira capturada, Corretora opcional, validações e bloqueio de submissão concorrente
 
 ### Requirement: Origem e retorno determinísticos de Operações
 Entradas de Dashboard e detalhe de Carteira SHALL transportar Carteira e origem em URL para o fluxo em página, permitindo reconstrução após reload sem depender de history.state. Cadastro em dialog SHALL preservar origem na instância e retornar ao detalhe de origem ao fechar. URLs sem origem contextual SHALL manter retorno global para `/operacoes`. O detalhe de Operação SHALL preservar a origem contextual recebida em links e usar o DTO compatível ou GET existente após reload. Retornos SHALL usar somente destinos internos conhecidos e MUST NOT aceitar redirecionamento arbitrário.

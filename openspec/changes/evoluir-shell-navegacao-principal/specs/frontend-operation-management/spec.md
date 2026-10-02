@@ -23,7 +23,7 @@ A listagem global SHALL consultar `GET /operacoes` uma vez ao entrar e apresenta
 - **WHEN** o usuário aciona Operações no menu com uma Carteira selecionada
 - **THEN** acessa `/operacoes` com histórico de todas as Carteiras, preservando a consulta global existente sem inserir filtro ou origem contextual implicitamente
 
-#### Scenario: Troca do seletor no histórico global
+#### Scenario: Troca do seletor na listagem de Operações
 - **WHEN** o usuário troca a Carteira no seletor estando em `/operacoes`
 - **THEN** o histórico continua global sem filtragem local ou requisição de histórico por Carteira introduzida por esta evolução
 

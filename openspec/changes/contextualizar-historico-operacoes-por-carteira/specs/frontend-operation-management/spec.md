@@ -21,7 +21,7 @@ A página principal `/operacoes` SHALL apresentar exclusivamente o histórico da
 - **WHEN** o usuário aciona Operações no menu com A selecionada
 - **THEN** acessa a listagem contextual de A com carteiraId=A na URL e consulta somente GET /carteiras/A/operacoes
 
-#### Scenario: Troca do seletor no histórico contextual
+#### Scenario: Troca do seletor na listagem de Operações
 - **WHEN** o usuário troca a Carteira no seletor estando na listagem
 - **THEN** contexto e URL refletem a seleção e o histórico é consultado para essa Carteira, sem filtragem de uma lista global
 
