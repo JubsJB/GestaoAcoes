@@ -97,57 +97,97 @@ O Dashboard SHALL apresentar BRL e USD em agrupamentos visualmente e semanticame
 - **THEN** a página apresenta grupos separados e nenhum total combinado
 
 ### Requirement: Resumo por moeda e contagem estrutural
-Para cada item de `resumos`, o Dashboard SHALL exibir patrimônio atual, custo total das posições, resultado não realizado total e rentabilidade percentual. A página MAY exibir a quantidade de posições abertas como o tamanho da coleção de posições retornada, mas SHALL identificá-la explicitamente como informação estrutural e não como cálculo financeiro. O patrimônio SHALL ter maior protagonismo visual que os demais indicadores; a composição MUST NOT exigir quatro cards idênticos. BRL e USD SHALL continuar separados. A faixa MUST NOT acrescentar resultado realizado total, variação diária, benchmark ou alocação percentual.
+Para cada item de `resumos`, o Dashboard SHALL exibir patrimônio atual, resultado não realizado total, custo total das posições e rentabilidade percentual. Patrimônio e resultado não realizado SHALL possuir maior protagonismo visual; custo e rentabilidade SHALL permanecer identificáveis como informações complementares. A página MAY exibir a quantidade de posições abertas como o tamanho da coleção retornada, identificando-a como informação estrutural e não cálculo financeiro. BRL e USD SHALL permanecer em grupos independentes, sem conversão, soma ou patrimônio consolidado. A faixa MUST NOT acrescentar resultado realizado total, variação diária, benchmark ou alocação percentual.
+
+#### Scenario: Resumo somente BRL
+- **WHEN** o backend retorna resumo somente em BRL
+- **THEN** a página apresenta patrimônio, resultado não realizado, custo e rentabilidade no grupo BRL, sem grupo USD artificial
+
+#### Scenario: Resumo somente USD
+- **WHEN** o backend retorna resumo somente em USD
+- **THEN** a página apresenta patrimônio, resultado não realizado, custo e rentabilidade no grupo USD, sem conversão para BRL
+
+#### Scenario: Resumo nas duas moedas
+- **WHEN** o backend retorna resumos em BRL e USD
+- **THEN** a página apresenta os quatro indicadores em grupos distintos e não produz total combinado
 
 #### Scenario: Cards de resumo
 - **WHEN** o backend retorna um ou mais resumos por moeda
-- **THEN** cada moeda possui seus próprios indicadores sem combinação com outro item
+- **THEN** cada moeda possui seus próprios indicadores com hierarquia entre informações principais e complementares, sem combinação com outro item
 
-#### Scenario: Quantidade de posições abertas
-- **WHEN** a coleção de posições é recebida
-- **THEN** sua quantidade pode ser apresentada com o rótulo “posições abertas” sem derivar qualquer valor financeiro
+#### Scenario: Hierarquia dos indicadores
+- **WHEN** um resumo por moeda é apresentado
+- **THEN** patrimônio e resultado não realizado recebem maior destaque que custo e rentabilidade, sem ocultar ou recalcular qualquer indicador
 
 #### Scenario: Hierarquia por moeda
 - **WHEN** um resumo é apresentado
-- **THEN** patrimônio, custo, resultado não realizado e rentabilidade permanecem identificáveis, com patrimônio em destaque e sem métrica derivada nova
+- **THEN** patrimônio, resultado não realizado, custo e rentabilidade permanecem identificáveis, sem métrica derivada nova
+
+#### Scenario: Quantidade de posições abertas
+- **WHEN** a coleção de posições é recebida
+- **THEN** sua quantidade pode ser apresentada como informação estrutural rotulada, sem derivar valor financeiro
+
+#### Scenario: Carteira sem posições
+- **WHEN** uma Carteira existente retorna `resumos=[]` e `posicoes=[]`
+- **THEN** o Dashboard apresenta estado vazio de carteira sem posições, sem cards monetários artificiais nem tratar a ausência como erro
 
 ### Requirement: Posições abertas responsivas
-O Dashboard SHALL apresentar, para cada posição devolvida, ticker, empresa, mercado, moeda, quantidade atual, preço médio, cotação atual, valor atual, resultado não realizado e rentabilidade. A apresentação SHALL permanecer legível em viewport compacto e MUST NOT oferecer rota inexistente de detalhe de posição. No desktop, posições SHALL usar tabela semântica com texto à esquerda, números à direita, tipografia tabular e ações existentes em posição estável; no mobile SHALL usar cards completos, conforme a representação acessível única de frontend-visual-experience. Custo e referência temporal da cotação já apresentados SHALL ser preservados quando disponíveis no contrato atual.
+O Dashboard MUST NOT apresentar a tabela ou listagem completa de posições abertas. Quantidade, preço médio, cotação, referência temporal, custo, valor atual, resultado e rentabilidade detalhados SHALL continuar disponíveis no detalhe da Carteira por meio da apresentação existente, sem remover componente compartilhado, endpoint, contrato ou cobertura necessária a esse fluxo. O Dashboard SHALL continuar consumindo a coleção de posições para distribuição, desempenho e contagem estrutural, sem consulta adicional ou recálculo.
+
+#### Scenario: Dashboard com posições abertas
+- **WHEN** a Carteira selecionada possui uma ou mais posições
+- **THEN** o Dashboard usa a coleção nas visualizações resumidas e não renderiza a tabela completa de posições
 
 #### Scenario: Posição brasileira
 - **WHEN** uma posição de mercado BRASIL é retornada
-- **THEN** seus dados e valores em BRL são apresentados sem recalculá-los
+- **THEN** seus valores BRL alimentam distribuição e desempenho sem recálculo, enquanto seus campos detalhados permanecem no detalhe da Carteira
 
 #### Scenario: Posição americana
 - **WHEN** uma posição de mercado EUA é retornada
-- **THEN** seus dados e valores em USD são apresentados sem conversão cambial
+- **THEN** seus valores USD alimentam distribuição e desempenho sem conversão, enquanto seus campos detalhados permanecem no detalhe da Carteira
 
 #### Scenario: Viewport compacto
-- **WHEN** a seção de posições é exibida em tela compacta
-- **THEN** todos os dados essenciais continuam disponíveis por tabela responsiva ou representação acessível equivalente sem scroll horizontal obrigatório da página
+- **WHEN** o Dashboard é exibido em largura compacta
+- **THEN** não existe tabela de posições para refluir na página e os blocos resumidos preservam os dados essenciais sem scroll horizontal obrigatório
 
 #### Scenario: Comparação desktop
-- **WHEN** há posições para apresentar em largura suficiente
-- **THEN** cabeçalhos associados permitem comparar valores e moedas sem alterar a ordem recebida
+- **WHEN** há posições e largura suficiente no Dashboard
+- **THEN** distribuição e desempenho permitem leitura por ativo sem reproduzir as colunas da tabela detalhada
 
 #### Scenario: Equivalência mobile
-- **WHEN** a apresentação passa para cards
-- **THEN** nenhum campo ou ação existente é perdido e a tabela inativa não participa do foco nem da árvore acessível
+- **WHEN** o Dashboard passa para uma coluna
+- **THEN** distribuição e desempenho mantêm valores e identificação, e o detalhamento integral continua disponível na página de Carteira
+
+#### Scenario: Detalhe da Carteira preservado
+- **WHEN** o usuário aciona Ver carteira e acessa `/carteiras/{id}`
+- **THEN** a página de Carteira continua apresentando as posições abertas e todos os campos vigentes com sua responsividade existente
+
+#### Scenario: Contratos preservados
+- **WHEN** a tabela deixa de ser usada pelo Dashboard
+- **THEN** `GET /carteiras/{id}/posicoes`, seu DTO, o componente compartilhado e demais consumidores permanecem compatíveis
 
 ### Requirement: Resultados realizados sem totalização
-O Dashboard SHALL exibir cada `ResultadoRealizadoResponse` com ticker, empresa, mercado, moeda e resultado realizado. A página MUST NOT somar a coleção nem inferir um resultado total. Os resultados SHALL usar apresentação comparável por Ação, com identificação em posição estável, valores alinhados e sinal/semântica textual que não dependam apenas de cor.
+O Dashboard SHALL manter uma seção secundária de resultados realizados após resumo, evolução, distribuição e desempenho. Cada `ResultadoRealizadoResponse` SHALL apresentar ticker, empresa, mercado, moeda e resultado realizado individual, sem soma, total inferido ou conversão. A apresentação SHALL usar identificação estável e sinal/semântica textual além de cor. Esta seção MUST NOT ser removida até existir mudança aprovada que forneça destino equivalente.
 
 #### Scenario: Resultados disponíveis
 - **WHEN** o backend retorna resultados realizados
-- **THEN** cada item é exibido individualmente com sua moeda
+- **THEN** cada item é exibido individualmente com sua moeda em uma seção de prioridade visual secundária
 
 #### Scenario: Ausência de resultados
 - **WHEN** o backend retorna uma coleção vazia
-- **THEN** a seção informa normalmente que ainda não existem resultados realizados
+- **THEN** a seção informa normalmente que ainda não existem resultados realizados sem confundir vazio com falha
+
+#### Scenario: Comparação sem totalização
+- **WHEN** mais de uma Ação possui resultado realizado
+- **THEN** cada resultado permanece identificado e legível sem rodapé totalizador ou conversão entre moedas
 
 #### Scenario: Comparação de resultados
 - **WHEN** mais de uma Ação possui resultado realizado
-- **THEN** cada resultado permanece individual, legível e identificado pela própria moeda sem rodapé totalizador
+- **THEN** identificação, moeda, valor e estado de cada item permanecem comparáveis em sua seção secundária sem totalização
+
+#### Scenario: Destino futuro não antecipado
+- **WHEN** o Dashboard reorganizado é entregue
+- **THEN** resultados realizados continuam na página e nenhuma nova visão de Carteira é criada ou simulada por esta change
 
 ### Requirement: Estados financeiros e recuperação explícita
 O Dashboard SHALL diferenciar carregamento da lista de Carteiras, erro dessa lista, ausência de Carteiras, espera por seleção, carregamento financeiro, conteúdo, Carteira sem posições, ausência de resultados e erro financeiro. Erros 404, 409, 422 e técnicos SHALL usar a normalização HTTP existente e oferecer recuperação adequada sem retry automático.
@@ -199,62 +239,110 @@ O Dashboard SHALL oferecer ações para acessar a Carteira selecionada e registr
 - **THEN** a aplicação abre o fluxo existente de nova Operação com a Carteira selecionada como contexto
 
 ### Requirement: Experiência acessível do Dashboard
-O Dashboard SHALL possuir título principal, seções hierárquicas, identificação clara da Carteira ativa e label acessível para seleção no shell, nomes acessíveis para ações e estados dinâmicos anunciados sem deslocar foco indevidamente. Resultado positivo e negativo MUST NOT ser distinguido somente por cor.
+O Dashboard SHALL possuir um único título principal e seções hierárquicas para resumo, evolução patrimonial, distribuição, desempenho por ativo e resultados realizados, além de identificação clara da Carteira ativa. Ações SHALL ter nomes acessíveis e foco visível; loading, vazio e erro SHALL manter textos e regiões dinâmicas apropriados sem deslocar foco indevidamente. Gráficos SHALL possuir representação textual suficiente, MUST NOT depender somente de cor e MUST NOT adicionar interação obrigatória quando os dados puderem ser apresentados estaticamente. Valores monetários e percentuais SHALL indicar unidade, sinal e significado de forma compreensível. Movimento decorativo MUST respeitar `prefers-reduced-motion` e nenhuma informação SHALL depender de animação.
+
+#### Scenario: Hierarquia por tecnologia assistiva
+- **WHEN** a página é percorrida por headings ou tecnologia assistiva
+- **THEN** o título, contexto e as cinco seções principais são encontrados em ordem coerente, sem heading da tabela de posições removida
 
 #### Scenario: Uso por tecnologia assistiva
 - **WHEN** a página é percorrida por tecnologia assistiva
-- **THEN** seleção, cards, posições, resultados, loading e erros possuem estrutura e nomes compreensíveis
+- **THEN** contexto, resumo, evolução, distribuição, desempenho, resultados, loading, vazios e erros possuem estrutura e nomes compreensíveis
 
 #### Scenario: Resultado com semântica não cromática
-- **WHEN** um resultado positivo ou negativo é apresentado
-- **THEN** sinal e texto comunicam seu significado independentemente da cor
+- **WHEN** resultado ou rentabilidade positiva, negativa ou neutra é apresentado
+- **THEN** sinal, valor e texto comunicam o significado independentemente da cor
 
 #### Scenario: Interação por teclado
 - **WHEN** o usuário opera a página apenas por teclado
-- **THEN** seletor global, retry, reload e navegação possuem foco visível e ordem coerente
+- **THEN** seletor global, ações do cabeçalho, retry, registro de patrimônio e controles existentes possuem foco visível e ordem coerente
+
+#### Scenario: Gráfico compreensível sem desenho
+- **WHEN** SVG, cor ou percepção visual do gráfico não está disponível
+- **THEN** moeda, ativo, resultado monetário e rentabilidade complementar permanecem compreensíveis em texto
+
+#### Scenario: Movimento reduzido
+- **WHEN** `prefers-reduced-motion` está ativo
+- **THEN** a página permanece completa e operável sem depender de animação ou transição para comunicar dados e estados
 
 ### Requirement: Hierarquia financeira do Dashboard
-O Dashboard SHALL apresentar, nesta ordem visual e semântica, cabeçalho/contexto compacto, ações existentes, indicadores por moeda, Análise por ativo (Composição por moeda, Custo × Valor atual, Resultado não realizado, Rentabilidade), Histórico do patrimônio, posições abertas e resultados realizados por Ação. A reorganização MUST preservar o carregamento e tratamento de erro independentes da evolução, o consumo do contexto global de Carteira, query params, atualização e registro manual existentes. O seletor SHALL permanecer exclusivamente no shell; o Dashboard MUST NOT duplicar seleção ou listagem de Carteiras.
-
-#### Scenario: Evolução independente
-- **WHEN** a evolução está carregando ou falha enquanto as demais seções têm conteúdo
-- **THEN** os outros dados permanecem utilizáveis e a evolução comunica seu próprio estado sem bloquear a página
+O Dashboard SHALL apresentar, nesta ordem visual e semântica: cabeçalho/contexto e ações existentes; resumo por moeda; Evolução patrimonial; Distribuição da carteira; Desempenho por ativo; e Resultados realizados por Ação como seção secundária. Distribuição SHALL responder onde o valor atual está alocado. Desempenho SHALL apresentar resultado não realizado monetário como informação principal e rentabilidade percentual como informação complementar na mesma leitura por ativo. O Dashboard MUST NOT apresentar o comparativo independente Custo × Valor atual, gráfico independente dedicado somente à rentabilidade ou tabela completa de posições. A reorganização SHALL preservar contexto global, `carteiraId`, concorrência, atualização, registro manual de snapshot e tratamento independente da evolução, sem seletor local.
 
 #### Scenario: Ordem coerente
 - **WHEN** a página é percorrida visualmente ou por headings
-- **THEN** identificação do contexto global e ações precedem indicadores, análise por ativo e Histórico do patrimônio, seguidos por posições e resultados, sem seletor local duplicado
+- **THEN** contexto e ações precedem resumo, evolução, distribuição, desempenho e resultados realizados nesta ordem
+
+#### Scenario: Evolução independente
+- **WHEN** a evolução carrega ou falha enquanto as demais consultas possuem conteúdo
+- **THEN** os demais blocos permanecem utilizáveis e a evolução comunica seu próprio estado sem bloquear a página
+
+#### Scenario: Distribuição preservada
+- **WHEN** posições abertas estão disponíveis
+- **THEN** a composição por ativo usa a coleção já carregada, separa moedas e permanece antes do desempenho sem request próprio
 
 #### Scenario: Análise derivada da coleção carregada
 - **WHEN** as posições da Carteira atual estão disponíveis
-- **THEN** a análise usa essa mesma coleção sem consulta adicional e sem condicionar montagem ou estado independente do Histórico do patrimônio ao seu próprio conteúdo
+- **THEN** distribuição e desempenho usam essa mesma coleção sem consulta adicional nem condicionar o estado independente da evolução
+
+#### Scenario: Desempenho consolidado
+- **WHEN** uma posição possui resultado não realizado e rentabilidade percentual
+- **THEN** ambos aparecem na mesma leitura do ativo, com o valor monetário em destaque e o percentual como complemento
+
+#### Scenario: Redundâncias ausentes
+- **WHEN** o Dashboard reorganizado é renderizado
+- **THEN** não existem o bloco Custo × Valor atual, o gráfico percentual independente nem a tabela completa de posições
+
+#### Scenario: Ações e contexto preservados
+- **WHEN** existe Carteira válida selecionada
+- **THEN** seu nome e as ações Ver carteira, Registrar operação e Atualizar dados permanecem disponíveis sem segundo seletor
 
 #### Scenario: Composição visual do Bloco 1
-- **WHEN** o Dashboard apresenta o Bloco 1 da expansão, antes da composição nova
-- **THEN** contexto e ações compactos precedem indicadores com patrimônio destacado, os três comparativos existentes refinados na análise, Histórico do patrimônio, posições e resultados; a composição ainda não implementada não recebe placeholder
+- **WHEN** o Dashboard reorganizado substitui a composição histórica do Bloco 1
+- **THEN** contexto e ações compactos precedem resumo, evolução, distribuição, desempenho e resultados, sem restaurar comparativos ou tabela removidos
 
 #### Scenario: Modernização visual do histórico
-- **WHEN** grid decorativo, linha e espaçamento são refinados
-- **THEN** coordenadas, dataset, gaps, registros vazios, IDs, timestamps, moedas, tooltip, teclado, toque, Escape e ação manual são preservados, com gráficos lado a lado quando legíveis e histórico textual único abaixo
+- **WHEN** a evolução ocupa sua nova posição na página
+- **THEN** coordenadas, dataset, gaps, registros vazios, IDs, timestamps, moedas, tooltip, teclado, toque, Escape, histórico textual e ação manual permanecem preservados
 
 #### Scenario: Integração desktop do Bloco 2
-- **WHEN** a análise apresenta os três gráficos autorizados
-- **THEN** Custo × Valor atual precede Resultado não realizado e Rentabilidade por ativo, com resultado e rentabilidade lado a lado quando legíveis, preservando a hierarquia relativa, consultas e as seções de detalhe
+- **WHEN** a antiga análise de três comparativos é substituída no desktop
+- **THEN** distribuição precede um único desempenho com resultado e rentabilidade complementar, sem Custo × Valor atual ou painel percentual independente
 
 ### Requirement: Composição desktop orientada pelas referências financeiras
-O Dashboard SHALL manter linguagem visual da referência A do usuário para organização, cards, espaço, densidade e distribuição; a referência B SHALL orientar leitura, tipos, valores, legendas e tooltips. SHALL preservar identidade verde/neutra, tipografia e navegação do projeto, sem copiar marcas. Cada gráfico SHALL responder a uma pergunta financeira clara, com valores textuais disponíveis e pouca explicação técnica. O desktop SHALL priorizar gráficos após indicadores, antes de tabelas/detalhes, sem card por ativo, repetição de painéis equivalentes ou decoração sem função informacional.
+O Dashboard SHALL preservar a identidade verde/neutra, tokens, tipografia e linguagem financeira existentes, mas SHALL priorizar leitura analítica com menos painéis equivalentes. Cada bloco SHALL responder a uma pergunta clara e manter valores textuais próximos à visualização. A composição SHALL adaptar-se à largura útil dentro do shell, inclusive quando a sidebar estiver expandida ou recolhida, usando reflow pelo container quando adequado. A página MUST NOT criar scroll horizontal, conteúdo cortado, cards espremidos, fonte artificialmente reduzida ou gráficos ilegíveis em desktop, larguras intermediárias, mobile, zoom aumentado ou aproximadamente 320 CSS px.
+
+#### Scenario: Desktop com sidebar expandida
+- **WHEN** o shell desktop reserva a largura da sidebar expandida
+- **THEN** cards e painéis usam o espaço restante sem corte nem dependência de recolher a navegação
 
 #### Scenario: Composição ampla
-- **WHEN** a largura útil comporta os painéis com texto legível
-- **THEN** composição e custo/valor compartilham a primeira faixa analítica com maior espaço para o comparativo, resultado/rentabilidade compartilham a segunda e o histórico ocupa largura total com gráficos por moeda internamente
+- **WHEN** a largura útil comporta mais de uma coluna com texto legível
+- **THEN** grupos de resumo e painéis aproveitam a largura sem alterar a ordem semântica, repetir perguntas financeiras ou esconder equivalentes textuais
+
+#### Scenario: Desktop com sidebar recolhida
+- **WHEN** a sidebar é recolhida e a área útil aumenta
+- **THEN** os blocos podem aproveitar a largura sem alterar ordem, dados, consultas ou semântica
+
+#### Scenario: Espaço intermediário ou zoom
+- **WHEN** a largura real do container diminui por sidebar, viewport ou zoom de 125%, 150% ou 200%
+- **THEN** colunas empilham antes de perder legibilidade, sem depender somente do breakpoint global da viewport
 
 #### Scenario: Espaço insuficiente
-- **WHEN** tablet/mobile ou ampliação impedem as colunas previstas
-- **THEN** painéis empilham na ordem semântica, sem overflow estrutural, corte de informação, redução artificial de fonte ou mudança de contexto; todos os detalhes continuam disponíveis
+- **WHEN** tablet, mobile, sidebar ou ampliação impedem as colunas previstas
+- **THEN** painéis empilham na ordem semântica sem overflow, corte, redução artificial de fonte ou perda de detalhes
+
+#### Scenario: Mobile e 320 CSS px
+- **WHEN** a página é usada em mobile ou aproximadamente 320 CSS px
+- **THEN** os blocos reorganizam-se em uma coluna quando necessário, com ações, textos, valores e gráficos completos e sem scroll horizontal da página
+
+#### Scenario: Dataset extenso
+- **WHEN** distribuição ou desempenho recebe muitos ativos e nomes ou valores longos
+- **THEN** o dataset integral permanece disponível sem top-N, truncamento funcional, scroll interno obrigatório ou sobreposição de elementos
 
 #### Scenario: Revisão das referências
-- **WHEN** a composição desktop é submetida ao aceite humano
-- **THEN** a avaliação considera as referências A/B fornecidas, pergunta de cada gráfico, hierarquia, densidade e distinção visual; a falta de acesso às imagens deve ser declarada em vez de presumir comparação executada
+- **WHEN** a composição for submetida ao aceite humano
+- **THEN** a avaliação considera perguntas de cada bloco, hierarquia, densidade, responsividade e distinção visual, sem presumir validação não executada
 
 #### Scenario: Variedade real no desktop final
-- **WHEN** o Bloco 3 é revisado
-- **THEN** o conjunto P0 contém barra/referência, barras divergentes, dot plot, rosca e linha temporal ampla, além dos indicadores; mudanças apenas de CSS entre painéis semelhantes não satisfazem a diferenciação, e tabelas permanecem disponíveis abaixo
+- **WHEN** o Dashboard final é revisado
+- **THEN** resumo, linha temporal, rosca e desempenho divergente respondem a perguntas distintas sem exigir comparativo Custo × Valor, plot percentual ou tabela detalhada na página
