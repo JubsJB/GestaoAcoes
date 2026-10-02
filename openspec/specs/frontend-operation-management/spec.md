@@ -16,26 +16,21 @@ O formulario SHALL exigir precoUnitario editavel e positivo em COMPRA e VENDA, p
 - **WHEN** falta preco positivo em qualquer tipo
 - **THEN** formulario nao submete e apresenta validacao
 
-
 #### Scenario: Payload exato de COMPRA
 - **WHEN** o formulario envia COMPRA
 - **THEN** envia precoUnitario manual lossless junto aos campos existentes, sem ordemNoDia ou valorTotal
-
 
 #### Scenario: Payload exato de VENDA
 - **WHEN** o usuário submete uma VENDA válida
 - **THEN** o frontend envia um único POST com `precoUnitario` e sem `ordemNoDia`, `id`, `acaoId` ou `valorTotal`
 
-
 #### Scenario: Corretora opcional
 - **WHEN** o usuário não seleciona Corretora
 - **THEN** o request contém `corretoraId=null` ou omite a propriedade conforme a convenção vigente
 
-
 #### Scenario: Response completo
 - **WHEN** o backend devolve uma Operação
 - **THEN** o frontend preserva `precoUnitario`, `ordemNoDia`, `valorTotal` e os demais campos retornados
-
 
 ### Requirement: Rotas globais e carregamento lazy
 A área SHALL substituir somente o placeholder de Operações e manter seu limite lazy. Ela SHALL oferecer `/operacoes` para listagem, `/operacoes/nova` para cadastro e `/operacoes/{id}` para detalhe, resolvendo a rota estática `nova` antes do identificador.
@@ -45,7 +40,7 @@ A área SHALL substituir somente o placeholder de Operações e manter seu limit
 - **THEN** a tela correspondente é carregada dentro do shell sem tornar funcional outro placeholder
 
 ### Requirement: Listagem cronológica e somente leitura
-A listagem global SHALL consultar `GET /operacoes` uma vez ao entrar e apresentar a ordem recebida do backend, garantida por `dataOperacao`, `ordemNoDia` e `id` ascendentes. Ela SHALL exibir tipo, ativo, mercado, data, ordem, quantidade, preço, valor total e Corretora, diferenciar loading, vazio, conteúdo e erro recuperável e MUST NOT recalcular ou reordenar o histórico. A listagem SHALL usar tabela semântica desktop e cards completos mobile conforme frontend-visual-experience, com números alinhados à direita, moeda explícita, tipo textual e ações em posição estável. O histórico contextual SHALL seguir esse mesmo padrão sem reordenar dados ou adicionar consultas. As rotas globais SHALL permanecer por compatibilidade/deep link, sem filtro implícito por Carteira nem reintrodução de Operações na sidebar; a entrada principal de cadastro permanece contextual à Carteira.
+A listagem global SHALL consultar `GET /operacoes` uma vez ao entrar e apresentar a ordem recebida do backend, garantida por `dataOperacao`, `ordemNoDia` e `id` ascendentes. Ela SHALL exibir tipo, ativo, mercado, data, ordem, quantidade, preço, valor total e Corretora, diferenciar loading, vazio, conteúdo e erro recuperável e MUST NOT recalcular ou reordenar o histórico. A listagem SHALL usar tabela semântica desktop e cards completos mobile conforme frontend-visual-experience, com números alinhados à direita, moeda explícita, tipo textual e ações em posição estável. O histórico contextual SHALL seguir esse mesmo padrão sem reordenar dados ou adicionar consultas. As rotas globais SHALL permanecer por compatibilidade/deep link, sem filtro implícito por Carteira e com acesso direto a `/operacoes` pelo menu principal; a entrada principal de cadastro permanece contextual à Carteira.
 
 #### Scenario: Histórico retornado
 - **WHEN** a consulta devolve compras e vendas
@@ -62,6 +57,14 @@ A listagem global SHALL consultar `GET /operacoes` uma vez ao entrar e apresenta
 #### Scenario: Comparação cronológica
 - **WHEN** o histórico é exibido em desktop ou mobile
 - **THEN** todos os campos e a ordem recebida permanecem disponíveis e somente uma representação participa da acessibilidade e do teclado
+
+#### Scenario: Entrada pelo menu principal
+- **WHEN** o usuário aciona Operações no menu com uma Carteira selecionada
+- **THEN** acessa `/operacoes` com histórico de todas as Carteiras, preservando a consulta global existente sem inserir filtro ou origem contextual implicitamente
+
+#### Scenario: Troca do seletor na listagem de Operações
+- **WHEN** o usuário troca a Carteira no seletor estando em `/operacoes`
+- **THEN** o histórico continua global sem filtragem local ou requisição de histórico por Carteira introduzida por esta evolução
 
 ### Requirement: Cadastro com referências persistidas
 O formulário SHALL usar Carteira existente fixa resolvida na abertura pelo contexto de entrada e permitir selecionar Ação pelo par ticker/mercado, Corretora opcional e tipo COMPRA ou VENDA. Ele MUST NOT cadastrar referências ausentes, consultar providers externos ou aceitar combinações livres de ticker e mercado.
@@ -85,36 +88,29 @@ O formulario SHALL exigir precoUnitario editavel e positivo em COMPRA e VENDA, p
 - **WHEN** falta preco positivo em qualquer tipo
 - **THEN** formulario nao submete e apresenta validacao
 
-
 #### Scenario: Campos de COMPRA
 - **WHEN** o usuario escolhe COMPRA
 - **THEN** quantidade e precoUnitario sao editaveis e obrigatorios positivos; corretora permanece opcional
-
 
 #### Scenario: Prévia carregada
 - **WHEN** a previa da acao e data atuais retorna
 - **THEN** ela preenche sugestao editavel lossless se nao houve edicao manual durante a consulta
 
-
 #### Scenario: Prévia pendente ou inválida
 - **WHEN** o formulario de COMPRA e preenchido
 - **THEN** apresenta loading ou erro normalizado da previa e exige preco final positivo; permite entrada manual sem substituir data
-
 
 #### Scenario: Data sem substituição de pregão
 - **WHEN** o usuário escolhe uma data sem pregão
 - **THEN** o frontend envia exatamente a data escolhida e não procura nem substitui por pregão anterior ou posterior
 
-
 #### Scenario: Alternância de VENDA para COMPRA
 - **WHEN** o usuario alterna de VENDA para COMPRA
 - **THEN** preco permanece editavel e obrigatorio; consulta sugestao historica para acao/data atuais
 
-
 #### Scenario: Contexto alterado durante a prévia
 - **WHEN** o contexto de uma consulta anterior muda
 - **THEN** uma resposta tardia nao substitui o preco manual nem a carteira capturada; a sugestao da nova acao/data substitui a anterior, sem reutilizar resposta obsoleta
-
 
 ### Requirement: Formulário discriminado de VENDA
 Quando `tipo=VENDA`, o formulário SHALL exibir `precoUnitario` editável, obrigatório, positivo, com no máximo 13 dígitos inteiros e 6 fracionários. Havendo Carteira, Ação, mercado e data suficientes, SHALL consultar a sugestão da Carteira. Preço sugerido SHALL apenas preencher inicialmente o campo e poderá ser livremente aumentado ou reduzido pelo usuário; `null` SHALL manter o campo vazio sem erro técnico. Ordem no dia permanecerá ausente.
@@ -184,31 +180,25 @@ A feature SHALL preservar message e details dos erros normalizados dos GETs e PO
 - **WHEN** uma consulta historica independente encontra indisponibilidade ou rate limit
 - **THEN** a falha nao substitui o preco manual nem troca automaticamente a data da Operacao
 
-
 #### Scenario: Fechamento indisponível
 - **WHEN** uma consulta historica independente recebe `422 COTACAO_HISTORICA_INDISPONIVEL`
 - **THEN** o formulário permanece aberto e informa que não houve fechamento disponível para a data escolhida
-
 
 #### Scenario: Histórico fora do alcance
 - **WHEN** uma consulta historica independente recebe `422 HISTORICO_COTACAO_FORA_DO_ALCANCE`
 - **THEN** o formulário permanece aberto e informa que a data está fora do histórico disponível pelo provedor
 
-
 #### Scenario: Limite do provider
 - **WHEN** uma consulta historica independente recebe `429 LIMITE_REQUISICOES_EXCEDIDO`
 - **THEN** a interface preserva o erro e nao dispara retry automatico; o preco manual do cadastro nao depende dessa consulta
-
 
 #### Scenario: Falha técnica externa
 - **WHEN** o backend responde `502`, `503` ou `504`
 - **THEN** a interface usa o tratamento técnico central e preserva os dados do formulário
 
-
 #### Scenario: Erro real da prévia
 - **WHEN** o GET da prévia produz `StandardError` em um `HttpErrorResponse`
 - **THEN** os erros normalizados preservam codigo, mensagem e detalhes sem bloquear a COMPRA manual por falta de previa
-
 
 ### Requirement: Submissão explícita sem deduplicação
 O envio SHALL bloquear nova submissão enquanto o POST atual estiver pendente. O request SHALL utilizar o preço final válido presente no campo precoUnitario, que MAY ter sido inicialmente sugerido pela prévia. Uma prévia válida MUST NOT ser condição para realizar COMPRA; falha da prévia MUST NOT impedir o cadastro quando houver preço manual válido e as demais validações forem satisfeitas. A feature MUST NOT realizar retry automático, criar idempotency key nem rejeitar operações legitimamente idênticas por comparação de payload.
@@ -258,7 +248,6 @@ O cadastro iniciado no detalhe de Carteira SHALL reutilizar o mesmo formulário,
 - **WHEN** o cadastro contextual retorna com sucesso
 - **THEN** o histórico passa a exibir o DTO autoritativo retornado
 
-
 ### Requirement: Experiência acessível e responsiva
 A feature SHALL reutilizar feedback, toast e padrões visuais existentes, preservar foco e navegação por teclado e manter lista, formulário, detalhe e dialog legíveis em viewport compacto sem depender somente de cor. O formulário SHALL agrupar visualmente contexto, tipo/movimentação, quantidade/preço/data, Corretora, estimativa existente e ações. A reorganização MUST preservar compra/venda, preco manual editavel e obrigatorio em COMPRA, sugestão editável em VENDA, estimativa, Carteira capturada na abertura e fixa/não editável até conclusão ou cancelamento em página/dialog, inclusive na entrada global de compatibilidade, Corretora opcional, strings decimais, data civil, máscaras, validações, payloads com preco nos dois tipos e previa historica apenas como sugestao editavel no formulario COMPRA.
 
@@ -269,7 +258,6 @@ A feature SHALL reutilizar feedback, toast e padrões visuais existentes, preser
 #### Scenario: Formulário agrupado
 - **WHEN** uma operação é preparada em página ou dialog
 - **THEN** grupos e ajudas facilitam leitura sem adicionar campos ou alterar condições de edição, bloqueio, submissão ou cancelamento, preservando origem, retorno determinístico após reload/deep link e isolamento perante troca global de Carteira
-
 
 ### Requirement: Carteira fixa da abertura ao POST
 Cada abertura de cadastro SHALL capturar uma Carteira válida e mantê-la visível e não editável até cancelamento ou conclusão. Sugestão de VENDA e `carteiraId` do POST SHALL usar essa identidade capturada, nunca reler a seleção global no submit. A prévia de COMPRA SHALL preservar seu contrato independente da Carteira. Mudanças externas de contexto MUST NOT redirecionar a operação em edição a outra Carteira. Sem Carteira válida SHALL bloquear submissão e oferecer recuperação explícita.
