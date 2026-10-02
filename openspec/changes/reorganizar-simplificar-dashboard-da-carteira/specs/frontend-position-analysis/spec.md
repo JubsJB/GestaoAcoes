@@ -31,6 +31,25 @@ A análise SHALL consumir somente as posições já carregadas para a Carteira a
 - **WHEN** distribuição e desempenho são montados, redimensionados ou reapresentados
 - **THEN** nenhum GET, POST ou consulta por ativo é disparado para construí-los
 
+### Requirement: Moedas e unidades independentes
+Valores monetários SHALL ser agrupados por moeda recebida, com BRL/R$ e USD/US$ explícitos, sem FX, soma entre moedas ou escala monetária compartilhada. Valores monetários MUST NOT ser somados ou usados em médias entre moedas, nem convertidos implicitamente. Rentabilidade SHALL ser apresentada por ativo como informação textual complementar do desempenho monetário, identificada com sua unidade percentual e associada ao grupo da moeda correspondente. Percentuais de ativos de moedas distintas SHALL permanecer semanticamente independentes, sem inferência de equivalência monetária, soma ou média de percentuais. A apresentação da rentabilidade MUST NOT exigir escala percentual gráfica, barras percentuais, séries percentuais ou plot percentual. Cada escala monetária SHALL identificar sua unidade e seu âmbito de comparação.
+
+#### Scenario: Somente BRL
+- **WHEN** todas as posições são BRL
+- **THEN** os gráficos exibem somente o grupo BRL e seus valores, sem grupo USD vazio artificial
+
+#### Scenario: Somente USD
+- **WHEN** todas as posições são USD
+- **THEN** os gráficos exibem somente o grupo USD e seus valores, sem conversão para reais
+
+#### Scenario: BRL e USD simultâneos
+- **WHEN** posições BRL e USD coexistem
+- **THEN** gráficos monetários usam grupos e escalas independentes claramente identificados, sem comparação de comprimento como equivalência cambial
+
+#### Scenario: Percentuais em moedas distintas
+- **WHEN** um ativo BRL e um USD têm rentabilidadePercentual="5"
+- **THEN** cada ativo permanece no grupo da sua moeda, com sua rentabilidade de 5% apresentada textualmente como complemento do desempenho monetário; os percentuais permanecem semanticamente independentes, sem escala ou comparação gráfica percentual, soma, média, conversão cambial implícita ou inferência de igualdade monetária
+
 ### Requirement: Resultado não realizado divergente
 O desempenho por ativo SHALL utilizar `resultadoNaoRealizado` diretamente como informação principal, com eixo de zero central e escala linear simétrica por moeda. Valores negativos SHALL estender-se à esquerda e positivos à direita; zero SHALL ser identificado como Neutro sem largura artificial. Cada linha SHALL apresentar texto monetário, estado Positivo/Negativo/Neutro e `rentabilidadePercentual` recebida como informação complementar claramente rotulada, sem segundo gráfico percentual independente.
 
@@ -84,6 +103,52 @@ A análise SHALL manter `rentabilidadePercentual` diretamente como texto complem
 #### Scenario: Revisão estética da rentabilidade no Bloco 2
 - **WHEN** a rentabilidade por ativo é apresentada após a reorganização
 - **THEN** ticker, empresa, percentual autoritativo e estado permanecem visíveis junto ao resultado monetário, sem série temporal, plot próprio, corte de extremos ou request novo
+
+### Requirement: Preservar precisão e limitar aproximação à geometria
+Strings financeiras autoritativas SHALL permanecer integrais e alimentar formatadores existentes. Somente razões normalizadas e coordenadas geométricas MAY usar aproximação numérica; MUST NOT substituir modelos, labels, valores completos, sinal, zero ou payloads. Valores extensos, científicos e diferenças de magnitude SHALL ser tratados sem Infinity/NaN, desaparecimento de ativos ou largura mínima falsa. Comparação de magnitudes para escala não constitui autorização para recomputar finanças.
+
+#### Scenario: Decimal além da precisão binária
+- **WHEN** duas posições da mesma moeda retornam resultadoNaoRealizado="9007199254740993.01" e resultadoNaoRealizado="9007199254740993.02", respectivamente
+- **THEN** ambos os textos preservam a diferença recebida mesmo que os comprimentos das barras de resultado não realizado sejam visualmente indistinguíveis
+
+#### Scenario: Extremos científicos
+- **WHEN** uma fixture contém valores "1e400" e "1e-400"
+- **THEN** todas as linhas e valores completos permanecem disponíveis e a geometria usa coordenadas finitas limitadas, sem converter overflow em zero ou remover o ativo
+
+#### Scenario: Valor abaixo da resolução visual
+- **WHEN** um valor não nulo é pequeno demais para produzir comprimento distinguível na escala
+- **THEN** a linha identifica o valor não nulo e a limitação visual, preserva seu texto completo e não inventa comprimento mínimo
+
+#### Scenario: Arredondamento textual usual
+- **WHEN** um valor recebido não nulo tem casas que o formatador usual arredonda para 0,00
+- **THEN** o estado usa o sinal original e o valor lossless completo permanece visível com unidade, sem classificar o dado como Neutro por arredondamento
+
+#### Scenario: Dados de origem imutáveis
+- **WHEN** gráficos são construídos e redimensionados a partir de uma coleção congelada
+- **THEN** nenhuma string, ordem de origem ou objeto financeiro é modificado, e nenhuma coordenada retorna ao contrato financeiro
+
+### Requirement: Gráficos acessíveis sem interação desnecessária
+Cada gráfico SHALL oferecer uma estrutura textual semântica sempre visível com ativo, moeda, série, valor e estado aplicáveis. A representação gráfica complementar MUST NOT acrescentar foco, tab stops ou exigir hover/clique/toque para revelar dados. Cores SHALL ser complementadas por rótulos, sinais e tratamento de séries. Valores completos MUST NOT ser truncados. Contraste, headings e leitura assistiva SHALL seguir os critérios visuais vigentes.
+
+#### Scenario: Leitura sem visão do gráfico
+- **WHEN** o usuário usa leitor de tela ou consulta somente o texto
+- **THEN** compreende cada ativo/série/valor/estado sem ler SVG decorativo duplicado ou depender de tooltip
+
+#### Scenario: Teclado
+- **WHEN** o usuário percorre o Dashboard por Tab
+- **THEN** barras comparativas não recebem foco e os controles existentes permanecem operáveis na ordem prevista
+
+#### Scenario: Cor indisponível
+- **WHEN** resultados monetários positivos, negativos e neutros e suas rentabilidades percentuais complementares são lidos sem distinguir cores
+- **THEN** rótulos, valores, sinais e estados textuais identificam separadamente resultado monetário e rentabilidade complementar; a direção das barras monetárias complementa essa informação sem exigir desenho ou cor
+
+#### Scenario: Reflow e texto ampliado
+- **WHEN** a página usa 320 CSS px, texto 200%, tablet ou fronteiras 959/960/961px
+- **THEN** grupos empilham quando necessário, texto permanece legível e completo, e não há scroll horizontal obrigatório da página ou representação acessível duplicada
+
+#### Scenario: Reduced motion e baixa altura
+- **WHEN** a preferência de movimento reduzido está ativa ou a viewport tem baixa altura
+- **THEN** os gráficos não dependem de animação e todo conteúdo permanece alcançável na rolagem da página sem foco encoberto
 
 ### Requirement: Integrar sem alterar o histórico e os estados existentes
 A análise SHALL ser dividida conceitualmente em Distribuição da carteira e Desempenho por ativo, depois da Evolução patrimonial e antes dos Resultados realizados. SHALL preservar contexto global, navegação, query params, resultados realizados e carregamento/erro independente da evolução. A tabela completa de posições SHALL permanecer no detalhe da Carteira, mas MUST NOT ser duplicada no Dashboard. O Histórico do patrimônio SHALL continuar representando snapshots manuais com o mesmo dataset, gaps, moedas, timestamps, tooltip, teclado/toque e POST explícito.

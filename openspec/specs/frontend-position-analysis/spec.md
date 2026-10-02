@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Permitir comparar custo, valor atual, resultado não realizado e rentabilidade das posições abertas de uma Carteira com visualizações acessíveis, preservando valores autoritativos e moedas independentes.
+Apresentar o desempenho das posições abertas de uma Carteira por meio do resultado não realizado monetário e da rentabilidade percentual textual complementar por ativo, com visualizações acessíveis, valores autoritativos e moedas independentes.
 
 ## Requirements
 
