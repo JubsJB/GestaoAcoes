@@ -176,6 +176,16 @@ class OpenApiDocumentationTest {
         assertThat(preview.path("description").asText())
                 .contains("fechamento histórico bruto", "data exata", "Consulta independente")
                 .contains("exige precoUnitario manual");
+        for (String description : List.of(
+                preview.path("description").asText(),
+                document.at("/components/schemas/PreviaPrecoCompraResponse/description").asText())) {
+            assertThat(description)
+                    .contains("informativa", "sugestão inicial editável", "sem efeitos colaterais")
+                    .containsIgnoringCase("não vinculante")
+                    .contains("preço final é informado pelo cliente", "independente da prévia", "não exige seu sucesso")
+                    .contains("não consulta", "provider histórico")
+                    .doesNotContain("consulta novamente o provider", "somente leitura");
+        }
         for (String status : List.of("200", "400", "404", "422", "429", "502", "503", "504")) {
             assertThat(preview.path("responses").has(status)).isTrue();
         }

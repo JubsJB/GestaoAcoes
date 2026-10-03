@@ -70,7 +70,7 @@ public class OperacaoResource {
     @GetMapping("/previa-compra")
     @Operation(
             summary = "Consultar prévia do preço de COMPRA",
-            description = "Retorna o fechamento histórico bruto da data exata para exibição somente leitura. Consulta independente; POST /operacoes exige precoUnitario manual e nao consulta este endpoint."
+            description = "Retorna o fechamento histórico bruto da data exata como referência informativa e sugestão inicial editável para COMPRA, sem efeitos colaterais. Consulta independente e não vinculante: o preço final é informado pelo cliente. POST /operacoes exige precoUnitario manual, é independente da prévia, não exige seu sucesso e não consulta este endpoint nem provider histórico."
     )
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Fechamento histórico exato", content = @Content(schema = @Schema(implementation = PreviaPrecoCompraResponse.class))),

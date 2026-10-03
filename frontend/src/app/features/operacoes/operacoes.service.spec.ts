@@ -26,7 +26,7 @@ describe('OperacoesService', () => {
   });
   afterEach(() => http.verify());
 
-  it('envia payload exato de COMPRA sem preço, ordem ou campos derivados', () => {
+  it('envia payload exato de COMPRA com preço e sem ordem ou campos derivados', () => {
     let result: unknown;
     service.cadastrar(PURCHASE).subscribe(value => result = value);
     const request = http.expectOne('/api/operacoes');
