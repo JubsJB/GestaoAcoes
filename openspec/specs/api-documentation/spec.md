@@ -104,11 +104,11 @@ A documentação SHALL descrever o preco manual em COMPRA e VENDA e a geração 
 - **THEN** contrato e formulario sao coerentes quanto ao preco manual, sem alterar formulas contabeis
 
 ### Requirement: Documentação das consultas de apoio à criação de Operações
-O OpenAPI SHALL documentar os endpoints de prévia de COMPRA e sugestão de VENDA com parâmetros, formatos, DTOs e respostas. A documentação SHALL declarar que a previa usa fechamento historico exato em consulta independente e nao participa do POST manual, e que a sugestão de VENDA é editável, não vinculante, limitada à última COMPRA cronologicamente aplicável e não constitui preço médio, cotação atual ou recomendação financeira.
+A descrição do endpoint e o schema de resposta da prévia SHALL declarar consulta independente, informativa, não vinculante e sem efeitos colaterais, utilizável como sugestão inicial editável. MUST NOT afirmar que o POST reconsulta provider ou exige sucesso da prévia; preço final válido e demais validações SHALL continuar obrigatórios. O OpenAPI SHALL documentar os endpoints de prévia de COMPRA e sugestão de VENDA com parâmetros, formatos, DTOs e respostas. A documentação SHALL declarar que a previa usa fechamento historico exato em consulta independente e nao participa do POST manual, e que a sugestão de VENDA é editável, não vinculante, limitada à última COMPRA cronologicamente aplicável e não constitui preço médio, cotação atual ou recomendação financeira.
 
 #### Scenario: Contrato documentado da prévia
 - **WHEN** um consumidor consulta o OpenAPI de `GET /operacoes/previa-compra`
-- **THEN** encontra os parâmetros obrigatórios, `PreviaPrecoCompraResponse`, `200`, `400`, `404`, `422`, `429`, `502`, `503` e `504`, incluindo os códigos padronizados aplicáveis
+- **THEN** encontra os parâmetros obrigatórios, `PreviaPrecoCompraResponse`, `200`, `400`, `404`, `422`, `429`, `502`, `503` e `504`, incluindo os códigos padronizados aplicáveis, e encontra no endpoint e no schema a semântica de sugestão editável sem reconsulta histórica pelo POST
 
 #### Scenario: Contrato documentado da sugestão
 - **WHEN** um consumidor consulta o OpenAPI de `GET /carteiras/{carteiraId}/operacoes/sugestao-preco-venda`

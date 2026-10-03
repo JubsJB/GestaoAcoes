@@ -122,7 +122,7 @@ A aplicação SHALL apresentar em `/carteiras/{id}` nome, identificador e data d
 
 #### Scenario: Cadastro contextual
 - **WHEN** o usuário aciona “Registrar operação” no detalhe
-- **THEN** o mesmo formulário discriminado do fluxo global é aberto com a Carteira pré-selecionada e não editável, aplicando prévia somente leitura em COMPRA e sugestão editável em VENDA, sempre sem ordem manual e com os mesmos payloads do POST
+- **THEN** o mesmo formulário discriminado do fluxo global é aberto com a Carteira pré-selecionada e não editável, aplicando sugestão inicial editável em COMPRA e sugestão editável em VENDA, enviando o preço final do campo nos dois tipos, com Corretora opcional, sempre sem ordem manual e com os mesmos payloads vigentes do POST
 
 #### Scenario: Sucesso no cadastro contextual
 - **WHEN** uma criação contextual é concluída

@@ -24,27 +24,8 @@ O sistema SHALL expor `GET /operacoes/previa-compra` com os query parameters obr
 - **WHEN** ticker e mercado normalizados não identificam uma Ação persistida
 - **THEN** o sistema responde `404 Not Found`, não consulta provider e não cadastra Ação
 
-### Requirement: Mesma fonte histórica da criação de COMPRA
-A prévia SHALL reutilizar a capacidade vigente de fechamento histórico: BRAPI para `BRASIL`, Alpha Vantage para `EUA`, fechamento bruto não ajustado e correspondência exata com `dataOperacao`. A consulta MUST NOT usar cotação atual, `adjustedClose`, preço manual ou candle de pregão anterior ou posterior. O sistema MUST manter uma única regra de validação do resultado histórico compartilhada entre prévia e criação, sem duplicar parser, classificação de erros ou limite de candles.
-
-#### Scenario: Close bruto prevalece
-- **WHEN** o provider apresenta fechamento bruto e fechamento ajustado diferentes
-- **THEN** a prévia devolve exclusivamente o fechamento bruto usado pela regra de COMPRA
-
-#### Scenario: Data sem pregão
-- **WHEN** não existe candle exato em data classificável dentro da janela disponível
-- **THEN** o sistema responde `422 Unprocessable Content` com `COTACAO_HISTORICA_INDISPONIVEL` e não substitui a data
-
-#### Scenario: Data fora do alcance
-- **WHEN** a resposta permite determinar que a data antecede o histórico disponível
-- **THEN** o sistema responde `422 Unprocessable Content` com `HISTORICO_COTACAO_FORA_DO_ALCANCE`
-
-#### Scenario: Erros do provider
-- **WHEN** o provider sinaliza ticker inexistente, limite excedido, resposta inválida, indisponibilidade ou timeout
-- **THEN** o sistema preserva respectivamente `404 TICKER_INEXISTENTE`, `429 LIMITE_REQUISICOES_EXCEDIDO`, `502 RESPOSTA_EXTERNA_INVALIDA`, `503 SERVICO_EXTERNO_INDISPONIVEL` ou `504 SERVICO_EXTERNO_TIMEOUT`
-
 ### Requirement: Prévia informativa e sem efeitos colaterais
-A previa SHALL permanecer consulta historica independente, informativa e sem efeitos colaterais. POST /operacoes SHALL exigir precoUnitario manual em COMPRA e VENDA, sem chamar a previa nem substituir o preco informado. O formulario COMPRA SHALL consumir esta previa somente como sugestao inicial editavel, preservando o preco final do campo no POST.
+A previa SHALL permanecer consulta historica independente, informativa e sem efeitos colaterais. POST /operacoes SHALL exigir precoUnitario manual em COMPRA e VENDA, sem chamar a previa nem substituir o preco informado. O formulario COMPRA SHALL consumir esta previa somente como sugestao inicial editavel, preservando o preco final do campo no POST. O usuário SHALL poder manter ou substituir a sugestão. Sucesso da prévia MUST NOT ser pré-condição do POST; falha, ausência ou indisponibilidade SHALL permitir preço manual válido, sem dispensar as demais validações.
 
 #### Scenario: Consulta independente
 - **WHEN** uma previa retorna um fechamento e depois o cliente envia COMPRA
@@ -69,3 +50,22 @@ A previa SHALL permanecer consulta historica independente, informativa e sem efe
 #### Scenario: Prévia sem mutação
 - **WHEN** a consulta termina com sucesso ou erro
 - **THEN** nenhuma Ação, cotação, Operação, posição ou snapshot é criado ou modificado
+
+### Requirement: Fonte histórica da prévia de COMPRA
+A prévia SHALL reutilizar a capacidade vigente de fechamento histórico: BRAPI para `BRASIL`, Alpha Vantage para `EUA`, fechamento bruto não ajustado e correspondência exata com `dataOperacao`. A consulta MUST NOT usar cotação atual, `adjustedClose`, preço manual ou candle de pregão anterior ou posterior. A prévia SHALL reutilizar a validação centralizada da capability histórica, sem duplicar parser, classificação de erros ou limite de candles. Essa validação MUST NOT ser exigida pelo POST de Operação, que utiliza o preço final informado.
+
+#### Scenario: Close bruto prevalece
+- **WHEN** o provider apresenta fechamento bruto e fechamento ajustado diferentes
+- **THEN** a prévia devolve exclusivamente o fechamento bruto como referência histórica e sugestão não vinculante
+
+#### Scenario: Data sem pregão
+- **WHEN** não existe candle exato em data classificável dentro da janela disponível
+- **THEN** o sistema responde `422 Unprocessable Content` com `COTACAO_HISTORICA_INDISPONIVEL` e não substitui a data
+
+#### Scenario: Data fora do alcance
+- **WHEN** a resposta permite determinar que a data antecede o histórico disponível
+- **THEN** o sistema responde `422 Unprocessable Content` com `HISTORICO_COTACAO_FORA_DO_ALCANCE`
+
+#### Scenario: Erros do provider
+- **WHEN** o provider sinaliza ticker inexistente, limite excedido, resposta inválida, indisponibilidade ou timeout
+- **THEN** o sistema preserva respectivamente `404 TICKER_INEXISTENTE`, `429 LIMITE_REQUISICOES_EXCEDIDO`, `502 RESPOSTA_EXTERNA_INVALIDA`, `503 SERVICO_EXTERNO_INDISPONIVEL` ou `504 SERVICO_EXTERNO_TIMEOUT`
