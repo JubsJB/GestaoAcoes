@@ -42,6 +42,14 @@ Distribuição da carteira por ativo e moeda, seguida por desempenho com resulta
 
 ![Análise por ativo com composição e comparação de valores](docs/img/dashboard-analise-por-ativo.png)
 
+### Distribuição de posição por corretora
+
+No detalhe da Carteira, em **Posições abertas**, cada ativo possui uma seção expansível com nomes das corretoras e quantidades líquidas atribuídas pelas operações registradas. Operações sem corretora são agrupadas em **Sem corretora informada**. A distribuição é informativa: não comprova custódia real nem realiza transferências ou conciliação com extratos.
+
+O replay cronológico preserva quantidades decimais exatas, saldos negativos e o primeiro déficit histórico, mesmo após regularização. Agrupamentos zerados não geram linhas quantitativas, mas seus avisos históricos permanecem identificáveis. A reconciliação compara todos os saldos, inclusive negativos, com a posição consolidada do mesmo conjunto consistente de operações; divergências são apresentadas sem correção automática.
+
+Consulta: `GET /carteiras/{carteiraId}/posicoes/distribuicao-corretoras`. Retorna somente posições consolidadas abertas; carteira sem posições retorna coleção vazia, e carteira inexistente retorna 404. O endpoint é separado do contrato atual de posições. Corretora continua opcional; vendas, preço médio, custo, resultados e indicadores consolidados não mudam. Falhas do painel não ocultam a tabela consolidada.
+
 ### Registro de operações
 
 Compras e vendas recebem ativo, data, quantidade e preço unitário, com corretora opcional. Na compra, a prévia histórica pode preencher uma sugestão de preço que permanece editável.

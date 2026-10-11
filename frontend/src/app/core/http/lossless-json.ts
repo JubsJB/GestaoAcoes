@@ -1,13 +1,13 @@
 const JSON_NUMBER = /^-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?/;
 
-export function parseLosslessJson<T>(text: string, decimalFields: ReadonlySet<string>): T {
+export function parseLosslessJson<T>(text: string, decimalFields: ReadonlySet<string>, numericTokensOnly = false): T {
   if (typeof text !== 'string' || !text.trim()) {
     throw new Error('Resposta JSON vazia.');
   }
-  return JSON.parse(quoteDecimalFields(text, decimalFields)) as T;
+  return JSON.parse(quoteDecimalFields(text, decimalFields, numericTokensOnly)) as T;
 }
 
-function quoteDecimalFields(json: string, decimalFields: ReadonlySet<string>): string {
+function quoteDecimalFields(json: string, decimalFields: ReadonlySet<string>, numericTokensOnly: boolean): string {
   let output = '';
   let index = 0;
   while (index < json.length) {
@@ -40,6 +40,7 @@ function quoteDecimalFields(json: string, decimalFields: ReadonlySet<string>): s
     if (!decimalFields.has(key)) continue;
 
     while (/\s/.test(json[index] ?? '')) output += json[index++];
+    if (json[index] === '"' && numericTokensOnly) throw new Error(`Campo numerico ${key} invalido.`);
     if (json[index] === '"' || json.startsWith('null', index)) continue;
     const number = JSON_NUMBER.exec(json.slice(index));
     if (!number) throw new Error(`Campo decimal ${key} inválido.`);

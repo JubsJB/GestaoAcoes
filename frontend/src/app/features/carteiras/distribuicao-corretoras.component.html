@@ -1,0 +1,67 @@
+<section class="distribution" [attr.aria-labelledby]="'broker-distribution-title-' + carteiraId()"
+  [attr.aria-busy]="loading()">
+  <h3 [id]="'broker-distribution-title-' + carteiraId()">Distribuição por corretora</h3>
+  <p class="disclaimer">Informativa, baseada nas operações registradas. Não representa custódia comprovada.</p>
+  <p class="sr-only" role="status" aria-live="polite" aria-atomic="true">{{announcement()}}</p>
+
+  @if (loading()) {
+    <div class="state"><mat-spinner diameter="24" aria-hidden="true"/><span>Carregando distribuição…</span></div>
+  } @else if (error()) {
+    <div class="load-error">
+      <p role="alert"><app-icon name="error" aria-hidden="true"/> {{errorMessage()}}</p>
+      <button mat-stroked-button type="button" (click)="retry()" aria-label="Tentar novamente a distribuição por corretora">
+        Tentar novamente
+      </button>
+    </div>
+  } @else if (data(); as response) {
+    @if (response.posicoes.length === 0) {
+      <p class="state">Nenhuma distribuição de posições abertas disponível nesta carteira.</p>
+    } @else {
+      @for (position of response.posicoes; track position.acaoId) {
+        <details class="asset-distribution" [attr.data-acao-id]="position.acaoId">
+          <summary [attr.aria-label]="'Distribuição de ' + position.ticker + ', ' + position.mercado + ', ' + position.moeda + (hasWarnings(position) ? '. Há avisos.' : '')">
+            <strong>{{position.ticker}}</strong> <span class="market">{{position.mercado}} · {{position.moeda}}</span>
+            @if (hasWarnings(position)) { <span class="warning-label"><app-icon name="warning" aria-hidden="true"/> Há avisos</span> }
+          </summary>
+          <div class="asset-content">
+            @if (position.diagnosticoReconciliacao) {
+              <aside class="diagnostic reconciliation" [attr.aria-label]="'Reconciliação de ' + position.ticker">
+                <p><app-icon name="warning" aria-hidden="true"/> <strong>Divergência de reconciliação</strong></p>
+                <dl>
+                  <div><dt>Quantidade consolidada nesta consulta</dt><dd>{{quantity(position.quantidadeConsolidada, position.mercado)}}</dd></div>
+                  <div><dt>Quantidade atribuída às corretoras</dt><dd>{{quantity(position.quantidadeAtribuidaTotal, position.mercado)}}</dd></div>
+                </dl>
+              </aside>
+            }
+            @if (position.corretoras.length === 0) {
+              <p>Nenhum agrupamento quantitativo disponível nesta distribuição.</p>
+            } @else {
+              <table>
+                <caption class="sr-only">Distribuição de {{position.ticker}} por corretora</caption>
+                <thead><tr><th scope="col">Corretora</th><th scope="col" class="numeric">Quantidade atribuída</th></tr></thead>
+                <tbody>
+                  @for (broker of position.corretoras; track broker.corretoraId) {
+                    <tr class="broker-row"><th scope="row">{{broker.nome}}</th><td class="numeric"><span class="cell-label" aria-hidden="true">Quantidade atribuída</span>{{quantity(broker.quantidadeLiquida, position.mercado)}}</td></tr>
+                  }
+                </tbody>
+              </table>
+            }
+            @for (diagnostic of position.diagnosticosCorretoras; track diagnostic.corretoraId) {
+              @if (diagnostic.saldoNegativoAtual || diagnostic.possuiDeficitHistorico) {
+                <aside class="diagnostic broker-diagnostic" [attr.aria-label]="'Diagnóstico de ' + diagnostic.nome" [attr.data-corretora-id]="diagnostic.corretoraId ?? 'sem-corretora'">
+                  <p><app-icon name="warning" aria-hidden="true"/> <strong>{{diagnostic.nome}}</strong>:
+                    {{diagnostic.saldoNegativoAtual ? 'Saldo negativo atual.' : 'Déficit histórico regularizado.'}}</p>
+                  <p>Saldo atual atribuído: {{quantity(diagnostic.quantidadeFinal, position.mercado)}}.</p>
+                  @if (diagnostic.primeiroDeficit; as first) {
+                    <p>Primeiro déficit: {{civilDate(first.dataOperacao)}}, ordem {{first.ordemNoDia}}, operação {{first.operacaoId}}.
+                      Saldo após a operação: {{quantity(first.saldoAposOperacao, position.mercado)}}.</p>
+                  }
+                </aside>
+              }
+            }
+          </div>
+        </details>
+      }
+    }
+  }
+</section>

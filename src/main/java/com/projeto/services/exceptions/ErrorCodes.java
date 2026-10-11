@@ -3,6 +3,7 @@ package com.projeto.services.exceptions;
 public final class ErrorCodes {
 
     public static final String REQUEST_INVALIDO = "REQUEST_INVALIDO";
+    public static final String FALHA_CONSULTA_DISTRIBUICAO_CORRETORAS = "FALHA_CONSULTA_DISTRIBUICAO_CORRETORAS";
     public static final String CNPJ_INVALIDO = "CNPJ_INVALIDO";
     public static final String CNPJ_INEXISTENTE = "CNPJ_INEXISTENTE";
     public static final String CEP_INVALIDO = "CEP_INVALIDO";

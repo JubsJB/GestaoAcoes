@@ -1,0 +1,45 @@
+{
+  "carteiraId": 1,
+  "posicoes": [
+    {
+      "acaoId": 1,
+      "ticker": "PETR4",
+      "mercado": "BRASIL",
+      "moeda": "BRL",
+      "quantidadeConsolidada": 100,
+      "quantidadeAtribuidaTotal": 100,
+      "reconciliada": true,
+      "diagnosticoReconciliacao": null,
+      "corretoras": [
+        {
+          "corretoraId": 1,
+          "nome": "Corretora A",
+          "quantidadeLiquida": 80
+        },
+        {
+          "corretoraId": null,
+          "nome": "Sem corretora informada",
+          "quantidadeLiquida": 20
+        }
+      ],
+      "diagnosticosCorretoras": [
+        {
+          "corretoraId": 1,
+          "nome": "Corretora A",
+          "quantidadeFinal": 80,
+          "saldoNegativoAtual": false,
+          "possuiDeficitHistorico": false,
+          "primeiroDeficit": null
+        },
+        {
+          "corretoraId": null,
+          "nome": "Sem corretora informada",
+          "quantidadeFinal": 20,
+          "saldoNegativoAtual": false,
+          "possuiDeficitHistorico": false,
+          "primeiroDeficit": null
+        }
+      ]
+    }
+  ]
+}

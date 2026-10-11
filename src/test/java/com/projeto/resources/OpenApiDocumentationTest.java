@@ -43,6 +43,7 @@ class OpenApiDocumentationTest {
             Map.entry("/carteiras/{carteiraId}/operacoes", Set.of("get")),
             Map.entry("/carteiras/{carteiraId}/operacoes/sugestao-preco-venda", Set.of("get")),
             Map.entry("/carteiras/{carteiraId}/posicoes", Set.of("get")),
+            Map.entry("/carteiras/{carteiraId}/posicoes/distribuicao-corretoras", Set.of("get")),
             Map.entry("/carteiras/{carteiraId}/atualizacoes-cotacoes", Set.of("post")),
             Map.entry("/carteiras/{carteiraId}/resultados-realizados", Set.of("get")),
             Map.entry("/carteiras/{carteiraId}/patrimonio", Set.of("get")),
@@ -56,6 +57,33 @@ class OpenApiDocumentationTest {
 
     @Autowired
     private MockMvc mockMvc;
+
+    @Test
+    void documentsBrokerDistributionWithRequiredFieldsAndFiveExamples() throws Exception {
+        JsonNode document = openApiDocument();
+        JsonNode operation = document.path("paths")
+                .path("/carteiras/{carteiraId}/posicoes/distribuicao-corretoras").path("get");
+        assertThat(operation.has("requestBody")).isFalse();
+        assertThat(operation.path("responses").fieldNames()).toIterable()
+                .containsExactlyInAnyOrder("200", "400", "404", "409", "500");
+        assertThat(operation.at("/responses/200/content/application~1json/examples").size()).isEqualTo(5);
+        JsonNode schemas = document.at("/components/schemas");
+        for (String name : List.of("DistribuicaoCarteiraResponse", "PosicaoDistribuicaoResponse",
+                "QuantidadeCorretoraResponse", "DiagnosticoCorretoraResponse", "PrimeiroDeficitResponse",
+                "DiagnosticoReconciliacaoResponse")) {
+            JsonNode schema = schemas.path(name);
+            assertThat(schema.has("properties")).as(name).isTrue();
+            Set<String> required = new HashSet<>();
+            schema.path("required").forEach(field -> required.add(field.asText()));
+            Set<String> properties = new HashSet<>();
+            schema.path("properties").fieldNames().forEachRemaining(properties::add);
+            assertThat(required).as(name).isEqualTo(properties);
+        }
+        assertThat(schemas.at("/PosicaoDistribuicaoResponse/properties/quantidadeConsolidada/type").asText())
+                .isEqualTo("number");
+        assertThat(schemas.at("/PrimeiroDeficitResponse/properties/dataOperacao/format").asText()).isEqualTo("date");
+        assertThat(schemas.path("DiagnosticoReconciliacaoResponse").path("properties").has("corretoraId")).isFalse();
+    }
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 

@@ -13,6 +13,10 @@ import java.util.Optional;
 
 public interface OperacaoRepository extends JpaRepository<Operacao, Long> {
 
+    @EntityGraph(attributePaths = {"acao", "corretora"})
+    @Query("select o from Operacao o where o.carteira.id = :carteiraId order by o.dataOperacao, o.ordemNoDia, o.id")
+    List<Operacao> listarParaDistribuicao(@Param("carteiraId") Long carteiraId);
+
     @EntityGraph(attributePaths = "acao")
     List<Operacao> findByCarteiraIdOrderByDataOperacaoAscOrdemNoDiaAscIdAsc(Long carteiraId);
 

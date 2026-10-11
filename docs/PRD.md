@@ -442,6 +442,18 @@ O sistema deverá permitir associar opcionalmente uma operação a uma corretora
 
 O sistema deverá apresentar a posição consolidada de cada ação da carteira.
 
+##### Distribuição informativa por corretora
+
+No detalhe da Carteira, em Posições abertas, o sistema deverá apresentar uma seção expansível por ativo com a distribuição derivada das operações registradas, agrupada por Carteira + Ação + Corretora. A corretora permanece opcional; operações sem identificação pertencem à categoria "Sem corretora informada".
+
+As quantidades líquidas atribuídas deverão ser compras menos vendas, com precisão decimal exata e replay cronológico oficial. Saldos negativos atuais e déficits históricos deverão ser identificados, preservando a primeira ocorrência mesmo após regularização. Grupos zerados não deverão aparecer como linhas quantitativas, mas seus diagnósticos históricos permanecerão identificáveis enquanto a posição consolidada estiver aberta.
+
+A soma de todos os grupos, incluindo negativos e zerados, deverá ser reconciliada com a quantidade consolidada do mesmo conjunto consistente de operações. Divergências serão explícitas e não corrigidas automaticamente; reconciliação não implica ausência de déficit histórico.
+
+A consulta deverá utilizar `GET /carteiras/{carteiraId}/posicoes/distribuicao-corretoras`, separado dos contratos existentes, somente para posições consolidadas abertas. A interface deverá preservar os dados consolidados em caso de falha e oferecer estados acessíveis de carregamento, vazio, erro e retry manual.
+
+Esta visão é informativa e não comprova custódia externa. Não introduz transferência, conciliação com extratos, bloqueio de venda por corretora, saneamento ou cálculos financeiros por corretora. Preço médio, custo, resultados, rentabilidade e regras de compra/venda, inclusive retroativas, permanecem consolidados.
+
 #### RF18 — Calcular quantidade atual
 
 O sistema deverá calcular automaticamente a quantidade atual disponível de cada ação.
