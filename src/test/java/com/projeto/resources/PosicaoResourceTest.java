@@ -118,7 +118,7 @@ class PosicaoResourceTest {
                 .andExpect(content().string(Matchers.containsString("\"precoMedio\":14.000000000000")))
                 .andExpect(content().string(Matchers.containsString("\"custoPosicao\":1400.000000000000")))
                 .andExpect(jsonPath("$", Matchers.hasSize(3)))
-                .andExpect(jsonPath("$[0]", Matchers.aMapWithSize(13)))
+                .andExpect(jsonPath("$[0]", Matchers.aMapWithSize(15)))
                 .andExpect(jsonPath("$[0].acaoId").value(petr4.getId()))
                 .andExpect(jsonPath("$[0].ticker").value("PETR4"))
                 .andExpect(jsonPath("$[0].nomeEmpresa").value("Petróleo Brasileiro S.A."))

@@ -48,6 +48,7 @@ import static org.mockito.ArgumentMatchers.any;
 class SnapshotCarteiraConcurrencyTest {
 
     @Autowired SnapshotCarteiraService snapshotService;
+    @Autowired AplicacaoCotacaoService aplicacaoCotacao;
     @Autowired OperacaoService operacaoService;
     @Autowired SnapshotCarteiraRepository snapshotRepository;
     @Autowired SnapshotCarteiraMoedaRepository componenteRepository;
@@ -120,10 +121,10 @@ class SnapshotCarteiraConcurrencyTest {
             Future<?> quote = executor.submit(() -> {
                 start.await(5, TimeUnit.SECONDS);
                 new TransactionTemplate(transactionManager).executeWithoutResult(status -> {
-                    Acao managed = acaoRepository.findById(acao.getId()).orElseThrow();
-                    managed.atualizarCotacao(new BigDecimal("20.000000"),
-                            OffsetDateTime.parse("2026-08-27T14:00:00Z"));
-                    acaoRepository.saveAndFlush(managed);
+                    var instante = OffsetDateTime.parse("2026-08-27T14:00:00Z");
+                    aplicacaoCotacao.aplicar(acao.getId(), new com.projeto.integrations.cotacao.CotacaoCandidata(
+                            acao.getTicker(), acao.getNomeEmpresa(), acao.getMoeda(), new BigDecimal("20.000000"),
+                            com.projeto.entities.ReferenciaTipoCotacao.INSTANTE, instante, null, instante));
                 });
                 return null;
             });
@@ -133,7 +134,8 @@ class SnapshotCarteiraConcurrencyTest {
 
             assertTrue(value.equals(new BigDecimal("10.000000000000"))
                     || value.equals(new BigDecimal("20.000000000000")));
-            assertEquals(0, historicoRepository.count());
+            // Somente a atualização cria histórico; o snapshot continua sem depender dele.
+            assertEquals(1, historicoRepository.count());
         } finally {
             executor.shutdownNow();
         }

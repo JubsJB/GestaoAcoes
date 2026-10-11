@@ -1,3 +1,5 @@
+import { CamposTemporaisCotacao } from '../../../shared/models/cotacao-temporal';
+
 export type Mercado = 'BRASIL' | 'EUA';
 export type Moeda = 'BRL' | 'USD';
 
@@ -6,14 +8,13 @@ export interface AcaoCreateRequest {
   mercado: Mercado;
 }
 
-export interface AcaoResponse {
+export interface AcaoResponse extends CamposTemporaisCotacao {
   id: number;
   ticker: string;
   nomeEmpresa: string;
   mercado: Mercado;
   moeda: Moeda;
   cotacaoAtual: number;
-  dataHoraCotacao: string;
 }
 
 export function normalizeTicker(value: string): string {

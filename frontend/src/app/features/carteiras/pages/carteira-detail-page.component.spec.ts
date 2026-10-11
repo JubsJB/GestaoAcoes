@@ -83,7 +83,7 @@ describe('CarteiraDetailPageComponent', () => {
     result.params.next(convertToParamMap({ id: 4 })); result.fixture.detectChanges();
     oldPositions.next([{ ticker: 'STALE' }]); oldPositions.complete();
     expect(result.fixture.nativeElement.textContent).not.toContain('STALE');
-    newPositions.next([{ acaoId: 7, ticker: 'PETR4', nomeEmpresa: 'Petrobras', mercado: 'BRASIL', moeda: 'BRL', quantidadeAtual: '5', precoMedio: '40', custoPosicao: '200', cotacaoAtual: '48.2', dataHoraCotacao: '2026-01-01T00:00:00Z', valorAtualPosicao: '241', resultadoNaoRealizado: '41', rentabilidadePercentual: '20.5' }]); newPositions.complete();
+    newPositions.next([{ acaoId: 7, ticker: 'PETR4', nomeEmpresa: 'Petrobras', mercado: 'BRASIL', moeda: 'BRL', quantidadeAtual: '5', precoMedio: '40', custoPosicao: '200', cotacaoAtual: '48.2', dataHoraCotacao: '2026-01-01T00:00:00Z', referenciaMercadoCotacao: { tipo: 'DESCONHECIDA', data: null, instante: null }, cotacaoObtidaEm: null, valorAtualPosicao: '241', resultadoNaoRealizado: '41', rentabilidadePercentual: '20.5' }]); newPositions.complete();
     result.fixture.detectChanges();
     expect(result.fixture.nativeElement.textContent).toContain('Outra');
     expect(result.fixture.nativeElement.textContent).toContain('PETR4');

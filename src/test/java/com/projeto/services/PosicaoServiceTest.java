@@ -196,7 +196,8 @@ class PosicaoServiceTest {
     void currentQuoteChangesOnlyCurrentValueAndPreservesAccountingReplayAndTimestamp() {
         OffsetDateTime quoteTimestamp = OffsetDateTime.parse("2026-08-20T15:30:00-03:00");
         Acao action = action(2L, "AAPL", "Apple", Mercado.EUA, Moeda.USD);
-        action.atualizarCotacao(new BigDecimal("200.000000"), quoteTimestamp);
+        action.substituirObservacao(new BigDecimal("200.000000"), com.projeto.entities.ReferenciaTipoCotacao.INSTANTE,
+                quoteTimestamp, null, quoteTimestamp);
         when(carteiraRepository.findById(1L)).thenReturn(Optional.of(carteira));
         when(operacaoRepository.findByCarteiraIdOrderByDataOperacaoAscOrdemNoDiaAscIdAsc(1L))
                 .thenReturn(List.of(
@@ -204,7 +205,8 @@ class PosicaoServiceTest {
                 ));
 
         PosicaoResponse first = service.listarPorCarteira(1L).get(0);
-        action.atualizarCotacao(new BigDecimal("250.000000"), quoteTimestamp.plusHours(1));
+        action.substituirObservacao(new BigDecimal("250.000000"), com.projeto.entities.ReferenciaTipoCotacao.INSTANTE,
+                quoteTimestamp.plusHours(1), null, quoteTimestamp.plusHours(1));
         PosicaoResponse second = service.listarPorCarteira(1L).get(0);
 
         assertEquals(first.quantidadeAtual(), second.quantidadeAtual());
@@ -222,15 +224,11 @@ class PosicaoServiceTest {
     @Test
     void partialSaleAndNewCycleUseOnlyTheRemainingOpenPosition() {
         Acao partial = action(2L, "PETR4", "Petrobras", Mercado.BRASIL, Moeda.BRL);
-        partial.atualizarCotacao(
-                new BigDecimal("15.000000"),
-                OffsetDateTime.parse("2026-08-20T15:30:00Z")
-        );
+        partial.substituirObservacao(new BigDecimal("15.000000"), com.projeto.entities.ReferenciaTipoCotacao.INSTANTE,
+                OffsetDateTime.parse("2026-08-20T15:30:00Z"), null, OffsetDateTime.parse("2026-08-20T15:30:00Z"));
         Acao newCycle = action(3L, "VALE3", "Vale", Mercado.BRASIL, Moeda.BRL);
-        newCycle.atualizarCotacao(
-                new BigDecimal("25.000000"),
-                OffsetDateTime.parse("2026-08-20T15:30:00Z")
-        );
+        newCycle.substituirObservacao(new BigDecimal("25.000000"), com.projeto.entities.ReferenciaTipoCotacao.INSTANTE,
+                OffsetDateTime.parse("2026-08-20T15:30:00Z"), null, OffsetDateTime.parse("2026-08-20T15:30:00Z"));
         when(carteiraRepository.findById(1L)).thenReturn(Optional.of(carteira));
         when(operacaoRepository.findByCarteiraIdOrderByDataOperacaoAscOrdemNoDiaAscIdAsc(1L))
                 .thenReturn(List.of(
@@ -352,6 +350,50 @@ class PosicaoServiceTest {
                         .map(field -> field.getName())
                         .toList()
         );
+    }
+
+    @Test
+    void captureUsesReplayDeduplicatesSortsAndExcludesClosedWithoutValuation() {
+        var a = action(20L, "AAA", "A", Mercado.BRASIL, Moeda.BRL);
+        var b = action(10L, "BBB", "B", Mercado.BRASIL, Moeda.BRL);
+        var closed = action(30L, "CCC", "C", Mercado.BRASIL, Moeda.BRL);
+        // Invalid market price would fail listing, but is irrelevant to position selection.
+        ReflectionTestUtils.setField(a, "cotacaoAtual", null);
+        when(carteiraRepository.findById(1L)).thenReturn(Optional.of(carteira));
+        when(operacaoRepository.findByCarteiraIdOrderByDataOperacaoAscOrdemNoDiaAscIdAsc(1L))
+                .thenReturn(List.of(
+                        operation(carteira,a,TipoOperacao.COMPRA,"2","10","2026-08-01",1),
+                        operation(carteira,b,TipoOperacao.COMPRA,"1","10","2026-08-01",1),
+                        operation(carteira,closed,TipoOperacao.COMPRA,"1","10","2026-08-01",1),
+                        operation(carteira,a,TipoOperacao.COMPRA,"1","10","2026-08-02",1),
+                        operation(carteira,a,TipoOperacao.VENDA,"1","12","2026-08-03",1),
+                        operation(carteira,closed,TipoOperacao.VENDA,"1","12","2026-08-03",1)));
+        assertEquals(List.of(10L,20L), service.capturarAcoesComPosicaoAberta(1L));
+    }
+
+    @Test
+    void captureRejectsMissingPortfolioAndInconsistentReplay() {
+        when(carteiraRepository.findById(404L)).thenReturn(Optional.empty());
+        assertThrows(ObjectNotFoundException.class,()->service.capturarAcoesComPosicaoAberta(404L));
+        var a = action(1L,"AAA","A",Mercado.BRASIL,Moeda.BRL);
+        when(carteiraRepository.findById(1L)).thenReturn(Optional.of(carteira));
+        when(operacaoRepository.findByCarteiraIdOrderByDataOperacaoAscOrdemNoDiaAscIdAsc(1L))
+                .thenReturn(List.of(operation(carteira,a,TipoOperacao.VENDA,"1","10","2026-08-01",1)));
+        assertEquals(ErrorCodes.HISTORICO_OPERACOES_INCONSISTENTE,
+                assertThrows(ApiException.class,()->service.capturarAcoesComPosicaoAberta(1L)).getCode());
+    }
+
+    @Test
+    void captureEmptyIsImmutableAndUsesConsistentRead() throws Exception {
+        when(carteiraRepository.findById(1L)).thenReturn(Optional.of(carteira));
+        when(operacaoRepository.findByCarteiraIdOrderByDataOperacaoAscOrdemNoDiaAscIdAsc(1L))
+                .thenReturn(List.of());
+        var ids = service.capturarAcoesComPosicaoAberta(1L);
+        assertTrue(ids.isEmpty());
+        assertThrows(UnsupportedOperationException.class,()->ids.add(1L));
+        var tx=PosicaoService.class.getMethod("capturarAcoesComPosicaoAberta",Long.class)
+                .getAnnotation(Transactional.class);
+        assertTrue(tx.readOnly()); assertEquals(Isolation.REPEATABLE_READ,tx.isolation());
     }
 
     private Operacao operation(

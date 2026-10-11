@@ -1,6 +1,10 @@
 <section class="app-page dashboard" aria-labelledby="dashboard-title">
   <app-page-header headingId="dashboard-title" eyebrow="Visão geral" icon="dashboard" title="Dashboard" description="Acompanhe seu patrimônio e suas posições, sempre separados por moeda." />
 
+  @if (quoteFeedback(); as feedback) {
+    <app-feedback-alert class="quote-update-feedback" [variant]="feedback.variant" [message]="feedback.message" [urgent]="false" />
+  }
+
   @if (portfoliosError()) {
     <app-feedback-alert variant="error" [message]="portfoliosError()!.message" [details]="portfoliosError()!.details" />
     <div class="app-state"><button mat-stroked-button type="button" (click)="loadPortfolios()">Tentar novamente</button></div>
@@ -22,10 +26,16 @@
         <a mat-stroked-button [routerLink]="['/carteiras', selected()!.id]">Ver carteira</a>
         <button mat-flat-button type="button" (click)="openOperationDialog()">Registrar operação</button>
         <button mat-button type="button" (click)="reload()" [disabled]="financialLoading()">Atualizar dados</button>
+        <button mat-button type="button" (click)="atualizarCotacoes()"
+          [disabled]="quoteDisabledReason() !== null" [attr.aria-busy]="quoteUpdating()"
+          [attr.aria-describedby]="quoteDisabledReason() ? 'quote-update-status' : null">
+          {{ quoteUpdating() ? 'Atualizando cotações' : 'Atualizar cotações' }}
+        </button>
+        <span id="quote-update-status" role="status" aria-live="polite">{{ quoteDisabledReason() }}</span>
       </div>
 
       @if (financialError()) {
-        <app-feedback-alert variant="error" [message]="financialError()!.message" [details]="financialError()!.details" />
+        <app-feedback-alert variant="error" [message]="financialErrorMessage()" [details]="financialError()!.details" />
         <div class="app-state"><button mat-stroked-button type="button" (click)="reload()">Tentar novamente</button></div>
       } @else if (financialLoading()) {
         <div class="app-state" role="status" aria-live="polite"><mat-spinner diameter="36" /> Atualizando indicadores de {{ selected()!.nome }}…</div>

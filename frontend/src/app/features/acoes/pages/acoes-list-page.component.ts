@@ -13,7 +13,7 @@ import { finalize } from 'rxjs';
 import { NormalizedHttpError } from '../../../core/errors/normalized-http-error';
 import { AppIconComponent } from '../../../shared/app-icon/app-icon.component';
 import { FeedbackAlertComponent } from '../../../shared/feedback-alert/feedback-alert.component';
-import { formatOffsetDateTime } from '../../../shared/formatters/offset-date-time.formatter';
+import { formatReferenciaCotacao } from '../../../shared/formatters/cotacao-temporal.formatter';
 import { PageHeaderComponent } from '../../../shared/page-header/page-header.component';
 import { SuccessToastService } from '../../../shared/success-toast/success-toast.service';
 import { AcaoNotFoundDialogComponent } from '../acao-not-found-dialog.component';
@@ -46,7 +46,7 @@ import { AcaoCreatePageComponent } from './acao-create-page.component';
         @else if(loadError()){<div class="app-state"><button mat-stroked-button type="button" (click)="load()">Tentar carregar ações novamente</button></div>}
         @else if(acoes().length===0){<div class="app-state app-surface"><span class="app-state__icon" aria-hidden="true"><app-icon name="empty" /></span><h2>Você ainda não possui ações cadastradas.</h2><p>Adicione seu primeiro ativo para acompanhar seus dados de mercado.</p><button mat-stroked-button type="button" (click)="openCreateDialog()">Cadastrar a primeira ação</button></div>}
         @else{
-          <table class="collection-table" role="table"><caption>Ações cadastradas</caption><thead role="rowgroup"><tr role="row"><th scope="col" role="columnheader">Ativo</th><th scope="col" role="columnheader">Mercado · moeda</th><th scope="col" role="columnheader" class="numeric quote-column">Última cotação registrada</th><th scope="col" role="columnheader">Atualizada em</th><th scope="col" role="columnheader">Ações</th></tr></thead><tbody role="rowgroup">@for(acao of acoes();track acao.id){<tr role="row"><th scope="row" role="rowheader"><span class="cell-label" aria-hidden="true">Ativo</span><strong class="asset-name">{{acao.ticker}}</strong><small>{{acao.nomeEmpresa}}</small></th><td role="cell"><span class="cell-label" aria-hidden="true">Mercado · moeda</span><span class="status-badge market-badge">{{market(acao.mercado)}} · {{acao.moeda}}</span></td><td role="cell" class="numeric"><span class="cell-label" aria-hidden="true">Última cotação registrada</span><strong class="primary-value">{{quote(acao.cotacaoAtual,acao.moeda)}}</strong></td><td role="cell"><span class="cell-label" aria-hidden="true">Atualizada em</span>{{dateTime(acao.dataHoraCotacao)}}</td><td role="cell" class="actions-cell"><span class="cell-label" aria-hidden="true">Ações</span><a class="details-link" [routerLink]="[acao.id]" [attr.aria-label]="'Ver detalhes de '+acao.ticker">Ver detalhes</a></td></tr>}</tbody></table>
+          <table class="collection-table" role="table"><caption>Ações cadastradas</caption><thead role="rowgroup"><tr role="row"><th scope="col" role="columnheader">Ativo</th><th scope="col" role="columnheader">Mercado · moeda</th><th scope="col" role="columnheader" class="numeric quote-column">Última cotação registrada</th><th scope="col" role="columnheader">Referência da cotação</th><th scope="col" role="columnheader">Ações</th></tr></thead><tbody role="rowgroup">@for(acao of acoes();track acao.id){<tr role="row"><th scope="row" role="rowheader"><span class="cell-label" aria-hidden="true">Ativo</span><strong class="asset-name">{{acao.ticker}}</strong><small>{{acao.nomeEmpresa}}</small></th><td role="cell"><span class="cell-label" aria-hidden="true">Mercado · moeda</span><span class="status-badge market-badge">{{market(acao.mercado)}} · {{acao.moeda}}</span></td><td role="cell" class="numeric"><span class="cell-label" aria-hidden="true">Última cotação registrada</span><strong class="primary-value">{{quote(acao.cotacaoAtual,acao.moeda)}}</strong></td><td role="cell"><span class="cell-label" aria-hidden="true">Referência da cotação</span>{{reference(acao.referenciaMercadoCotacao)}}</td><td role="cell" class="actions-cell"><span class="cell-label" aria-hidden="true">Ações</span><a class="details-link" [routerLink]="[acao.id]" [attr.aria-label]="'Ver detalhes de '+acao.ticker">Ver detalhes</a></td></tr>}</tbody></table>
         }
       </div>
     </section>`,
@@ -73,7 +73,7 @@ export class AcoesListPageComponent {
   protected readonly searchForm = new FormGroup({ ticker: new FormControl('', { nonNullable: true, validators: [Validators.required, Validators.maxLength(30)] }), mercado: new FormControl<Mercado | null>(null, { validators: [Validators.required] }) });
   protected readonly market = formatMercado;
   protected readonly quote = formatCotacao;
-  protected readonly dateTime = formatOffsetDateTime;
+  protected readonly reference = formatReferenciaCotacao;
 
   constructor() { this.load(); }
 

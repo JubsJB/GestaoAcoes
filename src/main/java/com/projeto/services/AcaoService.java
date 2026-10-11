@@ -4,8 +4,8 @@ import com.projeto.dto.AcaoCreateRequest;
 import com.projeto.dto.AcaoResponse;
 import com.projeto.entities.Acao;
 import com.projeto.entities.Mercado;
-import com.projeto.entities.Moeda;
-import com.projeto.integrations.cotacao.CotacaoData;
+import com.projeto.integrations.cotacao.CotacaoCandidata;
+import com.projeto.entities.ReferenciaTipoCotacao;
 import com.projeto.integrations.cotacao.CotacaoProvider;
 import com.projeto.mappers.AcaoMapper;
 import com.projeto.repositories.AcaoRepository;
@@ -18,32 +18,26 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.concurrent.ConcurrentHashMap;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.beans.factory.annotation.Qualifier;
 import jakarta.annotation.PostConstruct;
 import java.time.OffsetDateTime;
-import java.time.ZoneOffset;
 import java.util.EnumMap;
 import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 
 @Service
 public class AcaoService {
 
-    private static final int MAX_TICKER_LENGTH = 30;
-    private static final int MAX_NAME_LENGTH = 255;
-
     private final TickerNormalizer tickerNormalizer;
     private final Map<Mercado, CotacaoProvider> providers;
     private final AcaoPersistenceService persistenceService;
-    private final AcaoCotacaoPersistenceService cotacaoPersistenceService;
+    private final AplicacaoCotacaoService cotacaoPersistenceService;
     private final AcaoRepository repository;
     private final AcaoMapper mapper;
     private final Clock clock;
@@ -64,17 +58,17 @@ public class AcaoService {
         }
     }
 
-    private record RefreshAttempt(Instant completedAt, AcaoResponse result, ApiException failure) { }
+    private record RefreshAttempt(Instant completedAt, ResultadoAtualizacaoCotacao result) { }
 
 
     public AcaoService(
             TickerNormalizer tickerNormalizer,
             List<CotacaoProvider> providers,
             AcaoPersistenceService persistenceService,
-            AcaoCotacaoPersistenceService cotacaoPersistenceService,
+            AplicacaoCotacaoService cotacaoPersistenceService,
             AcaoRepository repository,
             AcaoMapper mapper,
-            Clock clock
+            @Qualifier("cotacaoAcquisitionClock") Clock clock
     ) {
         this.tickerNormalizer = tickerNormalizer;
         this.providers = indexProviders(providers);
@@ -96,19 +90,21 @@ public class AcaoService {
 
         CotacaoProvider provider = providerFor(mercado);
 
-        CotacaoData externalData = provider.consultar(requestedTicker);
-        ValidatedQuote validated = validateExternalData(externalData, requestedTicker, mercado);
-        OffsetDateTime quoteTime = externalData.dataHoraCotacao() == null
-                ? OffsetDateTime.now(clock).withOffsetSameInstant(ZoneOffset.UTC)
-                : externalData.dataHoraCotacao().withOffsetSameInstant(ZoneOffset.UTC);
+        CotacaoCandidata candidata = provider.consultarCandidataCadastro(requestedTicker, clock);
+        OffsetDateTime quoteTime = candidata.referenciaTipo() == ReferenciaTipoCotacao.INSTANTE
+                ? candidata.referenciaInstante() : candidata.cotacaoObtidaEm();
 
         Acao acao = new Acao(
-                validated.ticker(),
-                validated.companyName(),
+                candidata.ticker(),
+                candidata.nomeEmpresa(),
                 mercado,
-                validated.currency(),
-                validated.quote(),
-                quoteTime
+                candidata.moeda(),
+                candidata.cotacao(),
+                quoteTime,
+                candidata.referenciaTipo(),
+                candidata.referenciaInstante(),
+                candidata.referenciaData(),
+                candidata.cotacaoObtidaEm()
         );
         return mapper.toResponse(persistenceService.saveUnique(acao));
     }
@@ -148,6 +144,14 @@ public class AcaoService {
     }
 
     public AcaoResponse atualizarCotacao(Long id) {
+        return atualizarCotacaoCompartilhada(id).respostaIndividual();
+    }
+
+    /** Única orquestração de refresh para individual e lote; sem transação envolvente. */
+    public ResultadoAtualizacaoCotacao atualizarCotacaoCompartilhada(Long id) {
+        if (org.springframework.transaction.support.TransactionSynchronizationManager.isActualTransactionActive()) {
+            throw new IllegalStateException("Refresh não pode executar em transação envolvente");
+        }
         Acao acao = repository.findById(id)
                 .orElseThrow(() -> new ObjectNotFoundException(
                         "Ação não encontrada para o id: " + id
@@ -161,49 +165,62 @@ public class AcaoService {
             Instant now = clock.instant();
             RefreshAttempt previous = refreshAttempts.get(current.getTicker());
             if (previous != null && now.isBefore(previous.completedAt().plus(refreshCooldown))) {
-                if (previous.failure() != null) throw withPreservedQuote(previous.failure(), current);
-                // A concurrent request may still hold an older JPA first-level-cache entity.
-                if (current.getDataHoraCotacao() == null || previous.result().dataHoraCotacao()
-                        .isAfter(current.getDataHoraCotacao())) return previous.result();
-                return mapper.toResponse(current);
+                if (previous.result().falha() != null) {
+                    return ResultadoAtualizacaoCotacao.de(current, RegraDecisaoCotacao.Resultado.FALHA,
+                            "COOLDOWN_FALHA", ResultadoAtualizacaoCotacao.Origem.COOLDOWN,
+                            ResultadoAtualizacaoCotacao.estado(current),
+                            withPreservedQuote(previous.result().falha(), current));
+                }
+                return previous.result().emCooldown();
             }
             if (current.getCotacaoAtual() != null && current.getCotacaoAtual().signum() > 0
-                    && current.getDataHoraCotacao() != null
-                    && !current.getDataHoraCotacao().toInstant().isAfter(now)
-                    && now.isBefore(current.getDataHoraCotacao().toInstant().plus(quoteReuseInterval))) {
-                return mapper.toResponse(current);
+                    && referenciaConhecida(current)
+                    && current.getCotacaoObtidaEm() != null
+                    && !current.getCotacaoObtidaEm().toInstant().isAfter(now)
+                    && now.isBefore(current.getCotacaoObtidaEm().toInstant().plus(quoteReuseInterval))) {
+                return ResultadoAtualizacaoCotacao.de(current,
+                        RegraDecisaoCotacao.Resultado.SEM_NOVA_COTACAO, "REUSO",
+                        ResultadoAtualizacaoCotacao.Origem.REUSO,
+                        ResultadoAtualizacaoCotacao.estado(current), null);
             }
-            try {
-                AcaoResponse result = atualizarCotacaoPersistida(current);
-                refreshAttempts.put(current.getTicker(), new RefreshAttempt(clock.instant(), result, null));
-                return result;
-            } catch (ApiException failure) {
-                refreshAttempts.put(current.getTicker(), new RefreshAttempt(clock.instant(), null, failure));
-                throw failure;
-            }
+            ResultadoAtualizacaoCotacao result = atualizarCotacaoPersistida(current);
+            refreshAttempts.put(current.getTicker(), new RefreshAttempt(clock.instant(), result));
+            return result;
         }
     }
 
-    private AcaoResponse atualizarCotacaoPersistida(Acao acao) {
+    private ResultadoAtualizacaoCotacao atualizarCotacaoPersistida(Acao acao) {
+        CotacaoCandidata candidata;
         try {
-            CotacaoProvider provider = providerFor(acao.getMercado());
-            CotacaoData externalData = acao.getMercado() == Mercado.EUA
-                    ? provider.consultarAtualizacao(acao.getTicker(), acao.getNomeEmpresa(), acao.getMoeda().name())
-                    : provider.consultar(acao.getTicker());
-            ValidatedQuote validated = validateUpdateExternalData(externalData, acao);
-            OffsetDateTime quoteTime = externalData.dataHoraCotacao() == null
-                    ? OffsetDateTime.now(clock).withOffsetSameInstant(ZoneOffset.UTC)
-                    : externalData.dataHoraCotacao().withOffsetSameInstant(ZoneOffset.UTC);
-
-            Acao persisted = cotacaoPersistenceService.atualizarSePosterior(
-                    acao.getId(),
-                    validated.quote(),
-                    quoteTime
-            );
-            return mapper.toResponse(persisted);
+            candidata = providerFor(acao.getMercado()).consultarCandidataAtualizacao(
+                    acao.getTicker(), acao.getNomeEmpresa(), acao.getMoeda().name(), clock);
         } catch (ApiException exception) {
-            throw withPreservedQuote(exception, acao);
+            return ResultadoAtualizacaoCotacao.de(acao, RegraDecisaoCotacao.Resultado.FALHA,
+                    exception.getCode(), ResultadoAtualizacaoCotacao.Origem.CONSULTA,
+                    ResultadoAtualizacaoCotacao.estado(acao), withPreservedQuote(exception, acao));
         }
+        // O proxy conclui a transação antes de fornecer o snapshot; integridade propaga sem retry.
+        var aplicacao = cotacaoPersistenceService.aplicar(acao.getId(), candidata);
+        var estado = aplicacao.estado();
+        if (aplicacao.decisao().resultado() == RegraDecisaoCotacao.Resultado.FALHA) {
+            String codigo = switch (aplicacao.decisao().motivo()) {
+                case CONFLITO_NA_MESMA_REFERENCIA -> ErrorCodes.CONFLITO_NA_MESMA_REFERENCIA;
+                case TIPO_REFERENCIA_INCOMPATIVEL -> ErrorCodes.TIPO_REFERENCIA_INCOMPATIVEL;
+                case REFERENCIA_TEMPORAL_INVALIDA -> ErrorCodes.REFERENCIA_TEMPORAL_INVALIDA;
+                default -> throw new IllegalStateException("Motivo de falha temporal inválido");
+            };
+            Map<String, Object> details = new LinkedHashMap<>();
+            details.put("acaoId", acao.getId());
+            details.put("cotacaoPreservada", true);
+            details.put("ultimaCotacaoValida", estado.preco());
+            details.put("dataHoraUltimaCotacao", estado.legado());
+            return ResultadoAtualizacaoCotacao.de(acao, aplicacao.decisao().resultado(),
+                    aplicacao.decisao().motivo().name(), ResultadoAtualizacaoCotacao.Origem.CONSULTA, estado,
+                    new ApiException(HttpStatus.UNPROCESSABLE_CONTENT, codigo,
+                            "Conflito na referência temporal da cotação", details));
+        }
+        return ResultadoAtualizacaoCotacao.de(acao, aplicacao.decisao().resultado(),
+                aplicacao.decisao().motivo().name(), ResultadoAtualizacaoCotacao.Origem.CONSULTA, estado, null);
     }
 
     private Map<Mercado, CotacaoProvider> indexProviders(List<CotacaoProvider> providerList) {
@@ -229,114 +246,15 @@ public class AcaoService {
         return provider;
     }
 
-    private ValidatedQuote validateUpdateExternalData(CotacaoData data, Acao acao) {
-        if (data != null && !isBlank(data.ticker()) && data.tickerAlteradoExplicitamente()) {
-            String returnedTicker = data.ticker().trim().toUpperCase(Locale.ROOT);
-            if (returnedTicker.length() <= MAX_TICKER_LENGTH
-                    && !acao.getTicker().equals(returnedTicker)) {
-                Map<String, Object> details = new LinkedHashMap<>();
-                details.put("tickerPersistido", acao.getTicker());
-                details.put("tickerCanonicoRetornado", returnedTicker);
-                throw new ApiException(
-                        HttpStatus.CONFLICT,
-                        ErrorCodes.TICKER_CANONICO_DIVERGENTE,
-                        "O provider informou um ticker canônico diferente do persistido",
-                        details
-                );
-            }
-        }
-
-        return validateExternalData(data, acao.getTicker(), acao.getMercado());
-    }
-
-    private ValidatedQuote validateExternalData(
-            CotacaoData data,
-            String requestedTicker,
-            Mercado market
-    ) {
-        if (data == null || isBlank(data.ticker()) || isBlank(data.nomeEmpresa())) {
-            throw incompleteExternalData();
-        }
-
-        String returnedTicker = data.ticker().trim().toUpperCase(Locale.ROOT);
-        if (returnedTicker.length() > MAX_TICKER_LENGTH) {
-            throw invalidExternalResponse();
-        }
-
-        String finalTicker;
-        if (market == Mercado.BRASIL && data.tickerAlteradoExplicitamente()) {
-            finalTicker = returnedTicker;
-        } else {
-            if (!requestedTicker.equals(returnedTicker)) {
-                throw invalidExternalResponse();
-            }
-            finalTicker = requestedTicker;
-        }
-
-        String companyName = data.nomeEmpresa().trim();
-        if (companyName.length() > MAX_NAME_LENGTH) {
-            throw invalidExternalResponse();
-        }
-
-        Moeda expectedCurrency = market == Mercado.BRASIL ? Moeda.BRL : Moeda.USD;
-        if (isBlank(data.moeda()) || !expectedCurrency.name().equals(data.moeda().trim().toUpperCase(Locale.ROOT))) {
-            throw invalidExternalResponse();
-        }
-
-        BigDecimal quote = validateQuote(data.cotacao());
-        return new ValidatedQuote(finalTicker, companyName, expectedCurrency, quote);
-    }
-
-    private BigDecimal validateQuote(BigDecimal quote) {
-        if (quote == null || quote.signum() <= 0) {
-            throw new ApiException(
-                    HttpStatus.UNPROCESSABLE_CONTENT,
-                    ErrorCodes.COTACAO_INDISPONIVEL,
-                    "Cotação indisponível"
-            );
-        }
-
-        try {
-            BigDecimal exact = quote.setScale(6, RoundingMode.UNNECESSARY);
-            if (exact.precision() > 19) {
-                throw precisionError();
-            }
-            return exact;
-        } catch (ArithmeticException exception) {
-            throw precisionError();
-        }
-    }
-
-    private boolean isBlank(String value) {
-        return value == null || value.isBlank();
+    private boolean referenciaConhecida(Acao acao) {
+        return (acao.getReferenciaTipo() == ReferenciaTipoCotacao.DATA
+                && acao.getReferenciaData() != null && acao.getReferenciaInstante() == null)
+                || (acao.getReferenciaTipo() == ReferenciaTipoCotacao.INSTANTE
+                && acao.getReferenciaInstante() != null && acao.getReferenciaData() == null);
     }
 
     private ApiException invalidRequest() {
         return new ApiException(HttpStatus.BAD_REQUEST, ErrorCodes.REQUEST_INVALIDO, "Dados da requisição inválidos");
-    }
-
-    private ApiException incompleteExternalData() {
-        return new ApiException(
-                HttpStatus.UNPROCESSABLE_CONTENT,
-                ErrorCodes.DADOS_EXTERNOS_INCOMPLETOS,
-                "Dados obrigatórios ausentes na resposta do provider de cotação"
-        );
-    }
-
-    private ApiException invalidExternalResponse() {
-        return new ApiException(
-                HttpStatus.BAD_GATEWAY,
-                ErrorCodes.RESPOSTA_EXTERNA_INVALIDA,
-                "Resposta inválida do provider de cotação"
-        );
-    }
-
-    private ApiException precisionError() {
-        return new ApiException(
-                HttpStatus.UNPROCESSABLE_CONTENT,
-                ErrorCodes.COTACAO_FORA_DA_PRECISAO,
-                "Cotação fora da precisão suportada"
-        );
     }
 
     private ApiException withPreservedQuote(ApiException exception, Acao acao) {
@@ -351,8 +269,5 @@ public class AcaoService {
                 exception.getMessage(),
                 details
         );
-    }
-
-    private record ValidatedQuote(String ticker, String companyName, Moeda currency, BigDecimal quote) {
     }
 }

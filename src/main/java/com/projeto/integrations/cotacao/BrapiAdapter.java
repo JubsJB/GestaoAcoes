@@ -15,6 +15,11 @@ import org.springframework.web.client.HttpServerErrorException;
 import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
+import tools.jackson.core.JsonParser;
+import tools.jackson.core.JsonToken;
+import tools.jackson.databind.DeserializationContext;
+import tools.jackson.databind.ValueDeserializer;
+import tools.jackson.databind.annotation.JsonDeserialize;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -66,13 +71,17 @@ public class BrapiAdapter implements CotacaoProvider {
             }
 
             BrapiResult result = response.results().get(0);
+            if (result == null) throw ExternalApiErrorMapper.invalidResponse(PROVIDER);
+            OffsetDateTime referencia = parseTimestamp(result.regularMarketTime());
             return new CotacaoData(
                     result.symbol(),
                     firstUsable(result.longName(), result.shortName()),
                     result.currency(),
-                    parsePrice(result.regularMarketPrice()),
-                    parseTimestamp(result.regularMarketTime()),
-                    Boolean.TRUE.equals(result.changed())
+                    result.regularMarketPrice(),
+                    referencia,
+                    Boolean.TRUE.equals(result.changed()),
+                    null,
+                    referenciaInvalida(result.regularMarketTime(), referencia)
             );
         } catch (ApiException exception) {
             throw exception;
@@ -121,25 +130,38 @@ public class BrapiAdapter implements CotacaoProvider {
         }
     }
 
-    private BigDecimal parsePrice(Object rawPrice) {
-        if (rawPrice instanceof BigDecimal decimal) {
-            return decimal;
-        }
-        if (rawPrice instanceof Number number) {
+    private boolean referenciaInvalida(Object raw, OffsetDateTime referencia) {
+        if (raw == null) return false;
+        if (referencia == null) return true;
+        if (raw instanceof Number number) {
             try {
-                return new BigDecimal(number.toString());
-            } catch (NumberFormatException ignored) {
-                return null;
+                // A candidata não aceita truncamento de segundos ou overflow do campo externo.
+                new BigDecimal(number.toString()).longValueExact();
+            } catch (RuntimeException exception) {
+                return true;
             }
         }
-        if (rawPrice instanceof String value && !value.isBlank()) {
-            try {
-                return new BigDecimal(value.trim());
-            } catch (NumberFormatException ignored) {
-                return null;
+        return false;
+    }
+
+    /** Preserva o decimal do JSON antes da validação monetária, sem ponto flutuante. */
+    public static final class PrecoDecimalDeserializer extends ValueDeserializer<BigDecimal> {
+        @Override
+        public BigDecimal deserialize(JsonParser parser, DeserializationContext context) {
+            JsonToken token = parser.currentToken();
+            if (token == JsonToken.VALUE_NUMBER_INT || token == JsonToken.VALUE_NUMBER_FLOAT) {
+                return parser.isNaN() ? null : parser.getDecimalValue();
             }
+            if (token == JsonToken.VALUE_STRING) {
+                try {
+                    return new BigDecimal(parser.getString().trim());
+                } catch (NumberFormatException ignored) {
+                    return null;
+                }
+            }
+            parser.skipChildren();
+            return null;
         }
-        return null;
     }
 
     private ApiException tickerNotFound() {
@@ -165,7 +187,7 @@ public class BrapiAdapter implements CotacaoProvider {
             String longName,
             String shortName,
             String currency,
-            Object regularMarketPrice,
+            @JsonDeserialize(using = PrecoDecimalDeserializer.class) BigDecimal regularMarketPrice,
             Object regularMarketTime,
             @JsonProperty("changed") Boolean changed
     ) {

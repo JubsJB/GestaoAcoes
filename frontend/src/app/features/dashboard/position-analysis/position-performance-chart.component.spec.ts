@@ -1,9 +1,11 @@
+import { temporalPresentationCases } from '../../../shared/formatters/cotacao-temporal.fixtures';
 import { TestBed } from '@angular/core/testing';
 import { describe, expect, it } from 'vitest';
 
 import { PosicaoResponse } from '../models/dashboard';
 import { MANY_POSITIONS, positionFixture } from './position-analysis.fixtures';
 import { PositionPerformanceChartComponent } from './position-performance-chart.component';
+import { formatFinancialMoney } from '../../../shared/formatters/financial-value.formatter';
 
 async function render(positions: readonly PosicaoResponse[]) {
   await TestBed.configureTestingModule({ imports: [PositionPerformanceChartComponent] }).compileComponents();
@@ -14,6 +16,20 @@ async function render(positions: readonly PosicaoResponse[]) {
 }
 
 describe('PositionPerformanceChartComponent', () => {
+  it.each(temporalPresentationCases())('Dashboard usa referência $tipo discreta com cotação lossless e não usa legado', async (reference, expected) => {
+    const position = Object.freeze(positionFixture({ cotacaoAtual: '9999999999999.123456',
+      referenciaMercadoCotacao: Object.freeze(reference), cotacaoObtidaEm: '2000-01-01T00:00:00Z',
+      dataHoraCotacao: '1999-01-01T00:00:00Z' }));
+    const before = JSON.stringify(position);
+    const root = await render(Object.freeze([position]));
+    const metadata = root.querySelector('.quote-reference');
+    expect(metadata?.textContent).toContain(expected);
+    expect(metadata?.textContent).toContain(formatFinancialMoney(position.cotacaoAtual, position.moeda));
+    expect(root.textContent).not.toContain('01/01/1999'); expect(root.textContent).not.toContain('01/01/2000');
+    expect(root.querySelector('table')).toBeNull(); expect(root.querySelectorAll('svg')).toHaveLength(1);
+    expect(metadata?.closest('li')?.getAttribute('data-asset-id')).toBe(String(position.acaoId));
+    expect(JSON.stringify(position)).toBe(before);
+  });
   it('consolida resultado monetário principal e rentabilidade complementar por ativo', async () => {
     const root = await render([positionFixture({ resultadoNaoRealizado: '25.00', rentabilidadePercentual: '12.50' })]);
     expect(root.textContent).toContain('Resultado não realizado e rentabilidade');

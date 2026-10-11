@@ -6,7 +6,7 @@ import { provideApiConfig } from '../../core/config/api.config';
 import { AcoesService } from './acoes.service';
 import { AcaoResponse } from './models/acao';
 
-const acao: AcaoResponse={id:7,ticker:'PETR4',nomeEmpresa:'Petrobras',mercado:'BRASIL',moeda:'BRL',cotacaoAtual:32.12,dataHoraCotacao:'2026-08-29T12:00:00Z'};
+const acao: AcaoResponse={id:7,ticker:'PETR4',nomeEmpresa:'Petrobras',mercado:'BRASIL',moeda:'BRL',cotacaoAtual:32.12,dataHoraCotacao:'2026-08-29T12:00:00Z', referenciaMercadoCotacao: { tipo: 'DESCONHECIDA', data: null, instante: null }, cotacaoObtidaEm: null};
 
 describe('AcoesService',()=>{
   let service:AcoesService;let http:HttpTestingController;

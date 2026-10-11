@@ -19,6 +19,7 @@ import org.springframework.web.client.RestClientException;
 
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
+import java.time.LocalDate;
 import java.time.format.DateTimeParseException;
 import java.util.List;
 import java.util.Locale;
@@ -108,14 +109,7 @@ public class AlphaVantageAdapter implements CotacaoProvider {
                 throw ExternalApiErrorMapper.invalidResponse(PROVIDER);
             }
 
-            return new CotacaoData(
-                    ticker,
-                    companyName,
-                    exact.currency(),
-                    parsePrice(quote.price()),
-                    parseTimestamp(quote.timestamp()),
-                    false
-            );
+            return mapQuote(ticker, companyName, exact.currency(), quote);
         } catch (ApiException exception) {
             throw exception;
         } catch (HttpClientErrorException.TooManyRequests exception) {
@@ -140,8 +134,7 @@ public class AlphaVantageAdapter implements CotacaoProvider {
             if (!ticker.equals(normalize(quote.symbol()))) {
                 throw ExternalApiErrorMapper.invalidResponse(PROVIDER);
             }
-            return new CotacaoData(ticker, nomeEmpresa, moeda, parsePrice(quote.price()),
-                    parseTimestamp(quote.timestamp()), false);
+            return mapQuote(ticker, nomeEmpresa, moeda, quote);
         } catch (ApiException exception) {
             throw exception;
         } catch (HttpClientErrorException.TooManyRequests exception) {
@@ -190,6 +183,7 @@ public class AlphaVantageAdapter implements CotacaoProvider {
             return null;
         }
         return matches.stream()
+                .filter(java.util.Objects::nonNull)
                 .filter(match -> ticker.equals(normalize(match.symbol())))
                 .filter(match -> US_REGIONS.contains(normalize(match.region())))
                 .findFirst()
@@ -231,6 +225,22 @@ public class AlphaVantageAdapter implements CotacaoProvider {
         try {
             return OffsetDateTime.parse(timestamp.trim());
         } catch (DateTimeParseException ignored) {
+            return null;
+        }
+    }
+
+    private CotacaoData mapQuote(String ticker, String nome, String moeda, GlobalQuote quote) {
+        LocalDate data = parseTradingDay(quote.timestamp());
+        // O timestamp antigo serve somente à compatibilidade do consumidor legado.
+        return new CotacaoData(ticker, nome, moeda, parsePrice(quote.price()),
+                parseTimestamp(quote.timestamp()), false, data, quote.timestamp() != null && data == null);
+    }
+
+    private LocalDate parseTradingDay(String valor) {
+        if (valor == null || !valor.trim().matches("\\d{4}-\\d{2}-\\d{2}")) return null;
+        try {
+            return LocalDate.parse(valor.trim());
+        } catch (DateTimeParseException exception) {
             return null;
         }
     }

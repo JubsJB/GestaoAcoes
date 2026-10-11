@@ -19,7 +19,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 class PosicaoContractTest {
 
     @Test
-    void exposesExactlyTheThirteenApprovedFields() {
+    void exposesExactlyTheApprovedFieldsIncludingTemporalMetadata() {
         Set<String> fields = Arrays.stream(PosicaoResponse.class.getRecordComponents())
                 .map(component -> component.getName())
                 .collect(Collectors.toSet());
@@ -35,6 +35,8 @@ class PosicaoContractTest {
                 "custoPosicao",
                 "cotacaoAtual",
                 "dataHoraCotacao",
+                "referenciaMercadoCotacao",
+                "cotacaoObtidaEm",
                 "valorAtualPosicao",
                 "resultadoNaoRealizado",
                 "rentabilidadePercentual"

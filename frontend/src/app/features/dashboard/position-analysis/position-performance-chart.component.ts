@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
 import { formatFinancialMoney, formatFinancialPercent } from '../../../shared/formatters/financial-value.formatter';
+import { formatReferenciaCotacao } from '../../../shared/formatters/cotacao-temporal.formatter';
 import { PosicaoResponse } from '../models/dashboard';
 import { projectFinancialValues } from './position-chart-geometry';
 import { exactPresentation, groupPositions } from './position-chart-presentation';
@@ -12,6 +13,8 @@ import { exactPresentation, groupPositions } from './position-chart-presentation
 })
 export class PositionPerformanceChartComponent {
   readonly positions = input.required<readonly PosicaoResponse[]>();
+  protected readonly money = formatFinancialMoney;
+  protected readonly reference = formatReferenciaCotacao;
   protected readonly groups = computed(() => groupPositions(this.positions()).map(group => {
     // Each currency owns one monetary geometry domain. Percentages never enter this axis.
     const resultProjections = projectFinancialValues(group.positions.map(position => position.resultadoNaoRealizado));

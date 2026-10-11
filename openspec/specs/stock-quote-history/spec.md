@@ -7,11 +7,11 @@ Preservar as cotações válidas efetivamente aceitas e persistidas pelo sistema
 ## Requirements
 
 ### Requirement: Manter modelo histórico mínimo e unidirecional
-Cada observação persistida SHALL ser representada por `HistoricoCotacao` contendo exclusivamente `id`, `acao`, `cotacao` e `dataHoraCotacao`. A associação com `Acao` SHALL ser obrigatória, unidirecional, `ManyToOne` e carregada de forma `LAZY`, sem coleção de históricos em `Acao` e sem exclusão em cascata. O histórico MUST NOT duplicar ticker, nome da empresa, mercado, moeda, provider, origem, payload ou timestamp adicional de persistência.
+HistoricoCotacao SHALL conter id, acao, cotacao, dataHoraCotacao legado e os novos referenciaTipo, referenciaInstante, referenciaData, cotacaoObtidaEm. Associação SHALL permanecer obrigatória, unidirecional ManyToOne LAZY sem coleção em Acao ou cascade delete. MUST NOT duplicar ticker, empresa, moeda, provider, payload, OHLC ou tentativas. Os metadados SHALL corresponder à informação de mercado aceita.
 
 #### Scenario: Persistência do modelo mínimo
-- **WHEN** uma observação histórica é persistida
-- **THEN** ela contém somente seu identificador, a referência obrigatória à Ação, a cotação e `dataHoraCotacao`
+- **WHEN** uma observação é persistida
+- **THEN** contém identidade, Ação, preço e metadados temporais aprovados, sem dados cadastrais duplicados
 
 #### Scenario: Navegação e ciclo de vida independentes
 - **WHEN** a associação entre histórico e Ação é utilizada
@@ -19,45 +19,46 @@ Cada observação persistida SHALL ser representada por `HistoricoCotacao` conte
 - **AND** nenhuma coleção é adicionada à Ação nem a exclusão da Ação é propagada em cascata ao histórico
 
 ### Requirement: Preservar contrato físico do histórico no schema
-O schema controlado pelo Liquibase SHALL conter `historico_cotacao` com chave primária, `acao_id` obrigatório como chave estrangeira sem cascade delete, `cotacao NUMERIC(19,6) NOT NULL`, `data_hora_cotacao NOT NULL`, `CHECK (cotacao > 0)` e `UNIQUE (acao_id, data_hora_cotacao)`. A evolução SHALL permanecer no changeSet `005-create-historico-cotacao.yaml`, sem alteração dos changeSets 001–004, e o Hibernate SHALL continuar validando o schema por `ddl-auto=validate`.
+Liquibase SHALL preservar tabela, PK, FK obrigatória sem cascade delete, cotacao NUMERIC(19,6) positiva e data_hora_cotacao legado NOT NULL. Um novo changeSet aditivo SHALL adicionar tipo, instante de mercado nullable, DATE nullable e obtenção nullable para legado; MUST NOT editar 005 nem changeSets anteriores. CHECKs SHALL garantir coerência de tipo e campos. A unicidade antiga baseada no legado SHALL ser substituída pela unicidade de mercado; PostgreSQL e H2 SHALL executar o mesmo changelog com ddl-auto=validate.
 
 #### Scenario: Inicialização do schema
-- **WHEN** o Liquibase aplica os changeSets da aplicação
-- **THEN** o changeSet 005 cria `historico_cotacao` com a chave, os tipos e as restrições aprovadas
+- **WHEN** Liquibase executa em PostgreSQL ou H2
+- **THEN** 005 permanece intacto e novo changeSet adiciona modelo temporal e constraints antes da validação Hibernate
 
 #### Scenario: Integridade física da observação
 - **WHEN** uma gravação viola obrigatoriedade, positividade, precisão, chave estrangeira ou unicidade temporal por Ação
 - **THEN** o banco rejeita a gravação sem criar observação parcial
 
 ### Requirement: Registrar cada estado de cotação efetivamente persistido
-Toda cotação válida que for efetivamente aceita e persistida como estado atual de uma Ação SHALL possuir exatamente uma observação correspondente no histórico. Esse histórico SHALL representar somente os estados aceitos pelo sistema a partir da integração desta capability e MUST NOT ser apresentado como série completa de mercado fornecida retroativamente por BRAPI ou Alpha Vantage. Uma candidata com timestamp igual ou anterior ao estado atual MUST NOT criar observação, pois não altera o estado persistido.
+cotacaoObtidaEm SHALL representar o instante em que a observação atualmente armazenada foi obtida validamente, não o maior instante histórico de consulta. Sua monotonicidade SHALL ser local à mesma referência/preço. Baseline inicial ou referência posterior aceita SHALL substituir a observação integralmente com preço, tipo, referência e obtenção própria da candidata, inclusive quando a obtenção for anterior à da observação substituída; o histórico SHALL corresponder a essa observação aceita. MUST NOT combinar obtenções de observações diferentes usando max nem usar obtenção para ordenar referências de mercado ou desempatar DATA × INSTANTE.
+Cadastro válido SHALL registrar exatamente uma observação inicial. Atualização com baseline confiável inicial ou referência posterior aceita SHALL criar exatamente uma observação. Consultas com mesma referência, referência anterior, reuso, cooldown ou falha MUST NOT criar observação. HistoricoCotacao MUST NOT representar série retroativa completa ou tentativas. Nova consulta real válida da mesma referência/preço SHALL avançar somente cotacaoObtidaEm na Ação quando posterior (ou preencher obtenção nula), sem criar nem modificar observação histórica; obtenção igual/anterior, reuso e cooldown MUST NOT avançar esse campo.
 
 #### Scenario: Primeira cotação no cadastro
 - **WHEN** uma Ação é cadastrada com cotação válida
 - **THEN** o estado inicial da Ação e a primeira observação histórica são persistidos juntos
 
 #### Scenario: Atualização temporalmente posterior
-- **WHEN** o PATCH obtém cotação válida com timestamp posterior ao estado persistido
-- **THEN** a Ação é atualizada e uma nova observação histórica correspondente é registrada
+- **WHEN** PATCH individual ou lote aceita referência posterior do mesmo tipo ou estabelece baseline inicial
+- **THEN** persiste estado e uma observação correspondente
 
 #### Scenario: Candidata igual ou anterior
-- **WHEN** o PATCH obtém cotação válida com timestamp igual ou anterior ao estado persistido
-- **THEN** o estado atual é devolvido sem nova observação histórica
+- **WHEN** a candidata possui referência igual, anterior, inválida ou incompatível
+- **THEN** não cria observação e preserva estado conforme classificação compartilhada
 
 ### Requirement: Preservar granularidade intraday e semântica temporal vigente
-Cada observação SHALL identificar a Ação, a cotação e `dataHoraCotacao` em granularidade de timestamp. O timestamp SHALL ser o timestamp utilizável da cotação fornecido pelo provider, normalizado para UTC, ou, quando ausente ou inutilizável, o instante UTC em que a aplicação obteve a cotação.
+O histórico SHALL respeitar INSTANTE, DATA e DESCONHECIDA sem exigir granularidade intraday artificial. Obtenção SHALL ser separada da referência de mercado. Legado SHALL permanecer desconhecido quando não houver evidência. Horários ou datas MUST NOT ser fabricados. O título histórico deste requisito é preservado apenas por identidade nominal.
 
 #### Scenario: Timestamp do provider
-- **WHEN** o provider fornece timestamp utilizável associado à cotação aceita
-- **THEN** a observação preserva o mesmo instante normalizado para UTC
+- **WHEN** uma cotação com INSTANTE é aceita
+- **THEN** preserva instante de mercado UTC e obtenção separada
 
 #### Scenario: Fallback temporal
-- **WHEN** o provider não fornece timestamp utilizável
-- **THEN** a observação preserva o instante UTC em que a aplicação obteve a cotação
+- **WHEN** o provider fornece DATA ou não há evidência temporal em um registro legado
+- **THEN** preserva DATA sem hora ou DESCONHECIDA, sem transformar obtenção em referência de mercado
 
 #### Scenario: Mesmo preço em instantes diferentes
-- **WHEN** o mesmo valor de cotação é aceito em timestamps posteriores distintos
-- **THEN** cada instante produz uma observação histórica distinta
+- **WHEN** o mesmo preço é aceito em referências posteriores distintas do mesmo tipo
+- **THEN** cada referência aceita gera observação, mas repetição de consulta não gera
 
 ### Requirement: Aplicar a mesma política numérica da cotação atual
 A cotação histórica SHALL usar `BigDecimal`, ser positiva e exatamente representável com precisão total 19 e escala 6, sem `float`, `double`, truncamento ou arredondamento.
@@ -82,20 +83,19 @@ A persistência do estado atual e da observação correspondente SHALL ser uma �
 - **THEN** a atualização de `Acao.cotacaoAtual` e `dataHoraCotacao` também é revertida
 
 #### Scenario: Atualizações concorrentes
-- **WHEN** duas candidatas válidas da mesma Ação possuem timestamps diferentes
-- **THEN** a seção transacional serializada aplica somente cada candidata posterior ao estado encontrado sob coordenação
-- **AND** o estado final e a observação mais recente representam o maior timestamp aceito
+- **WHEN** duas candidatas com referência confiável do mesmo tipo concorrem
+- **THEN** o lock serializa comparação com estado relido e aceita somente referência inicial ou posterior; histórico não registra rejeitadas
 
 ### Requirement: Impedir duplicidade temporal por Ação
-O sistema SHALL permitir no máximo uma observação por combinação de Ação e `dataHoraCotacao`, preservando várias observações da mesma cotação em instantes diferentes.
+O histórico SHALL permitir no máximo uma observação conhecida por (acao_id, referenciaInstante) e por (acao_id, referenciaData), com CHECKs de tipo. Registros legados DESCONHECIDA SHALL preservar identidade por id sem deduplicação artificial. Valores nulos SHALL permitir legado em PostgreSQL e H2; a constraint antiga (acao_id, data_hora_cotacao) SHALL deixar de ser autoridade. Novo índice MUST ser justificado por acesso/uniquidade, sem índice duplicado.
 
 #### Scenario: Mesma Ação e timestamp
-- **WHEN** uma tentativa repetida representa a mesma Ação e o mesmo timestamp
-- **THEN** nenhuma segunda observação é criada
+- **WHEN** uma tentativa repete a mesma referência conhecida da Ação
+- **THEN** não cria segunda observação, inclusive DATA
 
 #### Scenario: Ações diferentes no mesmo timestamp
-- **WHEN** Ações diferentes possuem cotações no mesmo instante
-- **THEN** cada Ação pode possuir sua própria observação
+- **WHEN** Ações distintas recebem mesma DATA ou INSTANTE
+- **THEN** cada Ação pode ter sua própria observação
 
 ### Requirement: Manter histórico desacoplado de Operações e consultas atuais
 `HistoricoCotacao` SHALL continuar representando observações da cotação corrente efetivamente persistidas, com sua granularidade e semântica temporal vigentes. Ele MUST NOT ser reutilizado como armazenamento de candles OHLC, como fonte do fechamento diário retornado pela prévia ou como cache obrigatório da consulta histórica externa. O registro de COMPRA ou VENDA e a consulta de prévia MUST NOT criar, alterar ou inferir registros nessa tabela.

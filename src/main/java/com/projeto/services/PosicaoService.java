@@ -54,29 +54,16 @@ public class PosicaoService {
 
     @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
     public List<PosicaoResponse> listarPorCarteira(Long carteiraId) {
-        carteiraRepository.findById(carteiraId)
-                .orElseThrow(() -> new ObjectNotFoundException(
-                        "Carteira não encontrada para o id: " + carteiraId
-                ));
-
-        List<Operacao> historico = operacaoRepository
-                .findByCarteiraIdOrderByDataOperacaoAscOrdemNoDiaAscIdAsc(carteiraId);
-        Map<Long, List<Operacao>> operacoesPorAcao = agruparPorAcao(historico);
+        Map<Long, List<Operacao>> operacoesPorAcao = lerOperacoesPorAcao(carteiraId);
         List<PosicaoResponse> posicoes = new ArrayList<>(operacoesPorAcao.size());
 
         for (List<Operacao> operacoes : operacoesPorAcao.values()) {
-            ResultadoReplay resultado = calculadora.reproduzir(operacoes);
-            if (!resultado.valido()) {
-                throw falhaDeReplay(carteiraId, resultado.falha());
-            }
+            ResultadoReplay resultado = reproduzir(carteiraId, operacoes);
             if (resultado.posicao().quantidadeAtual().signum() == 0) {
                 continue;
             }
 
             Acao acao = operacoes.get(0).getAcao();
-            if (resultado.posicao().custoPosicao().signum() <= 0) {
-                throw falhaCustoPosicao(carteiraId, acao, resultado.posicao().custoPosicao());
-            }
             BigDecimal valorAtualPosicao;
             BigDecimal resultadoNaoRealizado;
             BigDecimal rentabilidadePercentual;
@@ -107,6 +94,37 @@ public class PosicaoService {
 
         posicoes.sort(ORDEM_APRESENTACAO);
         return List.copyOf(posicoes);
+    }
+
+    /** Identidades capturadas pelo replay oficial, sem calcular avaliação de mercado. */
+    @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
+    public List<Long> capturarAcoesComPosicaoAberta(Long carteiraId) {
+        Map<Long, List<Operacao>> grupos = lerOperacoesPorAcao(carteiraId);
+        List<Long> ids = new ArrayList<>();
+        for (Map.Entry<Long, List<Operacao>> grupo : grupos.entrySet()) {
+            ResultadoReplay resultado = reproduzir(carteiraId, grupo.getValue());
+            if (resultado.posicao().quantidadeAtual().signum() > 0) {
+                ids.add(grupo.getKey());
+            }
+        }
+        return ids.stream().distinct().sorted().toList();
+    }
+
+    private Map<Long, List<Operacao>> lerOperacoesPorAcao(Long carteiraId) {
+        carteiraRepository.findById(carteiraId).orElseThrow(() ->
+                new ObjectNotFoundException("Carteira não encontrada para o id: " + carteiraId));
+        return agruparPorAcao(operacaoRepository
+                .findByCarteiraIdOrderByDataOperacaoAscOrdemNoDiaAscIdAsc(carteiraId));
+    }
+
+    private ResultadoReplay reproduzir(Long carteiraId, List<Operacao> operacoes) {
+        ResultadoReplay resultado = calculadora.reproduzir(operacoes);
+        if (!resultado.valido()) throw falhaDeReplay(carteiraId, resultado.falha());
+        if (resultado.posicao().quantidadeAtual().signum() > 0
+                && resultado.posicao().custoPosicao().signum() <= 0) {
+            throw falhaCustoPosicao(carteiraId, operacoes.get(0).getAcao(), resultado.posicao().custoPosicao());
+        }
+        return resultado;
     }
 
     private Map<Long, List<Operacao>> agruparPorAcao(List<Operacao> historico) {

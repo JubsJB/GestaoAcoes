@@ -11,10 +11,10 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 class AcaoTest {
 
     @Test
-    void atualizaSomenteCotacaoETimestampNormalizado() {
+    void aplicaObservacaoAceitaPreservandoCadastroENormalizandoUtc() {
         Acao acao = acao();
 
-        acao.atualizarCotacao(
+        aplicar(acao,
                 new BigDecimal("35.000000"),
                 OffsetDateTime.parse("2026-08-20T12:30:00-03:00")
         );
@@ -28,10 +28,10 @@ class AcaoTest {
     }
 
     @Test
-    void permitePrecoIgualComTimestampPosterior() {
+    void aplicaObservacaoAceitaComPrecoIgual() {
         Acao acao = acao();
 
-        acao.atualizarCotacao(
+        aplicar(acao,
                 new BigDecimal("30.000000"),
                 OffsetDateTime.parse("2026-08-20T15:30:00Z")
         );
@@ -41,17 +41,15 @@ class AcaoTest {
     }
 
     @Test
-    void rejeitaCotacaoInvalidaTimestampAusenteOuNaoPosterior() {
+    void rejeitaObservacaoInvalidaSemMutarEstado() {
         Acao acao = acao();
 
-        assertThrows(IllegalArgumentException.class, () -> acao.atualizarCotacao(null, posterior()));
-        assertThrows(IllegalArgumentException.class, () -> acao.atualizarCotacao(BigDecimal.ZERO, posterior()));
-        assertThrows(IllegalArgumentException.class, () -> acao.atualizarCotacao(BigDecimal.ONE.negate(), posterior()));
-        assertThrows(IllegalArgumentException.class, () -> acao.atualizarCotacao(BigDecimal.TEN, null));
-        assertThrows(IllegalArgumentException.class, () -> acao.atualizarCotacao(
-                BigDecimal.TEN, OffsetDateTime.parse("2026-08-19T15:30:00Z")));
-        assertThrows(IllegalArgumentException.class, () -> acao.atualizarCotacao(
-                BigDecimal.TEN, OffsetDateTime.parse("2026-08-18T15:30:00Z")));
+        assertThrows(IllegalArgumentException.class, () -> aplicar(acao, null, posterior()));
+        assertThrows(IllegalArgumentException.class, () -> aplicar(acao, BigDecimal.ZERO, posterior()));
+        assertThrows(IllegalArgumentException.class, () -> aplicar(acao, BigDecimal.ONE.negate(), posterior()));
+        assertThrows(IllegalArgumentException.class, () -> aplicar(acao, BigDecimal.TEN, null));
+        assertEquals(new BigDecimal("30.000000"), acao.getCotacaoAtual());
+        assertEquals(ReferenciaTipoCotacao.DESCONHECIDA, acao.getReferenciaTipo());
     }
 
     private Acao acao() {
@@ -64,4 +62,8 @@ class AcaoTest {
     private OffsetDateTime posterior() {
         return OffsetDateTime.parse("2026-08-20T15:30:00Z");
     }
+    private void aplicar(Acao acao, BigDecimal preco, OffsetDateTime instante) {
+        acao.substituirObservacao(preco, ReferenciaTipoCotacao.INSTANTE, instante, null, instante);
+    }
+
 }

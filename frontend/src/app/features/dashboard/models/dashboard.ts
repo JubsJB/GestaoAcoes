@@ -1,5 +1,6 @@
 import { Mercado } from '../../acoes/models/acao';
 import { Currency } from '../../../shared/formatters/financial-value.formatter';
+import { CamposTemporaisCotacao } from '../../../shared/models/cotacao-temporal';
 
 export interface ResumoMoedaResponse {
   moeda: Currency;
@@ -14,7 +15,7 @@ export interface ResumoCarteiraResponse {
   resumos: ResumoMoedaResponse[];
 }
 
-export interface PosicaoResponse {
+export interface PosicaoResponse extends CamposTemporaisCotacao {
   acaoId: number;
   ticker: string;
   nomeEmpresa: string;
@@ -24,7 +25,6 @@ export interface PosicaoResponse {
   precoMedio: string;
   custoPosicao: string;
   cotacaoAtual: string;
-  dataHoraCotacao: string;
   valorAtualPosicao: string;
   resultadoNaoRealizado: string;
   rentabilidadePercentual: string;

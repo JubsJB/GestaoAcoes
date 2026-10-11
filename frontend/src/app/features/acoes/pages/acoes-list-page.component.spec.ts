@@ -1,3 +1,4 @@
+import { temporalPresentationCases } from '../../../shared/formatters/cotacao-temporal.fixtures';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { MatDialog } from '@angular/material/dialog';
 import { provideRouter, Router } from '@angular/router';
@@ -10,13 +11,24 @@ import { AcaoResponse } from '../models/acao';
 import { AcaoCreatePageComponent } from './acao-create-page.component';
 import { AcoesListPageComponent } from './acoes-list-page.component';
 
-const BR:AcaoResponse={id:1,ticker:'PETR4',nomeEmpresa:'Petrobras',mercado:'BRASIL',moeda:'BRL',cotacaoAtual:30,dataHoraCotacao:'2026-08-29T12:00:00Z'};
-const US:AcaoResponse={id:2,ticker:'AAPL',nomeEmpresa:'Apple',mercado:'EUA',moeda:'USD',cotacaoAtual:200,dataHoraCotacao:'2026-08-29T13:00:00Z'};
+const BR:AcaoResponse={id:1,ticker:'PETR4',nomeEmpresa:'Petrobras',mercado:'BRASIL',moeda:'BRL',cotacaoAtual:30,dataHoraCotacao:'2026-08-29T12:00:00Z', referenciaMercadoCotacao: { tipo: 'DESCONHECIDA', data: null, instante: null }, cotacaoObtidaEm: null};
+const US:AcaoResponse={id:2,ticker:'AAPL',nomeEmpresa:'Apple',mercado:'EUA',moeda:'USD',cotacaoAtual:200,dataHoraCotacao:'2026-08-29T13:00:00Z', referenciaMercadoCotacao: { tipo: 'DESCONHECIDA', data: null, instante: null }, cotacaoObtidaEm: null};
 const failure=(status:number,code:string|null,message='Falha',details={})=>({status,code,message,details}) as NormalizedHttpError;
 
 describe('AcoesListPageComponent',()=>{let fixture:ComponentFixture<AcoesListPageComponent>;let service:{listar:ReturnType<typeof vi.fn>;buscarPorTickerEMercado:ReturnType<typeof vi.fn>};let dialog:{open:ReturnType<typeof vi.fn>};let dialogClosed:Subject<boolean|AcaoResponse|undefined>;let toast:{show:ReturnType<typeof vi.fn>};
  beforeEach(async()=>{service={listar:vi.fn().mockReturnValue(of([US,BR])),buscarPorTickerEMercado:vi.fn().mockReturnValue(of(BR))};dialogClosed=new Subject<boolean|AcaoResponse|undefined>();dialog={open:vi.fn().mockReturnValue({afterClosed:()=>dialogClosed.asObservable()})};toast={show:vi.fn()};await TestBed.configureTestingModule({imports:[AcoesListPageComponent],providers:[provideRouter([]),{provide:AcoesService,useValue:service},{provide:MatDialog,useValue:dialog},{provide:SuccessToastService,useValue:toast}]}).compileComponents();vi.spyOn(TestBed.inject(Router),'navigate').mockResolvedValue(true);fixture=TestBed.createComponent(AcoesListPageComponent);fixture.detectChanges();});
  const component=()=>fixture.componentInstance as unknown as {searchForm:{controls:{ticker:{setValue(v:string):void};mercado:{setValue(v:'BRASIL'|'EUA'|null):void}}};search():void;clearSearch():void;load():void};
+ it.each(temporalPresentationCases())('listagem apresenta referência $tipo sem reutilizar legado nem obtenção', (reference, expected) => {
+   const stock = Object.freeze({ ...US, referenciaMercadoCotacao: Object.freeze(reference),
+     dataHoraCotacao: '1999-01-01T00:00:00Z', cotacaoObtidaEm: '2000-01-01T00:00:00Z' });
+   service.listar.mockReturnValueOnce(of([stock])); component().load(); fixture.detectChanges();
+   const root: HTMLElement = fixture.nativeElement;
+   expect(root.querySelector('thead')?.textContent).toContain('Referência da cotação');
+   expect(root.querySelector('tbody tr')?.textContent).toContain(expected);
+   expect(root.textContent).not.toContain('01/01/1999'); expect(root.textContent).not.toContain('01/01/2000');
+   expect(stock.cotacaoAtual).toBe(US.cotacaoAtual);
+   expect(service.listar).toHaveBeenCalledTimes(2);
+ });
  it('loads one semantic table in backend order with accessible navigation and no quote update',()=>{const text=fixture.nativeElement.textContent;expect(service.listar).toHaveBeenCalledTimes(1);expect(text.indexOf('AAPL')).toBeLessThan(text.indexOf('PETR4'));expect(fixture.nativeElement.querySelectorAll('table')).toHaveLength(1);expect(fixture.nativeElement.querySelectorAll('tbody tr')).toHaveLength(2);expect(fixture.nativeElement.querySelectorAll('tbody th[scope="row"]')).toHaveLength(2);expect(fixture.nativeElement.querySelector('thead th.numeric.quote-column')?.textContent).toBe('Última cotação registrada');expect(fixture.nativeElement.querySelector('caption')?.textContent).toBe('Ações cadastradas');expect(fixture.nativeElement.querySelector('[data-scroll-region="records"]')).toBeTruthy();expect(text).not.toContain('Atualizar cotação');expect(fixture.nativeElement.querySelector('h1')?.textContent).toBe('Ações');expect(fixture.nativeElement.querySelector('a[aria-label="Ver detalhes de AAPL"]')).toBeTruthy();});
  it('preserves stock identity, currency, quote and detail links in the refined table',()=>{
   const root:HTMLElement=fixture.nativeElement;

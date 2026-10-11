@@ -22,7 +22,7 @@ class AlphaVantageConsumptionTest {
     private final CotacaoProvider alpha = mock(CotacaoProvider.class);
     private final CotacaoProvider brapi = mock(CotacaoProvider.class);
     private final AcaoRepository repository = mock(AcaoRepository.class);
-    private final AcaoCotacaoPersistenceService persistence = mock(AcaoCotacaoPersistenceService.class);
+    private final AplicacaoCotacaoService persistence = mock(AplicacaoCotacaoService.class);
     private final Instant now = Instant.parse("2026-09-09T16:00:00Z");
     private final AcaoService service;
 
@@ -33,6 +33,9 @@ class AlphaVantageConsumptionTest {
         when(brapi.mercado()).thenReturn(Mercado.BRASIL);
         service = new AcaoService(new TickerNormalizer(), List.of(alpha, brapi),
                 mock(AcaoPersistenceService.class), persistence, repository, new AcaoMapper(), clock);
+        doCallRealMethod().when(alpha).consultarCandidataAtualizacao(any(), any(), any(), any());
+        doCallRealMethod().when(brapi).consultarCandidataAtualizacao(any(), any(), any(), any());
+        doCallRealMethod().when(brapi).consultarAtualizacao(any(), any(), any());
         clearInvocations(alpha, brapi);
     }
 
@@ -46,15 +49,13 @@ class AlphaVantageConsumptionTest {
 
     private void success(Acao a) {
         when(alpha.consultarAtualizacao("AAPL", "Apple", "USD")).thenReturn(
-                new CotacaoData("AAPL", "Apple", "USD", new BigDecimal("101.123456"), null, false));
-        when(persistence.atualizarSePosterior(eq(1L), any(), any())).thenAnswer(i -> {
-            a.atualizarCotacao(i.getArgument(1), i.getArgument(2));
-            return a;
-        });
+                new CotacaoData("AAPL", "Apple", "USD", new BigDecimal("101.123456"), null, false, LocalDate.of(2026, 9, 9), false));
+        when(persistence.aplicar(eq(1L), any())).thenAnswer(i -> applied(a, i.getArgument(1)));
     }
 
     @Test void recentQuoteDoesNotCallOrPersist() {
-        Acao a = action(now.minusSeconds(899), Mercado.EUA);
+        Acao a = typedAction(now.minusSeconds(899));
+        when(repository.findById(1L)).thenReturn(Optional.of(a));
         assertEquals(a.getCotacaoAtual(), service.atualizarCotacao(1L).cotacaoAtual());
         verifyNoInteractions(alpha, persistence);
     }
@@ -64,7 +65,7 @@ class AlphaVantageConsumptionTest {
         assertEquals(new BigDecimal("101.123456"), service.atualizarCotacao(1L).cotacaoAtual());
         service.atualizarCotacao(1L);
         verify(alpha, times(1)).consultarAtualizacao("AAPL", "Apple", "USD");
-        verify(persistence, times(1)).atualizarSePosterior(1L, new BigDecimal("101.123456"), now.atOffset(ZoneOffset.UTC));
+        verify(persistence, times(1)).aplicar(eq(1L), any());
         verify(alpha, never()).consultar(anyString());
     }
 
@@ -80,8 +81,8 @@ class AlphaVantageConsumptionTest {
                 new BigDecimal("101.123456"), now.atOffset(ZoneOffset.UTC));
         ReflectionTestUtils.setField(persisted, "id", 1L);
         when(alpha.consultarAtualizacao("AAPL", "Apple", "USD")).thenReturn(
-                new CotacaoData("AAPL", "Apple", "USD", persisted.getCotacaoAtual(), null, false));
-        when(persistence.atualizarSePosterior(eq(1L), any(), any())).thenReturn(persisted);
+                new CotacaoData("AAPL", "Apple", "USD", persisted.getCotacaoAtual(), null, false, LocalDate.of(2026, 9, 9), false));
+        when(persistence.aplicar(eq(1L), any())).thenAnswer(i -> applied(persisted, i.getArgument(1)));
         service.atualizarCotacao(1L);
         assertEquals(persisted.getCotacaoAtual(), service.atualizarCotacao(1L).cotacaoAtual());
         verify(alpha, times(1)).consultarAtualizacao("AAPL", "Apple", "USD");
@@ -91,7 +92,7 @@ class AlphaVantageConsumptionTest {
         for (String code : List.of(ErrorCodes.SERVICO_EXTERNO_TIMEOUT,
                 ErrorCodes.LIMITE_REQUISICOES_EXCEDIDO, ErrorCodes.SERVICO_EXTERNO_INDISPONIVEL)) {
             ReflectionTestUtils.setField(service, "refreshAttempts", new ConcurrentHashMap<>());
-            reset(alpha); when(clock.instant()).thenReturn(now);
+            reset(alpha); doCallRealMethod().when(alpha).consultarCandidataAtualizacao(any(), any(), any(), any()); when(clock.instant()).thenReturn(now);
             Acao a = action(now.minusSeconds(3600), Mercado.EUA);
             when(alpha.consultarAtualizacao("AAPL", "Apple", "USD")).thenThrow(
                     new ApiException(HttpStatus.SERVICE_UNAVAILABLE, code, "Provider unavailable"));
@@ -117,7 +118,7 @@ class AlphaVantageConsumptionTest {
                         ErrorCodes.LIMITE_REQUISICOES_EXCEDIDO, "Rate limit"));
         assertEquals(HttpStatus.TOO_MANY_REQUESTS,
                 assertThrows(ApiException.class, () -> service.atualizarCotacao(1L)).getStatus());
-        reset(alpha);
+        reset(alpha); doCallRealMethod().when(alpha).consultarCandidataAtualizacao(any(), any(), any(), any());
         success(a);
         when(clock.instant()).thenReturn(now.plusSeconds(899));
         assertEquals(HttpStatus.TOO_MANY_REQUESTS,
@@ -143,14 +144,137 @@ class AlphaVantageConsumptionTest {
     @Test void recentBrazilianQuoteStillCallsBrapi() {
         Acao a = action(now.minusSeconds(1), Mercado.BRASIL);
         when(brapi.consultar("AAPL")).thenReturn(new CotacaoData("AAPL", "Apple", "BRL",
-                new BigDecimal("102"), null, false));
-        when(persistence.atualizarSePosterior(eq(1L), any(), any())).thenReturn(a);
+                new BigDecimal("102"), now.atOffset(ZoneOffset.UTC), false));
+        when(persistence.aplicar(eq(1L), any())).thenAnswer(i -> applied(a, i.getArgument(1)));
         service.atualizarCotacao(1L); service.atualizarCotacao(1L);
         verify(brapi, times(2)).consultar("AAPL"); verifyNoInteractions(alpha);
+    }
+
+    @Test void reusePreservesObtentionAndReferenceWithoutCandidateOrPersistence() {
+        Acao a = typedAction(now.minusSeconds(300));
+        when(repository.findById(1L)).thenReturn(Optional.of(a));
+        service.atualizarCotacao(1L);
+        service.atualizarCotacao(1L);
+        assertTemporalMetadata(a, now.minusSeconds(300));
+        verifyNoInteractions(alpha, persistence);
+    }
+
+    @Test void failureCooldownPrecedesRecentStateReuseAndDoesNotCreateObtention() {
+        action(now.minusSeconds(3600), Mercado.EUA);
+        when(alpha.consultarAtualizacao("AAPL", "Apple", "USD")).thenThrow(
+                new ApiException(HttpStatus.TOO_MANY_REQUESTS, ErrorCodes.LIMITE_REQUISICOES_EXCEDIDO, "Rate limit"));
+        assertThrows(ApiException.class, () -> service.atualizarCotacao(1L));
+        Acao recent = typedAction(now.minusSeconds(300));
+        when(repository.findById(1L)).thenReturn(Optional.of(recent));
+        ApiException failure = assertThrows(ApiException.class, () -> service.atualizarCotacao(1L));
+        assertEquals(ErrorCodes.LIMITE_REQUISICOES_EXCEDIDO, failure.getCode());
+        assertTemporalMetadata(recent, now.minusSeconds(300));
+        verify(alpha, times(1)).consultarAtualizacao("AAPL", "Apple", "USD");
+        verify(alpha, times(1)).consultarCandidataAtualizacao(anyString(), anyString(), anyString(), any());
+        verifyNoInteractions(persistence);
+    }
+
+    @Test void successCooldownDoesNotCreateNewObtentionOrCandidate() {
+        action(now.minusSeconds(3600), Mercado.EUA);
+        Acao accepted = typedAction(now);
+        when(alpha.consultarAtualizacao("AAPL", "Apple", "USD")).thenReturn(
+                new CotacaoData("AAPL", "Apple", "USD", accepted.getCotacaoAtual(), null, false, LocalDate.of(2026, 9, 8), false));
+        when(persistence.aplicar(eq(1L), any())).thenAnswer(i -> applied(accepted, i.getArgument(1)));
+        service.atualizarCotacao(1L);
+        when(repository.findById(1L)).thenReturn(Optional.of(accepted));
+        service.atualizarCotacao(1L);
+        assertTemporalMetadata(accepted, now);
+        verify(alpha, times(1)).consultarAtualizacao("AAPL", "Apple", "USD");
+        verify(alpha, times(1)).consultarCandidataAtualizacao(anyString(), anyString(), anyString(), any());
+        verify(persistence, times(1)).aplicar(eq(1L), any());
+    }
+
+    private Acao typedAction(Instant obtainedAt) {
+        Acao a = new Acao("AAPL", "Apple", Mercado.EUA, Moeda.USD, new BigDecimal("100.000000"),
+                obtainedAt.atOffset(ZoneOffset.UTC), ReferenciaTipoCotacao.DATA, null,
+                LocalDate.of(2026, 9, 8), obtainedAt.atOffset(ZoneOffset.UTC));
+        ReflectionTestUtils.setField(a, "id", 1L);
+        return a;
+    }
+
+    private void assertTemporalMetadata(Acao a, Instant obtainedAt) {
+        assertEquals(new BigDecimal("100.000000"), a.getCotacaoAtual());
+        assertEquals(ReferenciaTipoCotacao.DATA, a.getReferenciaTipo());
+        assertEquals(LocalDate.of(2026, 9, 8), a.getReferenciaData());
+        assertNull(a.getReferenciaInstante());
+        assertEquals(obtainedAt.atOffset(ZoneOffset.UTC), a.getCotacaoObtidaEm());
     }
 
     @Test void intervalsMustBePositive() {
         ReflectionTestUtils.setField(service, "refreshCooldown", Duration.ZERO);
         assertThrows(IllegalArgumentException.class, service::validateRefreshIntervals);
     }
+    private AplicacaoCotacaoService.Aplicacao applied(Acao a, CotacaoCandidata c) {
+        var d = RegraDecisaoCotacao.decidir(a, c);
+        if (d.efeito() == RegraDecisaoCotacao.Efeito.SUBSTITUIR_OBSERVACAO)
+            a.substituirObservacao(c.cotacao(), c.referenciaTipo(), c.referenciaInstante(), c.referenciaData(), c.cotacaoObtidaEm());
+        return new AplicacaoCotacaoService.Aplicacao(d, new AplicacaoCotacaoService.EstadoCotacao(
+                a.getCotacaoAtual(), a.getReferenciaTipo(), a.getReferenciaInstante(), a.getReferenciaData(),
+                a.getCotacaoObtidaEm(), a.getDataHoraCotacao()));
+    }
+    @Test void unknownWithRecentLegacyIsNotReusable() {
+        Acao a = action(now.minusSeconds(1), Mercado.EUA); success(a);
+        service.atualizarCotacao(1L);
+        verify(alpha).consultarCandidataAtualizacao(any(), any(), any(), any());
+    }
+    @Test void recentLegacyWithExpiredObtentionIsNotReusable() {
+        Acao a = typedAction(now.minusSeconds(900));
+        ReflectionTestUtils.setField(a, "dataHoraCotacao", now.atOffset(ZoneOffset.UTC));
+        when(repository.findById(1L)).thenReturn(Optional.of(a)); success(a);
+        service.atualizarCotacao(1L);
+        verify(alpha).consultarCandidataAtualizacao(any(), any(), any(), any());
+    }
+    @Test void oldLegacyWithValidObtentionIsReusable() {
+        Acao a = typedAction(now.minusSeconds(1));
+        ReflectionTestUtils.setField(a, "dataHoraCotacao", now.minusSeconds(86400).atOffset(ZoneOffset.UTC));
+        when(repository.findById(1L)).thenReturn(Optional.of(a));
+        service.atualizarCotacao(1L);
+        verifyNoInteractions(alpha, persistence);
+    }
+    @Test void cooldownSharesCompletedResultRegardlessOfLegacyOrdering() {
+        Acao a = action(now.minusSeconds(3600), Mercado.EUA); success(a);
+        var completed = service.atualizarCotacao(1L);
+        Acao other = typedAction(now.plusSeconds(10));
+        ReflectionTestUtils.setField(other, "dataHoraCotacao", now.plusSeconds(86400).atOffset(ZoneOffset.UTC));
+        when(repository.findById(1L)).thenReturn(Optional.of(other));
+        clearInvocations(alpha, persistence);
+        assertEquals(completed, service.atualizarCotacao(1L));
+        verifyNoInteractions(alpha, persistence);
+        assertTemporalMetadata(other, now.plusSeconds(10));
+    }
+
+    @Test void knownReferenceWithoutObtentionDoesNotReuse() {
+        Acao a=typedAction(now); ReflectionTestUtils.setField(a,"cotacaoObtidaEm",null);
+        when(repository.findById(1L)).thenReturn(Optional.of(a)); success(a);
+        service.atualizarCotacao(1L); verify(alpha).consultarCandidataAtualizacao(any(),any(),any(),any());
+    }
+    @Test void futureObtentionDoesNotReuse() {
+        Acao a=typedAction(now.plusSeconds(1));
+        when(repository.findById(1L)).thenReturn(Optional.of(a)); success(a);
+        service.atualizarCotacao(1L); verify(alpha).consultarCandidataAtualizacao(any(),any(),any(),any());
+    }
+    @Test void expiredCooldownStillChecksReusableState() {
+        Acao a=action(now.minusSeconds(3600),Mercado.EUA); success(a);
+        service.atualizarCotacao(1L);
+        Acao recent=typedAction(now.plusSeconds(600));
+        when(repository.findById(1L)).thenReturn(Optional.of(recent));
+        when(clock.instant()).thenReturn(now.plusSeconds(900));
+        clearInvocations(alpha,persistence);
+        service.atualizarCotacao(1L); verifyNoInteractions(alpha,persistence);
+    }
+    @Test void integrityFailurePropagatesWithoutRetryOrSuccessfulCooldown() {
+        Acao a=action(now.minusSeconds(3600),Mercado.EUA); success(a);
+        var failure=new org.springframework.dao.DataIntegrityViolationException("rollback");
+        when(persistence.aplicar(eq(1L),any())).thenThrow(failure);
+        assertSame(failure,assertThrows(org.springframework.dao.DataIntegrityViolationException.class,
+                ()->service.atualizarCotacao(1L)));
+        verify(alpha,times(1)).consultarCandidataAtualizacao(any(),any(),any(),any());
+        verify(persistence,times(1)).aplicar(eq(1L),any());
+    }
+
 }

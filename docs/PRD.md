@@ -966,7 +966,7 @@ dto
 Deverão ser utilizados:
 
 - PostgreSQL como banco relacional principal;
-- H2 para desenvolvimento e/ou testes quando necessário.
+- H2 exclusivamente para testes automatizados, em bancos efêmeros e recriáveis.
 
 ### RNF05 — Comunicação
 
@@ -1147,7 +1147,7 @@ As respostas da API deverão possuir formato de erro padronizado.
 ### Banco de Dados
 
 - PostgreSQL;
-- H2.
+- H2 exclusivamente nos testes automatizados.
 
 ### APIs Externas
 

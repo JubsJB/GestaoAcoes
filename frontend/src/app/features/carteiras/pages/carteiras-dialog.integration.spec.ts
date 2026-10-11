@@ -56,7 +56,7 @@ describe('Carteiras com MatDialog real', () => {
         provideRouter([]),
         { provide: OperacoesService, useValue: operations },
         { provide: CarteirasService, useValue: { listar: vi.fn() } },
-        { provide: AcoesService, useValue: { listar: () => of([{ id: 2, ticker: 'AAPL', nomeEmpresa: 'Apple', mercado: 'EUA', moeda: 'USD', cotacaoAtual: 1, dataHoraCotacao: '' }]) } },
+        { provide: AcoesService, useValue: { listar: () => of([{ id: 2, ticker: 'AAPL', nomeEmpresa: 'Apple', mercado: 'EUA', moeda: 'USD', cotacaoAtual: 1, dataHoraCotacao: '', referenciaMercadoCotacao: { tipo: 'DESCONHECIDA', data: null, instante: null }, cotacaoObtidaEm: null }]) } },
         { provide: CorretorasService, useValue: { listar: () => of([]) } },
         { provide: SuccessToastService, useValue: { show: vi.fn() } }
       ]

@@ -7,7 +7,7 @@ import { AcoesService } from '../acoes.service';
 import { AcaoResponse } from '../models/acao';
 import { AcaoCreatePageComponent } from './acao-create-page.component';
 
-const STOCK:AcaoResponse={id:4,ticker:'BRK.B',nomeEmpresa:'Berkshire',mercado:'EUA',moeda:'USD',cotacaoAtual:500,dataHoraCotacao:'2026-08-29T12:00:00Z'};
+const STOCK:AcaoResponse={id:4,ticker:'BRK.B',nomeEmpresa:'Berkshire',mercado:'EUA',moeda:'USD',cotacaoAtual:500,dataHoraCotacao:'2026-08-29T12:00:00Z', referenciaMercadoCotacao: { tipo: 'DESCONHECIDA', data: null, instante: null }, cotacaoObtidaEm: null};
 const backendError=(status:number,code:string)=>({status,code,message:`Mensagem ${code}`,details:{provider:'teste'},standardError:{timeStamp:1,status,error:'Erro',message:`Mensagem ${code}`,path:'/acoes',code,details:{provider:'teste'}}}) as unknown as NormalizedHttpError;
 describe('AcaoCreatePageComponent',()=>{let fixture:ComponentFixture<AcaoCreatePageComponent>;let service:{criar:ReturnType<typeof vi.fn>};let toast:{show:ReturnType<typeof vi.fn>};
  beforeEach(async()=>{service={criar:vi.fn().mockReturnValue(of(STOCK))};toast={show:vi.fn()};await TestBed.configureTestingModule({imports:[AcaoCreatePageComponent],providers:[provideRouter([]),{provide:AcoesService,useValue:service},{provide:SuccessToastService,useValue:toast}]}).compileComponents();vi.spyOn(TestBed.inject(Router),'navigate').mockResolvedValue(true);fixture=TestBed.createComponent(AcaoCreatePageComponent);fixture.detectChanges();});

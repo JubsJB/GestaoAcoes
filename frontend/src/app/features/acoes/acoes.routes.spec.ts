@@ -7,7 +7,7 @@ import { AcoesService } from './acoes.service';
 import { ACOES_ROUTES } from './acoes.routes';
 
 describe('Ações routes',()=>{
-  const stock={id:7,ticker:'PETR4',nomeEmpresa:'Petrobras',mercado:'BRASIL' as const,moeda:'BRL' as const,cotacaoAtual:30,dataHoraCotacao:'2026-08-29T12:00:00Z'};
+  const stock={id:7,ticker:'PETR4',nomeEmpresa:'Petrobras',mercado:'BRASIL' as const,moeda:'BRL' as const,cotacaoAtual:30,dataHoraCotacao:'2026-08-29T12:00:00Z', referenciaMercadoCotacao: { tipo: 'DESCONHECIDA', data: null, instante: null }, cotacaoObtidaEm: null};
   const service={listar:()=>of([]),buscarPorId:()=>of(stock)};
   beforeEach(()=>TestBed.configureTestingModule({providers:[provideRouter(ACOES_ROUTES),{provide:AcoesService,useValue:service}]}));
   it('lazy-loads the list at the feature root',async()=>{const harness=await RouterTestingHarness.create('/');expect(harness.routeNativeElement?.querySelector('h1')?.textContent).toBe('Ações');});

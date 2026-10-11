@@ -7,6 +7,8 @@ import { NormalizedHttpError } from '../../core/errors/normalized-http-error';
 import { isStandardError } from '../../core/http/http-error-normalizer';
 import { parseLosslessJson } from '../../core/http/lossless-json';
 import { PosicaoResponse, ResultadoRealizadoResponse, ResumoCarteiraResponse } from './models/dashboard';
+import { AtualizacaoCotacoesCarteiraResponse } from './models/atualizacao-cotacoes';
+import { isCamposTemporaisCotacao } from '../../shared/models/cotacao-temporal';
 
 const DECIMAL_FIELDS = new Set([
   'custoTotalPosicoes', 'patrimonioAtual', 'resultadoNaoRealizadoTotal', 'rentabilidadePercentual',
@@ -30,6 +32,17 @@ export class DashboardService {
 
   listarResultadosRealizados(carteiraId: number): Observable<ResultadoRealizadoResponse[]> {
     return this.request(`${this.url(carteiraId)}/resultados-realizados`, isResultados);
+  }
+
+  atualizarCotacoes(carteiraId: number): Observable<AtualizacaoCotacoesCarteiraResponse> {
+    return this.http.post(`${this.url(carteiraId)}/atualizacoes-cotacoes`, null, { responseType: 'text' }).pipe(
+      map(text => {
+        const value = parseLosslessJson<unknown>(text, DECIMAL_FIELDS);
+        if (!isLote(value)) throw new Error('Resposta financeira inválida.');
+        return value;
+      }),
+      catchError((error: unknown) => throwError(() => normalizeServiceError(error)))
+    );
   }
 
   private url(carteiraId: number): string {
@@ -84,7 +97,7 @@ function isPosicao(value: unknown): boolean {
   return isRecord(value) && isId(value['acaoId']) && isText(value['ticker']) && isText(value['nomeEmpresa'])
     && isMarket(value['mercado']) && isCurrency(value['moeda']) && isDecimal(value['quantidadeAtual'])
     && isDecimal(value['precoMedio']) && isDecimal(value['custoPosicao']) && isDecimal(value['cotacaoAtual'])
-    && isText(value['dataHoraCotacao']) && isDecimal(value['valorAtualPosicao'])
+    && isCamposTemporaisCotacao(value) && isDecimal(value['valorAtualPosicao'])
     && isDecimal(value['resultadoNaoRealizado']) && isDecimal(value['rentabilidadePercentual']);
 }
 function isPosicoes(value: unknown): value is PosicaoResponse[] { return Array.isArray(value) && value.every(isPosicao); }
@@ -93,3 +106,27 @@ function isResultado(value: unknown): boolean {
     && isMarket(value['mercado']) && isCurrency(value['moeda']) && isDecimal(value['resultadoRealizado']);
 }
 function isResultados(value: unknown): value is ResultadoRealizadoResponse[] { return Array.isArray(value) && value.every(isResultado); }
+
+function isItemLote(value: unknown): boolean {
+  if (!isRecord(value) || !isId(value['acaoId']) || !isText(value['ticker'])
+      || !isMarket(value['mercado']) || !isText(value['motivo']) || !isRecord(value['cotacao'])
+      || !isDecimal(value['cotacao']['cotacaoAtual']) || !isCamposTemporaisCotacao(value['cotacao'])) return false;
+  if (value['resultado'] === 'FALHA') {
+    return isRecord(value['erro']) && isText(value['erro']['code']) && isText(value['erro']['message']);
+  }
+  return (value['resultado'] === 'ATUALIZADA' || value['resultado'] === 'SEM_NOVA_COTACAO') && value['erro'] === null;
+}
+
+function isLote(value: unknown): value is AtualizacaoCotacoesCarteiraResponse {
+  if (!isRecord(value) || !isId(value['carteiraId']) || !isRecord(value['resumo'])
+      || !Array.isArray(value['resultados']) || !value['resultados'].every(isItemLote)) return false;
+  const resultados = value['resultados'] as Record<string, unknown>[];
+  const resumo = value['resumo'];
+  return new Set(resultados.map(item => item['acaoId'])).size === resultados.length
+    && ([['atualizadas', 'ATUALIZADA'], ['semNovaCotacao', 'SEM_NOVA_COTACAO'], ['falhas', 'FALHA']] as const)
+      .every(([contador, classificacao]) => {
+        const quantidade = resumo[contador];
+        return typeof quantidade === 'number' && Number.isSafeInteger(quantidade) && quantidade >= 0
+          && quantidade === resultados.filter(item => item['resultado'] === classificacao).length;
+      });
+}

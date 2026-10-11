@@ -63,7 +63,11 @@ public class AcaoPersistenceService {
         historicoRepository.saveAndFlush(new HistoricoCotacao(
                 persisted,
                 persisted.getCotacaoAtual(),
-                persisted.getDataHoraCotacao()
+                persisted.getDataHoraCotacao(),
+                persisted.getReferenciaTipo(),
+                persisted.getReferenciaInstante(),
+                persisted.getReferenciaData(),
+                persisted.getCotacaoObtidaEm()
         ));
         return persisted;
     }

@@ -65,7 +65,7 @@ class AcaoServiceTest {
     private AcaoPersistenceService persistenceService;
 
     @Mock
-    private AcaoCotacaoPersistenceService cotacaoPersistenceService;
+    private AplicacaoCotacaoService cotacaoPersistenceService;
 
     @Mock
     private AcaoRepository repository;
@@ -85,6 +85,11 @@ class AcaoServiceTest {
                 new AcaoMapper(),
                 Clock.fixed(FALLBACK_INSTANT, ZoneOffset.UTC)
         );
+        org.mockito.Mockito.lenient().doCallRealMethod().when(brapi).consultarCandidataAtualizacao(any(), any(), any(), any());
+        org.mockito.Mockito.lenient().doCallRealMethod().when(brapi).consultarAtualizacao(any(), any(), any());
+        org.mockito.Mockito.lenient().doCallRealMethod().when(alphaVantage).consultarCandidataAtualizacao(any(), any(), any(), any());
+        org.mockito.Mockito.lenient().doCallRealMethod().when(brapi).consultarCandidataCadastro(any(), any());
+        org.mockito.Mockito.lenient().doCallRealMethod().when(alphaVantage).consultarCandidataCadastro(any(), any());
         clearInvocations(brapi, alphaVantage, persistenceService, cotacaoPersistenceService, repository);
     }
 
@@ -102,6 +107,9 @@ class AcaoServiceTest {
         assertEquals(Moeda.BRL, response.moeda());
         assertEquals(new BigDecimal("12.345600"), response.cotacaoAtual());
         assertEquals(OffsetDateTime.parse("2026-08-20T15:15:00Z"), response.dataHoraCotacao());
+        assertEquals(com.projeto.entities.ReferenciaTipoCotacao.INSTANTE, response.referenciaMercadoCotacao().tipo());
+        assertEquals(response.dataHoraCotacao(), response.referenciaMercadoCotacao().instante());
+        assertEquals(OffsetDateTime.ofInstant(FALLBACK_INSTANT, ZoneOffset.UTC), response.cotacaoObtidaEm());
         verify(brapi).consultar("OLD3");
         verifyNoInteractions(alphaVantage);
 
@@ -123,12 +131,16 @@ class AcaoServiceTest {
         assertEquals(Moeda.USD, response.moeda());
         assertEquals(new BigDecimal("224.410000"), response.cotacaoAtual());
         assertEquals(OffsetDateTime.parse("2026-08-20T15:30:00Z"), response.dataHoraCotacao());
+        assertEquals(com.projeto.entities.ReferenciaTipoCotacao.DESCONHECIDA, response.referenciaMercadoCotacao().tipo());
+        assertNull(response.referenciaMercadoCotacao().instante());
+        assertNull(response.referenciaMercadoCotacao().data());
+        assertEquals(response.dataHoraCotacao(), response.cotacaoObtidaEm());
         verify(alphaVantage).consultar("AAPL");
         verifyNoInteractions(brapi);
     }
 
     @Test
-    void usesUtcClockFallbackForBrazilWhenProviderTimestampIsUnusable() {
+    void usesUtcObtencaoForBrazilWhenProviderReferenceIsAbsent() {
         when(brapi.consultar("PETR4")).thenReturn(new CotacaoData(
                 "PETR4", "Empresa Brasileira", "BRL", new BigDecimal("32.10"), null, false
         ));
@@ -137,6 +149,25 @@ class AcaoServiceTest {
         AcaoResponse response = service.cadastrar(new AcaoCreateRequest("PETR4", Mercado.BRASIL));
 
         assertEquals(OffsetDateTime.parse("2026-08-20T15:30:00Z"), response.dataHoraCotacao());
+    }
+
+    @Test
+    void cadastroUsaObservacaoInteiraDaCandidataSemLerOutroRelogio() {
+        var obtencao = OffsetDateTime.parse("2026-08-20T15:29:17Z");
+        var data = java.time.LocalDate.of(2026, 8, 19);
+        var candidata = new com.projeto.integrations.cotacao.CotacaoCandidata("AAPL", "Apple", Moeda.USD,
+                new BigDecimal("1234567890123.123456"), com.projeto.entities.ReferenciaTipoCotacao.DATA,
+                null, data, obtencao);
+        org.mockito.Mockito.doReturn(candidata).when(alphaVantage).consultarCandidataCadastro(eq("AAPL"), any());
+        when(persistenceService.saveUnique(any())).thenAnswer(i -> i.getArgument(0));
+        AcaoResponse response = service.cadastrar(new AcaoCreateRequest("AAPL", Mercado.EUA));
+        assertEquals(candidata.cotacao(), response.cotacaoAtual());
+        assertEquals(com.projeto.entities.ReferenciaTipoCotacao.DATA, response.referenciaMercadoCotacao().tipo());
+        assertEquals(data, response.referenciaMercadoCotacao().data());
+        assertNull(response.referenciaMercadoCotacao().instante());
+        assertEquals(obtencao, response.cotacaoObtidaEm());
+        assertEquals(obtencao, response.dataHoraCotacao());
+        verify(alphaVantage, never()).consultar(any());
     }
 
     @Test
@@ -237,9 +268,7 @@ class AcaoServiceTest {
             return new CotacaoData("PETR4", "Nome externo", "BRL", new BigDecimal("32.123456"),
                     OffsetDateTime.parse("2026-08-20T12:15:00-03:00"), false);
         });
-        when(cotacaoPersistenceService.atualizarSePosterior(
-                10L, new BigDecimal("32.123456"), OffsetDateTime.parse("2026-08-20T15:15:00Z")))
-                .thenReturn(persistida);
+        when(cotacaoPersistenceService.aplicar(any(), any())).thenAnswer(i -> aplicacao(persistida, i.getArgument(1)));
 
         AcaoResponse resposta = service.atualizarCotacao(10L);
 
@@ -250,17 +279,15 @@ class AcaoServiceTest {
     }
 
     @Test
-    void atualizaCotacaoEuaComFallbackDoClock() {
+    void atualizaCotacaoEuaComReferenciaDataEObtencaoDoClock() {
         Acao existente = action(11L, "AAPL", "Apple", Mercado.EUA, Moeda.USD,
                 new BigDecimal("220.000000"), OffsetDateTime.parse("2026-08-19T15:30:00Z"));
         Acao persistida = action(11L, "AAPL", "Apple", Mercado.EUA, Moeda.USD,
                 new BigDecimal("224.410000"), OffsetDateTime.parse("2026-08-20T15:30:00Z"));
         when(repository.findById(11L)).thenReturn(Optional.of(existente));
         when(alphaVantage.consultarAtualizacao("AAPL", "Apple", "USD")).thenReturn(
-                new CotacaoData("AAPL", "Apple Inc.", "USD", new BigDecimal("224.41"), null, false));
-        when(cotacaoPersistenceService.atualizarSePosterior(
-                11L, new BigDecimal("224.410000"), OffsetDateTime.parse("2026-08-20T15:30:00Z")))
-                .thenReturn(persistida);
+                new CotacaoData("AAPL", "Apple Inc.", "USD", new BigDecimal("224.41"), null, false, java.time.LocalDate.of(2026, 8, 20), false));
+        when(cotacaoPersistenceService.aplicar(any(), any())).thenAnswer(i -> aplicacao(persistida, i.getArgument(1)));
 
         AcaoResponse resposta = service.atualizarCotacao(11L);
 
@@ -310,6 +337,9 @@ class AcaoServiceTest {
         );
         for (ApiException falha : falhas) {
             reset(brapi);
+            when(brapi.mercado()).thenReturn(Mercado.BRASIL);
+            org.mockito.Mockito.doCallRealMethod().when(brapi).consultarCandidataAtualizacao(any(), any(), any(), any());
+            org.mockito.Mockito.doCallRealMethod().when(brapi).consultarAtualizacao(any(), any(), any());
             clearInvocations(alphaVantage, cotacaoPersistenceService, repository);
             when(repository.findById(12L)).thenReturn(Optional.of(existente));
             org.mockito.Mockito.doThrow(falha).when(brapi).consultar("PETR4");
@@ -321,6 +351,9 @@ class AcaoServiceTest {
         }
 
         reset(brapi);
+            when(brapi.mercado()).thenReturn(Mercado.BRASIL);
+            org.mockito.Mockito.doCallRealMethod().when(brapi).consultarCandidataAtualizacao(any(), any(), any(), any());
+            org.mockito.Mockito.doCallRealMethod().when(brapi).consultarAtualizacao(any(), any(), any());
         clearInvocations(alphaVantage, cotacaoPersistenceService, repository);
         when(repository.findById(12L)).thenReturn(Optional.of(existente));
         when(brapi.consultar("PETR4")).thenReturn(
@@ -331,16 +364,16 @@ class AcaoServiceTest {
     }
 
     @Test
-    void retornaEstadoPersistidoParaTimestampIgualOuAnterior() {
+    void retornaEstadoPersistidoParaMesmaReferenciaEPreco() {
         Acao existente = action(12L, "PETR4", "Empresa", Mercado.BRASIL, Moeda.BRL,
                 new BigDecimal("30.000000"), OffsetDateTime.parse("2026-08-19T15:30:00Z"));
+        existente.substituirObservacao(existente.getCotacaoAtual(), com.projeto.entities.ReferenciaTipoCotacao.INSTANTE,
+                existente.getDataHoraCotacao(), null, OffsetDateTime.parse("2026-08-19T16:00:00Z"));
         when(repository.findById(12L)).thenReturn(Optional.of(existente));
         when(brapi.consultar("PETR4")).thenReturn(new CotacaoData(
                 "PETR4", "Empresa", "BRL", new BigDecimal("30"),
                 OffsetDateTime.parse("2026-08-19T15:30:00Z"), false));
-        when(cotacaoPersistenceService.atualizarSePosterior(
-                eq(12L), eq(new BigDecimal("30.000000")), eq(OffsetDateTime.parse("2026-08-19T15:30:00Z"))))
-                .thenReturn(existente);
+        when(cotacaoPersistenceService.aplicar(any(), any())).thenAnswer(i -> aplicacao(existente, i.getArgument(1)));
 
         AcaoResponse resposta = service.atualizarCotacao(12L);
 
@@ -367,6 +400,9 @@ class AcaoServiceTest {
 
         for (int indice = 0; indice < dados.size(); indice++) {
             reset(brapi);
+            when(brapi.mercado()).thenReturn(Mercado.BRASIL);
+            org.mockito.Mockito.doCallRealMethod().when(brapi).consultarCandidataAtualizacao(any(), any(), any(), any());
+            org.mockito.Mockito.doCallRealMethod().when(brapi).consultarAtualizacao(any(), any(), any());
             clearInvocations(alphaVantage, cotacaoPersistenceService, repository);
             Acao existente = action(12L, "PETR4", "Empresa", Mercado.BRASIL, Moeda.BRL,
                     new BigDecimal("30.000000"), OffsetDateTime.parse("2026-08-19T15:30:00Z"));
@@ -597,4 +633,25 @@ class AcaoServiceTest {
         ReflectionTestUtils.setField(action, "id", id);
         return action;
     }
+    private AplicacaoCotacaoService.Aplicacao aplicacao(Acao estado,
+            com.projeto.integrations.cotacao.CotacaoCandidata candidata) {
+        var decisao = RegraDecisaoCotacao.decidir(estado, candidata);
+        return new AplicacaoCotacaoService.Aplicacao(decisao,
+                new AplicacaoCotacaoService.EstadoCotacao(estado.getCotacaoAtual(), estado.getReferenciaTipo(),
+                        estado.getReferenciaInstante(), estado.getReferenciaData(), estado.getCotacaoObtidaEm(),
+                        estado.getDataHoraCotacao()));
+    }
+
+    @Test void atualizacaoSemReferenciaNaoFabricaInstanteOuObtencao() {
+        Acao a = action(11L, "AAPL", "Apple", Mercado.EUA, Moeda.USD,
+                new BigDecimal("100.000000"), OffsetDateTime.parse("2026-08-19T15:30:00Z"));
+        when(repository.findById(11L)).thenReturn(Optional.of(a));
+        when(alphaVantage.consultarAtualizacao("AAPL", "Apple", "USD")).thenReturn(
+                new CotacaoData("AAPL", "Apple", "USD", BigDecimal.TEN, null, false));
+        assertEquals(ErrorCodes.REFERENCIA_TEMPORAL_INVALIDA,
+                assertThrows(ApiException.class, () -> service.atualizarCotacao(11L)).getCode());
+        assertNull(a.getCotacaoObtidaEm());
+        verifyNoInteractions(cotacaoPersistenceService);
+    }
+
 }

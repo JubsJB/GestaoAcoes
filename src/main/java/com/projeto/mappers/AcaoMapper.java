@@ -15,7 +15,10 @@ public class AcaoMapper {
                 acao.getMercado(),
                 acao.getMoeda(),
                 acao.getCotacaoAtual(),
-                acao.getDataHoraCotacao()
+                acao.getDataHoraCotacao(),
+                new com.projeto.dto.ReferenciaMercadoCotacaoResponse(acao.getReferenciaTipo(),
+                        acao.getReferenciaInstante(), acao.getReferenciaData()),
+                acao.getCotacaoObtidaEm()
         );
     }
 }

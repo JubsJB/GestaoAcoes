@@ -99,13 +99,13 @@ public class AcaoResource {
     }
 
     @PatchMapping("/{id}/cotacao")
-    @Operation(summary = "Atualizar cotação da ação", description = "Consulta o provider do mercado da ação e atualiza somente quando a cotação recebida é mais recente. Não aceita corpo.")
+    @Operation(summary = "Atualizar cotação da ação", description = "Processa atualização manual sem corpo, retornando AcaoResponse com referência de mercado e obtenção separadas. Estabelece baseline confiável sobre DESCONHECIDA ou aceita referência posterior do mesmo tipo, inclusive com preço igual. DATA e INSTANTE são incomparáveis. Referência anterior preserva a observação; mesma referência/preço pode avançar somente a obtenção em nova consulta válida. Sucesso HTTP não garante nova cotação nem nova consulta externa. O snapshot retornado pode representar uma tentativa concluída anterior, sem garantir o estado persistido mais recente.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Cotação processada", content = @Content(schema = @Schema(implementation = AcaoResponse.class))),
             @ApiResponse(responseCode = "400", description = "Corpo não permitido", content = @Content(schema = @Schema(implementation = StandardError.class))),
             @ApiResponse(responseCode = "404", description = "Ação não encontrada", content = @Content(schema = @Schema(implementation = StandardError.class))),
             @ApiResponse(responseCode = "409", description = "TICKER_CANONICO_DIVERGENTE ou INTEGRIDADE_DADOS_VIOLADA", content = @Content(schema = @Schema(implementation = StandardError.class))),
-            @ApiResponse(responseCode = "422", description = "Cotação indisponível ou fora da precisão", content = @Content(schema = @Schema(implementation = StandardError.class))),
+            @ApiResponse(responseCode = "422", description = "Cotação indisponível ou fora da precisão; CONFLITO_NA_MESMA_REFERENCIA, TIPO_REFERENCIA_INCOMPATIVEL ou REFERENCIA_TEMPORAL_INVALIDA preservam a cotação", content = @Content(schema = @Schema(implementation = StandardError.class))),
             @ApiResponse(responseCode = "429", description = "Limite do provider excedido", content = @Content(schema = @Schema(implementation = StandardError.class))),
             @ApiResponse(responseCode = "502", description = "Resposta externa inválida", content = @Content(schema = @Schema(implementation = StandardError.class))),
             @ApiResponse(responseCode = "503", description = "Provider externo indisponível", content = @Content(schema = @Schema(implementation = StandardError.class))),

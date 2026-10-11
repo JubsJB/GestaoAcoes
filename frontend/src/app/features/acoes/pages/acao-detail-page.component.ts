@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, DestroyRef, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, DestroyRef, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
@@ -9,7 +9,7 @@ import { finalize } from 'rxjs';
 import { NormalizedHttpError } from '../../../core/errors/normalized-http-error';
 import { AppIconComponent } from '../../../shared/app-icon/app-icon.component';
 import { FeedbackAlertComponent } from '../../../shared/feedback-alert/feedback-alert.component';
-import { formatOffsetDateTime } from '../../../shared/formatters/offset-date-time.formatter';
+import { formatReferenciaCotacao, formatCotacaoObtidaEm } from '../../../shared/formatters/cotacao-temporal.formatter';
 import { PageHeaderComponent } from '../../../shared/page-header/page-header.component';
 import { SuccessToastService } from '../../../shared/success-toast/success-toast.service';
 import { StickyBackComponent } from '../../../shared/sticky-back/sticky-back.component';
@@ -32,8 +32,7 @@ import { AcaoResponse } from '../models/acao';
       }
 
       @if (loadError()) { <app-feedback-alert variant="error" [message]="loadError()!.message" [details]="loadError()!.details" /> }
-      @else if (updateError()) { <app-feedback-alert variant="error" [message]="updateError()!.message" [details]="updateError()!.details" /> }
-      @if (quotePreserved() && acao()) { <app-feedback-alert variant="warning" message="A atualização não foi concluída. Estamos usando a última cotação válida disponível, com o valor e a data apresentados abaixo." /> }
+      @else if (updateError()) { <app-feedback-alert variant="error" [message]="updateErrorMessage()" /> }
       @if(updating()){<p class="progress" role="status" aria-live="polite">Atualizando cotação…</p>}
 
       @if(loading()){<div class="app-state" role="status" aria-live="polite"><mat-spinner diameter="36"/>Carregando ação…</div>}
@@ -43,7 +42,7 @@ import { AcaoResponse } from '../models/acao';
       @else if(acao();as item){
         <div class="grid">
           <mat-card class="section-card" appearance="outlined"><div class="section-card__heading"><app-icon name="identity" aria-hidden="true" /><h2>Identificação</h2></div><mat-card-content><dl class="data-list"><div><dt>Ticker</dt><dd>{{item.ticker}}</dd></div><div><dt>Empresa</dt><dd>{{item.nomeEmpresa}}</dd></div><div><dt>Mercado</dt><dd><span class="status-badge">{{market(item.mercado)}}</span></dd></div></dl></mat-card-content></mat-card>
-          <mat-card class="section-card quote-card" appearance="outlined"><div class="section-card__heading"><app-icon name="quote" aria-hidden="true" /><h2>Última cotação registrada</h2></div><mat-card-content><p class="quote-note">Cotação na referência abaixo; pode não refletir o preço em tempo real.</p><dl class="data-list"><div><dt>Moeda</dt><dd><span class="status-badge">{{item.moeda}}</span></dd></div><div><dt>Cotação</dt><dd class="quote-value">{{quote(item.cotacaoAtual,item.moeda)}}</dd></div><div><dt>Atualizada em</dt><dd>{{dateTime(item.dataHoraCotacao)}}</dd></div></dl></mat-card-content></mat-card>
+          <mat-card class="section-card quote-card" appearance="outlined"><div class="section-card__heading"><app-icon name="quote" aria-hidden="true" /><h2>Última cotação registrada</h2></div><mat-card-content><p class="quote-note">Cotação na referência abaixo; pode não refletir o preço em tempo real.</p><dl class="data-list"><div><dt>Moeda</dt><dd><span class="status-badge">{{item.moeda}}</span></dd></div><div><dt>Cotação</dt><dd class="quote-value">{{quote(item.cotacaoAtual,item.moeda)}}</dd></div><div><dt>Referência da cotação</dt><dd>{{reference(item.referenciaMercadoCotacao)}}</dd></div><div><dt>Cotação obtida em</dt><dd>{{obtained(item.cotacaoObtidaEm)}}</dd></div></dl></mat-card-content></mat-card>
         </div>
       }
     </section>`,
@@ -65,10 +64,23 @@ export class AcaoDetailPageComponent {
   protected readonly notFound = signal(false);
   protected readonly updating = signal(false);
   protected readonly updateError = signal<NormalizedHttpError | null>(null);
-  protected readonly quotePreserved = signal(false);
+  protected readonly updateErrorMessage = computed(() => {
+    const error = this.updateError();
+    const preserved = error?.details['cotacaoPreservada'] === true && this.acao() !== null;
+    let message = error?.status === 0
+      ? 'Não foi possível confirmar a atualização da cotação.'
+      : 'A atualização da cotação não foi concluída.';
+    if (error?.code === 'LIMITE_REQUISICOES_EXCEDIDO') {
+      message += ' O limite de consultas foi atingido. Tente novamente mais tarde.';
+    } else if (error?.code === 'TICKER_CANONICO_DIVERGENTE') {
+      message += ' O serviço retornou uma identificação diferente para esta ação.';
+    }
+    return preserved ? `${message} A última cotação válida foi preservada.` : message;
+  });
   protected readonly market = formatMercado;
   protected readonly quote = formatCotacao;
-  protected readonly dateTime = formatOffsetDateTime;
+  protected readonly reference = formatReferenciaCotacao;
+  protected readonly obtained = formatCotacaoObtidaEm;
 
   constructor() { if (!this.acao()) this.load(); }
 
@@ -84,11 +96,23 @@ export class AcaoDetailPageComponent {
 
   protected updateQuote(): void {
     if (this.updating() || !this.acao()) return;
+    const previous = this.acao()!;
     this.updating.set(true);
     this.updateError.set(null);
     this.service.atualizarCotacao(this.id).pipe(finalize(() => this.updating.set(false)), takeUntilDestroyed(this.destroyRef)).subscribe({
-      next: (item) => { this.acao.set(item); this.quotePreserved.set(false); this.successToast.show('Cotação atualizada com sucesso.'); },
-      error: (error: NormalizedHttpError) => { this.updateError.set(error); this.quotePreserved.set(true); }
+      next: (item) => {
+        const changed = item.cotacaoAtual !== previous.cotacaoAtual
+          || item.referenciaMercadoCotacao.tipo !== previous.referenciaMercadoCotacao.tipo
+          || item.referenciaMercadoCotacao.data !== previous.referenciaMercadoCotacao.data
+          || item.referenciaMercadoCotacao.instante !== previous.referenciaMercadoCotacao.instante
+          || item.cotacaoObtidaEm !== previous.cotacaoObtidaEm;
+        this.acao.set(item);
+        // PATCH returns a state, not whether a provider was called or a quote was reused.
+        this.successToast.show(changed
+          ? 'Solicitação processada. Dados da cotação atualizados na tela.'
+          : 'Solicitação processada. Cotação retornada sem alteração.');
+      },
+      error: (error: NormalizedHttpError) => { this.updateError.set(error); }
     });
   }
 

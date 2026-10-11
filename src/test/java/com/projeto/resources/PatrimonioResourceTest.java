@@ -176,10 +176,8 @@ class PatrimonioResourceTest {
                         "\"patrimonioAtual\":3000.000000000000"
                 )));
 
-        acao.atualizarCotacao(
-                new BigDecimal("35.500000"),
-                OffsetDateTime.parse("2026-08-02T10:00:00Z")
-        );
+        acao.substituirObservacao(new BigDecimal("35.500000"), com.projeto.entities.ReferenciaTipoCotacao.INSTANTE,
+                OffsetDateTime.parse("2026-08-02T10:00:00Z"), null, OffsetDateTime.parse("2026-08-02T10:00:00Z"));
         acaoRepository.saveAndFlush(acao);
 
         mockMvc.perform(get("/carteiras/{id}/patrimonio", carteira.getId()))

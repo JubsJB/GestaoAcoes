@@ -7,11 +7,11 @@ Disponibilizar uma descrição OpenAPI navegável, segura e fiel aos contratos R
 ## Requirements
 
 ### Requirement: Documento OpenAPI derivado da API real
-O sistema SHALL disponibilizar, por integração code-first com springdoc, uma descrição OpenAPI gerada a partir das 24 operações REST implementadas em 18 paths funcionais distintos. A descrição MUST refletir métodos, paths, parâmetros, request bodies, respostas, status de sucesso e schemas públicos reais, e MUST NOT declarar endpoints ou comportamentos inexistentes. Endpoints e assets técnicos do springdoc MUST NOT integrar essa contagem funcional.
+O sistema SHALL disponibilizar documento code-first springdoc refletindo exatamente métodos, paths, parâmetros, bodies, respostas e schemas públicos implementados. SHALL incluir o novo POST de atualização das cotações da Carteira e extensões temporais somente quando implementados. Contagem SHALL corresponder à API real, sem perpetuar contagem histórica fixa nem contabilizar assets técnicos. MUST NOT declarar comportamentos inexistentes.
 
 #### Scenario: Consulta da descrição JSON
-- **WHEN** um consumidor acessa `/v3/api-docs` em qualquer profile do MVP
-- **THEN** o sistema responde com um documento OpenAPI válido que contém as 24 operações públicas nos 18 paths funcionais implementados
+- **WHEN** um consumidor acessa /v3/api-docs em qualquer profile
+- **THEN** recebe documento válido com operações e paths funcionais realmente implementados, incluindo o lote quando entregue
 
 #### Scenario: Consulta da descrição YAML
 - **WHEN** um consumidor acessa `/v3/api-docs.yaml` em qualquer profile do MVP
@@ -117,3 +117,18 @@ A descrição do endpoint e o schema de resposta da prévia SHALL declarar consu
 #### Scenario: Separação do POST documentada
 - **WHEN** um consumidor compara as consultas com `POST /operacoes`
 - **THEN** a documentação mantém COMPRA e VENDA com `precoUnitario` obrigatorio e ambas sem `ordemNoDia`
+
+### Requirement: Documentação do lote e precisão temporal de cotação
+OpenAPI SHALL documentar POST /carteiras/{carteiraId}/atualizacoes-cotacoes sem lista arbitrária de Ações, 200 com resultados individuais e contadores, vazio e erros globais padronizados. SHALL documentar ATUALIZADA, SEM_NOVA_COTACAO, FALHA, motivos públicos, referência tipada e nullability legada, mantendo dataHoraCotacao como compatibilidade. PATCH individual SHALL manter path/response e erros externos, acrescentando erros temporais 422. MUST NOT prometer tempo real, classificação de defasagem, rollback global de sucesso parcial ou alteração de preços de operações.
+
+#### Scenario: Resultado parcial documentado
+- **WHEN** o consumidor inspeciona o lote
+- **THEN** encontra 200 inclusive parcial, contadores e estados por ativo
+
+#### Scenario: Schemas temporais
+- **WHEN** inspeciona Ação e posição
+- **THEN** encontra INSTANTE/DATA/DESCONHECIDA, precisão e campos legados preservados
+
+#### Scenario: Falha temporal individual
+- **WHEN** PATCH recebe tipos incompatíveis ou referência inválida
+- **THEN** OpenAPI documenta erro padronizado temporal sem alteração da cotação

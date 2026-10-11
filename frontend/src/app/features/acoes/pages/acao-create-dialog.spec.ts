@@ -10,7 +10,7 @@ import { AcoesService } from '../acoes.service';
 import { AcaoResponse } from '../models/acao';
 import { AcaoCreatePageComponent } from './acao-create-page.component';
 
-const STOCK: AcaoResponse = { id: 7, ticker: 'AAPL', nomeEmpresa: 'Apple', mercado: 'EUA', moeda: 'USD', cotacaoAtual: 200, dataHoraCotacao: '2026-08-30T12:00:00Z' };
+const STOCK: AcaoResponse = { id: 7, ticker: 'AAPL', nomeEmpresa: 'Apple', mercado: 'EUA', moeda: 'USD', cotacaoAtual: 200, dataHoraCotacao: '2026-08-30T12:00:00Z', referenciaMercadoCotacao: { tipo: 'DESCONHECIDA', data: null, instante: null }, cotacaoObtidaEm: null };
 
 describe('AcaoCreatePageComponent em dialog', () => {
   let fixture: ComponentFixture<AcaoCreatePageComponent>;
