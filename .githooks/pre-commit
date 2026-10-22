@@ -1,0 +1,12 @@
+#!/bin/sh
+# Git for Windows provides sh; PowerShell 7 must already be installed.
+if command -v pwsh.exe >/dev/null 2>&1; then
+    powershell=$(command -v pwsh.exe)
+elif command -v pwsh >/dev/null 2>&1; then
+    powershell=$(command -v pwsh)
+else
+    echo 'pre-commit: PowerShell 7.2+ (pwsh) ausente no PATH.' >&2
+    exit 127
+fi
+root=$(git rev-parse --show-toplevel) || exit $?
+exec "$powershell" -NoProfile -NonInteractive -File "$root/scripts/pre-commit.ps1"

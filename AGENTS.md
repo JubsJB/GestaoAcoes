@@ -542,6 +542,59 @@ Quando aplicável, testar também:
 
 Não modificar uma regra financeira sem verificar se os testes correspondentes também precisam ser alterados.
 
+### 22.1 TDD nas próximas implementações
+
+Para novas funcionalidades e alterações de comportamento, seguir obrigatoriamente este fluxo, utilizando a skill `$tdd` em `.agents/skills/tdd/SKILL.md` quando aplicável:
+
+1. analisar o requisito e os cenários aprovados no OpenSpec, quando houver change;
+2. identificar e registrar a interface pública e o comportamento a testar; confirmar essas fronteiras de teste com o usuário antes de escrever testes, aproveitando a aprovação já existente quando ela as definir explicitamente;
+3. escrever um teste por comportamento, em um ciclo de cada vez, observando a interface pública e usando resultados esperados independentes da implementação;
+4. executar o teste e registrar o RED, confirmando que a falha decorre do comportamento ausente ou incorreto esperado, e não de infraestrutura, configuração ou erro acidental;
+5. implementar somente o necessário para GREEN e executar novamente o teste;
+6. após GREEN, realizar uma etapa controlada de revisão e refatorar quando necessário, mantendo os testes verdes;
+7. executar os testes relevantes de regressão e as verificações de cobertura dos projetos afetados antes de concluir a implementação;
+8. apresentar evidências dos comandos, do RED esperado, do GREEN, da revisão e da cobertura.
+
+A skill define o ciclo de implementação como RED → GREEN e desloca a refatoração para a revisão. Neste projeto, RED → GREEN → REFACTOR significa que essa revisão ocorre após GREEN: refatoração não introduz comportamento novo sem outro ciclo RED e os testes devem permanecer verdes. As referências da skill a `code-review` e `codebase-design` não autorizam instalar skills auxiliares; se indisponíveis, informar a limitação e realizar a revisão explícita no escopo autorizado.
+
+Não escrever todos os testes antecipadamente para depois implementar em lote. Não criar testes artificiais, tautológicos ou acoplados a detalhes internos apenas para aumentar cobertura.
+
+### 22.2 Código legado
+
+- não afirmar retroativamente que testes existentes seguiram TDD;
+- para correções de bugs, reproduzir primeiro o defeito em teste quando viável; explicar quando isso não for possível;
+- para refatorações sem mudança de comportamento, preservar e ampliar testes de caracterização quando necessário;
+- evitar reescrita em massa de testes antigos.
+
+### 22.3 Portões de cobertura
+
+Os portões existentes avaliam linhas e ramos separadamente, de forma global por projeto:
+
+| Projeto | Ferramenta e escopo | Linhas | Ramos |
+| --- | --- | --- | --- |
+| Backend | JaCoCo, `BUNDLE` do módulo Maven, incluindo classes de produção não exercitadas | >= 80% | >= 80% |
+| Frontend | Angular/Vitest com provedor V8, `perFile: false`, incluindo `src/**/*.ts` não importados pelos testes; exclui somente `**/*.spec.ts` e `**/*.d.ts` na configuração de cobertura | >= 80% | >= 80% |
+
+Qualquer métrica abaixo de seu limite deve reprovar automaticamente o respectivo comando. Não diminuir limites, enfraquecer testes nem excluir código de negócio para mascarar lacunas. Não tratar aprovação global como prova de cobertura de cada arquivo ou comportamento. Verificar também a cobertura do código alterado quando houver controle específico disponível; os portões atuais não impõem cobertura por diff.
+
+No diretório raiz do repositório `gestaoacoes`, executar o backend em ambiente de teste isolado, com H2 descartável e sem habilitar os testes PostgreSQL condicionais ou o protótipo temporal:
+
+```powershell
+.\mvnw.cmd -B "-Dtemporal.test.postgresql.url=" "-Dtemporal.test.postgresql.enabled=false" "-Dbroker.test.postgresql.enabled=false" "-Dtemporal.poc.enabled=false" "-Djacoco.append=false" verify
+```
+
+O JaCoCo gera relatórios HTML/XML em `target/site/jacoco/` e verifica os dois limites durante `verify`. Executar somente `mvn test` não verifica esse portão.
+
+No diretório `frontend`, executar a cobertura sem watch, com os limites de trabalhadores usados na validação isolada do projeto:
+
+```powershell
+$env:VITEST_MAX_WORKERS = '1'
+$env:NG_BUILD_MAX_WORKERS = '2'
+npm run test:coverage
+```
+
+O script existente executa `ng test --configuration coverage --watch=false` e preserva os relatórios HTML, LCOV e JSON. `npm test` e `npm run build` não substituem essa verificação. Registrar linhas, ramos, resultado do portão e testes aprovados, falhos e ignorados; informar explicitamente testes não executados e limitações do ambiente.
+
 ---
 
 ## 23. Trabalho com o PRD
@@ -559,7 +612,7 @@ Antes de implementar um requisito:
 3. consultar a implementação atual;
 4. consultar os testes relacionados;
 5. identificar os componentes afetados;
-6. implementar a menor alteração coerente possível;
+6. implementar a menor alteração coerente possível, seguindo o fluxo TDD da seção 22 para alterações de comportamento;
 7. validar o resultado contra o requisito.
 
 Quando o PRD for alterado, verificar se alguma regra deste AGENTS.md também precisa ser atualizada.
@@ -585,9 +638,13 @@ Requisito
  ↓
 OpenSpec
  ↓
-Implementacao
+Teste RED
  ↓
-Testes
+Implementacao minima GREEN
+ ↓
+Revisao / Refatoracao com testes verdes
+ ↓
+Regressao, cobertura e evidencias
 ```
 
 Quando existir uma alteração aprovada no OpenSpec:
@@ -596,7 +653,12 @@ Quando existir uma alteração aprovada no OpenSpec:
 - respeitar o escopo definido;
 - identificar os requisitos relacionados;
 - evitar refatorações não relacionadas;
-- criar ou atualizar testes conforme a especificação.
+- usar os cenários aprovados como referência para os testes, seguindo a seção 22;
+- preservar a rastreabilidade entre requisito/cenário, teste e implementação, identificando essa relação nas evidências da tarefa;
+- não marcar tarefas como concluídas sem a implementação integral e as evidências correspondentes;
+- não modificar o escopo aprovado sem análise e autorização do usuário.
+
+Respeitar as fronteiras das skills OpenSpec: explorar e planejar não autorizam implementar; concluir uma proposta não autoriza aplicar a change; concluir implementação não autoriza arquivá-la. Seguir as instruções da skill pertinente e as aprovações do usuário em cada operação.
 
 O OpenSpec não deve substituir o PRD.
 
@@ -632,9 +694,9 @@ Rules:
 
 ---
 
-## 26. Fluxo Recomendado para os Agentes
+## 26. Fluxo de Desenvolvimento para os Agentes
 
-Para tarefas significativas de implementação, seguir preferencialmente este fluxo:
+Para novas funcionalidades e alterações de comportamento, seguir este fluxo obrigatório em conjunto com a seção 22:
 
 ```text
 Solicitacao do Usuario
@@ -652,18 +714,24 @@ Identificar arquivos e componentes afetados
         ↓
 Inspecionar somente o codigo necessario
         ↓
-Implementar alteracao
+Confirmar interface publica e comportamento a testar
         ↓
-Criar/atualizar testes
+Um teste por comportamento: executar e registrar RED
         ↓
-Executar testes relevantes
+Implementar o minimo e confirmar GREEN
+        ↓
+Revisar / refatorar mantendo testes verdes
+        ↓
+Executar testes relevantes e portoes de cobertura
         ↓
 Atualizar Graphify
         ↓
-Informar alteracoes realizadas
+Apresentar alteracoes e evidencias
 ```
 
 Não iniciar uma exploração ampla e desnecessária do código quando o Graphify puder fornecer primeiro os relacionamentos relevantes.
+
+Para alterações somente de documentação ou configuração sem mudança de comportamento, executar as validações estáticas pertinentes; não inventar um RED nem repetir toda a suíte sem necessidade.
 
 ---
 
@@ -671,6 +739,7 @@ Não iniciar uma exploração ampla e desnecessária do código quando o Graphif
 
 Ao modificar o projeto:
 
+- verificar o estado do Git antes de editar e preservar todas as alterações locais preexistentes, inclusive arquivos não rastreados;
 - realizar a menor alteração coerente que satisfaça o requisito;
 - não implementar funcionalidades não relacionadas;
 - evitar grandes refatorações sem justificativa;
@@ -681,6 +750,10 @@ Ao modificar o projeto:
 - atualizar documentação quando necessário.
 
 Nunca alterar silenciosamente uma regra financeira.
+
+Não executar migrations em bancos persistentes, nem utilizar Docker ou PostgreSQL de desenvolvimento em testes, sem autorização explícita. Priorizar H2 descartável e contextos isolados para testes locais; não acessar serviços externos reais sem autorização.
+
+Não realizar commit, push, merge ou arquivamento de changes automaticamente. Essas ações dependem de autorização do usuário. Não enfraquecer testes ou portões para obter aprovação.
 
 ---
 
@@ -713,10 +786,16 @@ Uma alteração deve ser considerada concluída somente quando, quando aplicáve
 - as entradas forem devidamente validadas;
 - existirem testes automatizados para o comportamento;
 - os testes relevantes existentes estiverem passando;
+- o fluxo TDD aplicável tiver evidências do RED pelo motivo esperado, do GREEN e da revisão após GREEN;
+- os portões de linhas e ramos dos projetos afetados estiverem aprovados e os relatórios de cobertura disponíveis;
+- os comandos e resultados de validação estiverem apresentados, incluindo falhas, testes ignorados ou não executados e limitações;
+- houver rastreabilidade entre os cenários OpenSpec aprovados, os testes e a implementação, sem marcar tarefas parcialmente implementadas como concluídas;
 - falhas de integrações externas estiverem tratadas;
 - nenhuma credencial estiver hardcoded;
 - documentação e especificação estiverem coerentes com a implementação;
 - o Graphify tiver sido atualizado após alterações no código.
+
+Em alterações exclusivamente documentais, registrar as validações estáticas aplicáveis. Não declarar testes, cobertura ou etapas TDD como executados sem evidências.
 
 ---
 
