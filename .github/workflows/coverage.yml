@@ -44,7 +44,19 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Verificar backend e frontend sequencialmente
         id: verify
-        run: ./scripts/verify-coverage.ps1
+        run: |
+          $ErrorActionPreference = 'Stop'
+          # Match the shared preflight; sanitize only this step's process environment.
+          foreach ($entry in Get-ChildItem Env:) {
+            $key = $entry.Name -replace '[._-]', ''
+            if ($entry.Value -and ($key -match '^(SPRING|HIBERNATECONNECTION|JAKARTAPERSISTENCEJDBC|TEMPORAL|BROKERTESTPOSTGRESQL|CUSTODIA|POSTGRES|PGHOST|PGPORT|PGDATABASE|PGUSER|PGPASSWORD)' -or
+                $entry.Name -match '^(JAVA_TOOL_OPTIONS|_JAVA_OPTIONS|JDK_JAVA_OPTIONS|MAVEN_OPTS|MAVEN_ARGS|MVNW_REPOURL|MVNW_USERNAME|MVNW_PASSWORD|NODE_OPTIONS|VITEST_COVERAGE.*|npm_config_argv)$')) {
+              [Environment]::SetEnvironmentVariable($entry.Name, $null, 'Process')
+              Write-Host "Variavel herdada removida: $($entry.Name)"
+            }
+          }
+          ./scripts/verify-coverage.ps1
+          exit $LASTEXITCODE
       - name: Informar ausencia de execucao
         if: ${{ always() && steps.verify.outputs.evidence == '' }}
         run: |
