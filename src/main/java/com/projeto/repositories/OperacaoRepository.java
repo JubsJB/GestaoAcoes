@@ -13,6 +13,17 @@ import java.util.Optional;
 
 public interface OperacaoRepository extends JpaRepository<Operacao, Long> {
 
+    /** Histórico integral do contexto; a cronologia quantitativa é determinada em Java. */
+    @Query("""
+            select o from Operacao o
+            join fetch o.carteira
+            join fetch o.acao
+            left join fetch o.corretora
+            where o.carteira.id = :carteiraId and o.acao.id = :acaoId
+            """)
+    List<Operacao> listarParaReplayQuantitativo(@Param("carteiraId") Long carteiraId,
+            @Param("acaoId") Long acaoId);
+
     @EntityGraph(attributePaths = {"acao", "corretora"})
     @Query("select o from Operacao o where o.carteira.id = :carteiraId order by o.dataOperacao, o.ordemNoDia, o.id")
     List<Operacao> listarParaDistribuicao(@Param("carteiraId") Long carteiraId);

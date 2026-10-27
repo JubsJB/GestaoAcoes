@@ -1,0 +1,207 @@
+databaseChangeLog:
+  - changeSet:
+      id: 008-create-movimentacoes-custodia
+      author: codex
+      # Schema provisório: FKs, UNIQUEs e CHECKs serão adicionados na tarefa 1.6.
+      # Não habilitar escritas de custódia nem aplicar em bancos existentes antes da homologação.
+      changes:
+        - createTable:
+            tableName: movimentacao_custodia
+            columns:
+              - column:
+                  name: id
+                  type: BIGINT
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    primaryKeyName: pk_movimentacao_custodia
+                    nullable: false
+              - column:
+                  name: carteira_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: acao_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: natureza
+                  type: VARCHAR(20)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: corretora_origem_id
+                  type: BIGINT
+                  constraints:
+                    nullable: true
+              - column:
+                  name: corretora_destino_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: quantidade
+                  type: NUMERIC(19,6)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: data_efetiva
+                  type: DATE
+                  constraints:
+                    nullable: false
+              - column:
+                  name: data_registro
+                  type: TIMESTAMP WITH TIME ZONE
+                  constraints:
+                    nullable: false
+              - column:
+                  name: ordem_financeira_ancora
+                  type: INTEGER
+                  constraints:
+                    nullable: false
+              - column:
+                  name: posicao_numerador
+                  type: VARCHAR(512)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: posicao_denominador
+                  type: VARCHAR(512)
+                  constraints:
+                    nullable: false
+        - createTable:
+            tableName: estorno_movimentacao_custodia
+            columns:
+              - column:
+                  name: id
+                  type: BIGINT
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    primaryKeyName: pk_estorno_movimentacao_custodia
+                    nullable: false
+              - column:
+                  name: movimentacao_original_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: data_registro
+                  type: TIMESTAMP WITH TIME ZONE
+                  constraints:
+                    nullable: false
+              - column:
+                  name: motivo
+                  type: VARCHAR(1000)
+                  constraints:
+                    nullable: true
+        - createIndex:
+            tableName: movimentacao_custodia
+            indexName: idx_movimentacao_custodia_carteira_registro_id
+            columns:
+              - column:
+                  name: carteira_id
+              - column:
+                  name: data_registro
+              - column:
+                  name: id
+        - createIndex:
+            tableName: movimentacao_custodia
+            indexName: idx_movimentacao_custodia_carteira_acao_cronologia
+            columns:
+              - column:
+                  name: carteira_id
+              - column:
+                  name: acao_id
+              - column:
+                  name: data_efetiva
+              - column:
+                  name: ordem_financeira_ancora
+      # Liquibase 5.0.3: rollback explícito substitui a inversão automática de createTable.
+      # stop interrompe a operação; não apaga tabelas nem registra uma reversão vazia.
+      # Reversão estrutural exige plano separado e autorização para preservar a auditoria.
+      rollback:
+        - stop:
+            message: "Rollback estrutural da migration 008 bloqueado para preservar a auditoria de custódia. Exige plano separado e autorização explícita."
+  - changeSet:
+      id: 008-add-integridade-movimentacoes-custodia
+      author: codex
+      changes:
+        - addForeignKeyConstraint:
+            baseTableName: movimentacao_custodia
+            baseColumnNames: carteira_id
+            referencedTableName: carteira
+            referencedColumnNames: id
+            constraintName: fk_movimentacao_custodia_carteira
+            onDelete: RESTRICT
+        - addForeignKeyConstraint:
+            baseTableName: movimentacao_custodia
+            baseColumnNames: acao_id
+            referencedTableName: acao
+            referencedColumnNames: id
+            constraintName: fk_movimentacao_custodia_acao
+            onDelete: RESTRICT
+        - addForeignKeyConstraint:
+            baseTableName: movimentacao_custodia
+            baseColumnNames: corretora_origem_id
+            referencedTableName: corretora
+            referencedColumnNames: id
+            constraintName: fk_movimentacao_custodia_corretora_origem
+            onDelete: RESTRICT
+        - addForeignKeyConstraint:
+            baseTableName: movimentacao_custodia
+            baseColumnNames: corretora_destino_id
+            referencedTableName: corretora
+            referencedColumnNames: id
+            constraintName: fk_movimentacao_custodia_corretora_destino
+            onDelete: RESTRICT
+        - addForeignKeyConstraint:
+            baseTableName: estorno_movimentacao_custodia
+            baseColumnNames: movimentacao_original_id
+            referencedTableName: movimentacao_custodia
+            referencedColumnNames: id
+            constraintName: fk_estorno_movimentacao_custodia_original
+            onDelete: RESTRICT
+        - addUniqueConstraint:
+            tableName: movimentacao_custodia
+            columnNames: carteira_id, acao_id, data_efetiva, ordem_financeira_ancora, posicao_numerador, posicao_denominador
+            constraintName: uk_movimentacao_custodia_posicao
+        - addUniqueConstraint:
+            tableName: estorno_movimentacao_custodia
+            columnNames: movimentacao_original_id
+            constraintName: uk_estorno_movimentacao_custodia_original
+        - sql:
+            sql: ALTER TABLE movimentacao_custodia ADD CONSTRAINT ck_movimentacao_custodia_natureza CHECK (natureza IN ('TRANSFERENCIA', 'ATRIBUICAO'))
+        - sql:
+            sql: ALTER TABLE movimentacao_custodia ADD CONSTRAINT ck_movimentacao_custodia_quantidade_positiva CHECK (quantidade > 0)
+        - sql:
+            sql: ALTER TABLE movimentacao_custodia ADD CONSTRAINT ck_movimentacao_custodia_ancora_nao_negativa CHECK (ordem_financeira_ancora >= 0)
+        - sql:
+            sql: >-
+              ALTER TABLE movimentacao_custodia ADD CONSTRAINT ck_movimentacao_custodia_direcao CHECK (
+                (natureza = 'TRANSFERENCIA' AND corretora_origem_id IS NOT NULL AND corretora_origem_id <> corretora_destino_id) OR
+                (natureza = 'ATRIBUICAO' AND corretora_origem_id IS NULL)
+              )
+        # REGEXP_LIKE e CHAR_LENGTH disponíveis em PostgreSQL 17 e H2 2.x.
+        # Busca negativa rejeita qualquer caractere não ASCII, inclusive quebras de linha;
+        # não depende da interpretação de $ ou de classes Unicode como \d.
+        # Formato não substitui gcd e intervalo racional exato, validados pelo domínio.
+        - sql:
+            sql: >-
+              ALTER TABLE movimentacao_custodia ADD CONSTRAINT ck_movimentacao_custodia_numerador_formato CHECK (
+                CHAR_LENGTH(posicao_numerador) BETWEEN 1 AND 512 AND
+                REGEXP_LIKE(posicao_numerador, '^[123456789]') AND
+                NOT REGEXP_LIKE(posicao_numerador, '[^0123456789]')
+              )
+        - sql:
+            sql: >-
+              ALTER TABLE movimentacao_custodia ADD CONSTRAINT ck_movimentacao_custodia_denominador_formato CHECK (
+                CHAR_LENGTH(posicao_denominador) BETWEEN 1 AND 512 AND
+                REGEXP_LIKE(posicao_denominador, '^[123456789]') AND
+                NOT REGEXP_LIKE(posicao_denominador, '[^0123456789]')
+              )
+      rollback:
+        - stop:
+            message: "Rollback das constraints de custódia bloqueado para preservar a integridade e a auditoria. Exige plano separado e autorização explícita."
