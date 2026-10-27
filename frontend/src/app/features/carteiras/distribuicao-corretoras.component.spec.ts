@@ -7,7 +7,7 @@ import { DistribuicaoCorretorasComponent } from './distribuicao-corretoras.compo
 import { DistribuicaoCorretorasService } from './distribuicao-corretoras.service';
 import { parseDistribuicaoCorretoras } from './distribuicao-corretoras.contract';
 import { DistribuicaoCarteiraResponse } from './models/distribuicao-corretoras';
-import { DISTRIBUICAO_EXAMPLES } from './testing/distribuicao-corretoras.fixtures';
+import { DISTRIBUICAO_EXAMPLES, DISTRIBUICAO_CUSTODIA_EXAMPLE } from './testing/distribuicao-corretoras.fixtures';
 
 describe('DistribuicaoCorretorasComponent', () => {
   afterEach(() => TestBed.resetTestingModule());
@@ -23,6 +23,31 @@ describe('DistribuicaoCorretorasComponent', () => {
     (fixture.nativeElement.querySelector('details') as HTMLDetailsElement).open = true;
     fixture.detectChanges();
   }
+
+  it.each(['TRANSFERENCIA', 'ATRIBUICAO'])('apresenta %s como custodia, com ancora e fracao exatas', async natureza => {
+    let wire = DISTRIBUICAO_CUSTODIA_EXAMPLE.replace('TRANSFERENCIA', natureza);
+    if (natureza === 'ATRIBUICAO') wire = wire.replaceAll('"corretoraId":2,"nome":"Corretora B"', '"corretoraId":null,"nome":"Sem corretora informada"');
+    const value = parseDistribuicaoCorretoras(wire), original = structuredClone(value);
+    const { fixture, root } = await create(of(value));open(fixture);
+    const diagnostic = root.querySelector('.broker-diagnostic')!;
+    expect(diagnostic.textContent).toContain(natureza === 'TRANSFERENCIA' ? 'transferência de custódia 20' : 'atribuição de custódia 20');
+    expect(diagnostic.textContent).toContain('02/10/2026');expect(diagnostic.textContent).toContain('âncora financeira 0');
+    expect(diagnostic.textContent).toContain('9007199254740993/9007199254740994');
+    expect(diagnostic.textContent).toContain('Saldo após o evento: -40');expect(diagnostic.textContent).not.toContain('operação 20');
+    expect(root.querySelectorAll('.broker-row')).toHaveLength(2);expect(diagnostic.querySelector('[role=alert]')).toBeNull();
+    expect(root.querySelector('summary')?.getAttribute('aria-label')).toContain('Distribuição de PETR4');expect(value).toEqual(original);
+  });
+  it('renderiza fracao de 512 digitos sem abreviar ou converter para Number', async () => {
+    const n = '1' + '0'.repeat(510) + '1', d = '2' + '0'.repeat(510) + '1';
+    const wire = DISTRIBUICAO_CUSTODIA_EXAMPLE.replace('9007199254740993', n).replace('9007199254740994', d);
+    const { fixture, root } = await create(of(parseDistribuicaoCorretoras(wire)));open(fixture);
+    expect(root.querySelector('.broker-diagnostic')?.textContent).toContain(n + '/' + d);
+  });
+  it('sem primeiro deficit nao fabrica evidencia nem altera avisos saudaveis', async () => {
+    const { fixture, root } = await create();open(fixture);
+    expect(root.querySelector('.broker-diagnostic')).toBeNull();expect(root.textContent).not.toContain('Primeiro déficit');
+    expect(root.querySelectorAll('.broker-row')).toHaveLength(2);
+  });
 
   for (const [index, example] of DISTRIBUICAO_EXAMPLES.entries()) {
     it(`renderiza exemplo ${index + 1} com uma advertencia por grupo e sem recalculo`, async () => {

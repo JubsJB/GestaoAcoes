@@ -35,8 +35,11 @@ public class DistribuicaoCorretoraResource {
 
     @GetMapping(produces = "application/json")
     @Operation(summary = "Consultar distribuicao informativa por corretora", tags = "Carteiras",
-            description = "Posicoes abertas derivadas das operacoes registradas, nao custodia comprovada. "
+            description = "Posicoes abertas derivadas das operacoes financeiras e custódias ativas, nao custodia comprovada. "
+                    + "Estornos neutralizam a original na posição efetiva. Consolidado exclusivamente financeiro. "
+                    + "primeiroDeficit identifica dominio, id, natureza, dataEfetiva, posicaoCronologica e saldoAposEvento. "
                     + "Negativos e deficits historicos, inclusive grupos zerados, permanecem diagnosticados. "
+                    + "Exemplos negativos são históricos legados consultáveis; novos POSTs não podem criar ou agravar déficits. "
                     + "Quantidades decimais exatas; reconciliacao pertence ao snapshot desta resposta.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Distribuicao, inclusive vazia ou inconsistente",

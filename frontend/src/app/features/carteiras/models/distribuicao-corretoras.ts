@@ -25,12 +25,25 @@ export interface QuantidadeCorretoraResponse {
   quantidadeLiquida: string;
 }
 
-export interface PrimeiroDeficitResponse {
-  operacaoId: number;
-  dataOperacao: string;
-  ordemNoDia: number;
-  saldoAposOperacao: string;
+interface PrimeiroDeficitBase {
+  id: number;
+  dataEfetiva: string;
+  saldoAposEvento: string;
 }
+
+export interface PrimeiroDeficitFinanceiroResponse extends PrimeiroDeficitBase {
+  dominio: 'FINANCEIRO';
+  natureza: 'COMPRA' | 'VENDA';
+  posicaoCronologica: { ordemNoDia: number };
+}
+
+export interface PrimeiroDeficitCustodiaResponse extends PrimeiroDeficitBase {
+  dominio: 'CUSTODIA';
+  natureza: 'TRANSFERENCIA' | 'ATRIBUICAO';
+  posicaoCronologica: { ordemFinanceiraAncora: number; numerador: string; denominador: string };
+}
+
+export type PrimeiroDeficitResponse = PrimeiroDeficitFinanceiroResponse | PrimeiroDeficitCustodiaResponse;
 
 export interface DiagnosticoCorretoraResponse {
   corretoraId: number | null;

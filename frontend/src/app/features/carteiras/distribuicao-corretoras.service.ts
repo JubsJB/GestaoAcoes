@@ -33,7 +33,7 @@ function normalizeError(error: unknown): NormalizedHttpError {
     if (typeof original.error === 'string') {
       try {
         const body = parseLosslessJson<unknown>(original.error, new Set(['quantidadeConsolidada',
-          'quantidadeAtribuidaTotal', 'quantidadeLiquida', 'quantidadeFinal', 'saldoAposOperacao',
+          'quantidadeAtribuidaTotal', 'quantidadeLiquida', 'quantidadeFinal', 'saldoAposEvento',
           'quantidadeDisponivel', 'quantidadeSolicitada']));
         return { ...normalizeHttpError(new HttpErrorResponse({ error: body, status: original.status,
           statusText: original.statusText, url: original.url ?? undefined })), originalError: original };

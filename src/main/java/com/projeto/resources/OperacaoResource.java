@@ -44,12 +44,14 @@ public class OperacaoResource {
     }
 
     @PostMapping
-    @Operation(summary = "Registrar operação", description = "COMPRA e VENDA usam o preco unitario informado pelo usuario. A ordem no dia é gerada pelo backend.")
+    @Operation(summary = "Registrar operação", description = "COMPRA e VENDA usam o preco unitario informado pelo usuario. A ordem no dia é gerada pelo backend. "
+            +"Nova VENDA exige saldo consolidado e saldo da corretora informada, inclusive grupo sem corretora. Compras/vendas retroativas não podem invalidar custódia ativa ou criar/agravar déficit histórico. "
+            +"Consolidado insuficiente precede saldo local; custódia ativa invalidada precede déficit diferencial. Históricos negativos legados continuam consultáveis, mas não autorizam novas escritas deficitárias. Sem retry automático.")
     @ApiResponses({
             @ApiResponse(responseCode = "201", description = "Operação registrada", content = @Content(schema = @Schema(implementation = OperacaoResponse.class))),
             @ApiResponse(responseCode = "400", description = "Request inválido", content = @Content(schema = @Schema(implementation = StandardError.class))),
             @ApiResponse(responseCode = "404", description = "Carteira, ação ou corretora não encontrada", content = @Content(schema = @Schema(implementation = StandardError.class))),
-            @ApiResponse(responseCode = "409", description = "POSICAO_INSUFICIENTE ou INTEGRIDADE_DADOS_VIOLADA", content = @Content(schema = @Schema(implementation = StandardError.class)))
+            @ApiResponse(responseCode = "409", description = "POSICAO_INSUFICIENTE, SALDO_CORRETORA_INSUFICIENTE, MOVIMENTACAO_CUSTODIA_INVALIDADA, CONFLITO_HISTORICO_QUANTITATIVO, INTEGRIDADE_DADOS_VIOLADA ou CONFLITO_TRANSACIONAL_TRANSITORIO. Details preservam grupo, evento discriminado e saldos exatos quando disponíveis, sem SQL ou credenciais.", content = @Content(schema = @Schema(implementation = StandardError.class)))
     })
     public ResponseEntity<OperacaoResponse> cadastrar(@Valid @RequestBody OperacaoCreateRequest request) {
         OperacaoResponse response = service.cadastrar(request);

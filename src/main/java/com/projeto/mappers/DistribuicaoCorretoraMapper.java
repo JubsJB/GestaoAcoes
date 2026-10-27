@@ -17,8 +17,14 @@ public class DistribuicaoCorretoraMapper {
                         p.diagnosticosCorretoras().stream().map(d -> new DiagnosticoCorretoraResponse(
                                 d.corretoraId(), d.nome(), d.quantidadeFinal(), d.saldoNegativoAtual(),
                                 d.possuiDeficitHistorico(), d.primeiroDeficit() == null ? null :
-                                        new PrimeiroDeficitResponse(d.primeiroDeficit().operacaoId(),
-                                                d.primeiroDeficit().dataOperacao(), d.primeiroDeficit().ordemNoDia(),
-                                                d.primeiroDeficit().saldoAposOperacao()))).toList())).toList());
+                                        evidencia(d.primeiroDeficit()))).toList())).toList());
+    }
+    private PrimeiroDeficitResponse evidencia(CalculadoraDistribuicaoCorretora.PrimeiroDeficit d){
+        var p=d.posicaoCronologica();
+        Object posicao=d.dominio()==com.projeto.services.EventoQuantitativo.Dominio.FINANCEIRO
+                ?new PosicaoFinanceiraDeficitResponse(((Number)p.get("ordemNoDia")).intValue())
+                :new PosicaoCustodiaResponse(((Number)p.get("ordemFinanceiraAncora")).intValue(),
+                        (String)p.get("numerador"),(String)p.get("denominador"));
+        return new PrimeiroDeficitResponse(d.dominio(),d.id(),d.natureza(),d.dataEfetiva(),posicao,d.saldoAposEvento());
     }
 }

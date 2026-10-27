@@ -54,8 +54,8 @@ class CalculadoraDistribuicaoCorretoraTest {
         assertTrue(p.reconciliada());
         var d = p.diagnosticosCorretoras().get(1);
         assertTrue(d.saldoNegativoAtual()); assertTrue(d.possuiDeficitHistorico());
-        assertEquals(2L, d.primeiroDeficit().operacaoId());
-        decimal("-40", d.primeiroDeficit().saldoAposOperacao());
+        assertEquals(2L, d.primeiroDeficit().id());
+        decimal("-40", d.primeiroDeficit().saldoAposEvento());
     }
 
     @Test void primeiraOcorrenciaNaoEhPiorDeficitENaoSomeAoRegularizar() {
@@ -68,10 +68,10 @@ class CalculadoraDistribuicaoCorretoraTest {
         var d = p.diagnosticosCorretoras().get(1);
         decimal("10", d.quantidadeFinal()); assertFalse(d.saldoNegativoAtual());
         assertTrue(d.possuiDeficitHistorico());
-        assertEquals(primeira.getId(), d.primeiroDeficit().operacaoId());
-        assertEquals(primeira.getDataOperacao(), d.primeiroDeficit().dataOperacao());
-        assertEquals(2, d.primeiroDeficit().ordemNoDia());
-        decimal("-10", d.primeiroDeficit().saldoAposOperacao());
+        assertEquals(primeira.getId(), d.primeiroDeficit().id());
+        assertEquals(primeira.getDataOperacao(), d.primeiroDeficit().dataEfetiva());
+        assertEquals(2, d.primeiroDeficit().posicaoCronologica().get("ordemNoDia"));
+        decimal("-10", d.primeiroDeficit().saldoAposEvento());
     }
 
     @Test void zeroComDeficitMantemDiagnosticoSemLinha() {
@@ -97,7 +97,7 @@ class CalculadoraDistribuicaoCorretoraTest {
                 op(b, TipoOperacao.COMPRA, "5"));
         var p = posicao(ops);
         var d = p.diagnosticosCorretoras().get(1);
-        decimal("5", d.quantidadeFinal()); assertEquals(2L, d.primeiroDeficit().operacaoId());
+        decimal("5", d.quantidadeFinal()); assertEquals(2L, d.primeiroDeficit().id());
     }
 
     @Test void consolidadoZeroNaoRetornaMesmoComDeficits() {
@@ -115,7 +115,7 @@ class CalculadoraDistribuicaoCorretoraTest {
         ReflectionTestUtils.setField(compra, "id", 100L);
         var entrada = List.of(regularizacao, venda, compra);
         var p = posicao(entrada);
-        assertEquals(venda.getId(), p.diagnosticosCorretoras().get(1).primeiroDeficit().operacaoId());
+        assertEquals(venda.getId(), p.diagnosticosCorretoras().get(1).primeiroDeficit().id());
         assertSame(regularizacao, entrada.get(0)); assertEquals(100L, compra.getId());
     }
 

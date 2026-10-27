@@ -41,6 +41,9 @@ class OpenApiDocumentationTest {
             Map.entry("/carteiras", Set.of("get", "post")),
             Map.entry("/carteiras/{id}", Set.of("get", "patch", "delete")),
             Map.entry("/carteiras/{carteiraId}/operacoes", Set.of("get")),
+            Map.entry("/carteiras/{carteiraId}/movimentacoes-custodia", Set.of("get", "post")),
+            Map.entry("/carteiras/{carteiraId}/movimentacoes-custodia/{movimentacaoId}", Set.of("get")),
+            Map.entry("/carteiras/{carteiraId}/movimentacoes-custodia/{movimentacaoId}/estornos", Set.of("post")),
             Map.entry("/carteiras/{carteiraId}/operacoes/sugestao-preco-venda", Set.of("get")),
             Map.entry("/carteiras/{carteiraId}/posicoes", Set.of("get")),
             Map.entry("/carteiras/{carteiraId}/posicoes/distribuicao-corretoras", Set.of("get")),
@@ -81,7 +84,7 @@ class OpenApiDocumentationTest {
         }
         assertThat(schemas.at("/PosicaoDistribuicaoResponse/properties/quantidadeConsolidada/type").asText())
                 .isEqualTo("number");
-        assertThat(schemas.at("/PrimeiroDeficitResponse/properties/dataOperacao/format").asText()).isEqualTo("date");
+        assertThat(schemas.at("/PrimeiroDeficitResponse/properties/dataEfetiva/format").asText()).isEqualTo("date");
         assertThat(schemas.path("DiagnosticoReconciliacaoResponse").path("properties").has("corretoraId")).isFalse();
     }
 
@@ -149,6 +152,141 @@ class OpenApiDocumentationTest {
         assertThat(paths.path("/acoes/{id}/cotacao").path("patch").path("responses").has("504")).isTrue();
         assertThat(paths.path("/carteiras/{id}").path("delete").path("responses").has("204")).isTrue();
         assertThat(paths.path("/operacoes").path("post").path("responses").has("422")).isFalse();
+    }
+
+    @Test
+    void documentsCustodyReadsAndRegistrationWithCompleteResponseAndTextualFractions() throws Exception {
+        JsonNode document=openApiDocument();
+        String historico="/carteiras/{carteiraId}/movimentacoes-custodia";
+        String detalhe=historico+"/{movimentacaoId}";
+        var cadastro=document.path("paths").path(historico).path("post");
+        assertThat(cadastro.path("requestBody").path("required").asBoolean()).isTrue();
+        assertThat(cadastro.at("/requestBody/content/application~1json/schema/$ref").asText())
+                .isEqualTo("#/components/schemas/CustodiaCadastroSchema");
+        for(String codigo:List.of("201","400","404","409"))assertThat(cadastro.path("responses").has(codigo)).isTrue();
+        assertThat(cadastro.at("/responses/201/headers/Location/schema/type").asText()).isEqualTo("string");
+        assertThat(cadastro.at("/responses/201/content/application~1json/schema/$ref").asText())
+                .isEqualTo("#/components/schemas/RegistroCustodiaResponse");
+        assertParameter(document.path("paths"),historico,"get","natureza","query");
+        assertParameter(document.path("paths"),historico,"get","situacao","query");
+        assertParameter(document.path("paths"),detalhe,"get","movimentacaoId","path");
+        assertThat(document.path("paths").has(detalhe+"/estornos")).isTrue();
+        for(String path:List.of(historico,detalhe)){
+            var operation=document.path("paths").path(path).path("get");
+            assertThat(operation.has("requestBody")).isFalse();
+            for(String status:List.of("200","400","404"))assertThat(operation.path("responses").has(status)).isTrue();
+        }
+        var schemas=document.at("/components/schemas");
+        var entrada=schemas.path("CustodiaCadastroSchema");
+        assertThat(entrada.path("discriminator").path("propertyName").asText()).isEqualTo("natureza");
+        assertThat(entrada.path("oneOf").size()).isEqualTo(2);
+        for(String variante:List.of("CadastroTransferenciaCustodia","CadastroAtribuicaoCustodia")){
+            var request=schemas.path(variante);
+            assertThat(request.path("additionalProperties").asBoolean(true)).isFalse();
+            assertThat(request.path("properties").size()).isEqualTo(7);
+            assertThat(request.at("/properties/quantidade/type")).extracting(JsonNode::asText).containsExactlyInAnyOrder("number","string");
+            for(String campo:List.of("id","carteiraId","acaoId","dataRegistro","posicaoCronologica","precoUnitario","valorTotal"))
+                assertThat(request.path("properties").has(campo)).isFalse();
+        }
+        var origemType=schemas.at("/CadastroAtribuicaoCustodia/properties/corretoraOrigemId/type");
+        assertThat(origemType.isArray()?java.util.stream.StreamSupport.stream(origemType.spliterator(),false).map(JsonNode::asText).toList()
+                :List.of(origemType.asText())).containsExactly("null");
+        var registro=schemas.path("RegistroCustodiaResponse");
+        assertThat(registro.path("properties").size()).isEqualTo(17);
+        assertThat(registro.path("required").size()).isEqualTo(17);
+        assertThat(registro.at("/properties/quantidade/type").asText()).isEqualTo("number");
+        for(String campo:List.of("numerador","denominador"))
+            assertThat(schemas.path("PosicaoCustodiaResponse").path("properties").path(campo).path("type").asText()).isEqualTo("string");
+    }
+
+    @Test
+    void documentsOptionalStrictCustodyReversalAndOriginalLocation()throws Exception{
+        var document=openApiDocument();
+        String rota="/carteiras/{carteiraId}/movimentacoes-custodia/{movimentacaoId}/estornos";
+        var operation=document.path("paths").path(rota).path("post");
+        assertThat(operation.path("requestBody").path("required").asBoolean(false)).isFalse();
+        assertThat(operation.at("/requestBody/content/application~1json/schema/$ref").asText())
+                .isEqualTo("#/components/schemas/EstornoCustodiaCreateRequest");
+        assertParameter(document.path("paths"),rota,"post","carteiraId","path");
+        assertParameter(document.path("paths"),rota,"post","movimentacaoId","path");
+        for(String codigo:List.of("201","400","404","409"))assertThat(operation.path("responses").has(codigo)).isTrue();
+        assertThat(operation.at("/responses/201/headers/Location/schema/type").asText()).isEqualTo("string");
+        assertThat(operation.at("/responses/201/content/application~1json/schema/$ref").asText())
+                .isEqualTo("#/components/schemas/DetalheCustodiaResponse");
+        var schema=document.at("/components/schemas/EstornoCustodiaCreateRequest");
+        assertThat(schema.path("additionalProperties").asBoolean(true)).isFalse();
+        assertThat(schema.path("properties").size()).isEqualTo(1);
+        assertThat(schema.path("required").size()).isZero();
+        assertNullableString(schema.path("properties").path("motivo"),"");
+        assertThat(schema.at("/properties/motivo/maxLength").asInt()).isEqualTo(1000);
+        assertThat(document.path("paths").has(rota+"/{estornoId}")).isFalse();
+    }
+    @Test
+    void validatesPublishedCustodyRequestAndResponseExamples()throws Exception{
+        var document=openApiDocument();var schemas=document.at("/components/schemas");
+        String base="/carteiras/{carteiraId}/movimentacoes-custodia";
+        var create=document.path("paths").path(base).path("post").at("/requestBody/content/application~1json");
+        assertThat(create.path("examples").size()).isEqualTo(2);
+        for(var example:create.path("examples")){
+            var value=example.path("value");assertExample(value,create.path("schema"),schemas);
+            var numeric=value.deepCopy();((com.fasterxml.jackson.databind.node.ObjectNode)numeric).put("quantidade",new java.math.BigDecimal(value.path("quantidade").asText()));
+            assertExample(numeric,create.path("schema"),schemas);
+            var forbidden=value.deepCopy();((com.fasterxml.jackson.databind.node.ObjectNode)forbidden).put("id",99);
+            org.junit.jupiter.api.Assertions.assertThrows(AssertionError.class,()->assertExample(forbidden,create.path("schema"),schemas));
+            var invalidNature=value.deepCopy();((com.fasterxml.jackson.databind.node.ObjectNode)invalidNature).put("natureza","ESTORNO");
+            org.junit.jupiter.api.Assertions.assertThrows(AssertionError.class,()->assertExample(invalidNature,create.path("schema"),schemas));
+            var semOrigem=value.deepCopy();((com.fasterxml.jackson.databind.node.ObjectNode)semOrigem).remove("corretoraOrigemId");
+            if(value.path("natureza").asText().equals("ATRIBUICAO")){
+                assertExample(semOrigem,create.path("schema"),schemas);
+                var origemProibida=value.deepCopy();((com.fasterxml.jackson.databind.node.ObjectNode)origemProibida).put("corretoraOrigemId",3);
+                org.junit.jupiter.api.Assertions.assertThrows(AssertionError.class,()->assertExample(origemProibida,create.path("schema"),schemas));
+            }else{
+                org.junit.jupiter.api.Assertions.assertThrows(AssertionError.class,()->assertExample(semOrigem,create.path("schema"),schemas));
+            }
+        }
+        for(var route:Map.of(base,"get",base+"/{movimentacaoId}","get",base+"/{movimentacaoId}/estornos","post").entrySet()){
+            var code=route.getValue().equals("post")?"201":"200";
+            var content=document.path("paths").path(route.getKey()).path(route.getValue()).path("responses").path(code).at("/content/application~1json");
+            assertThat(content.path("examples").size()).as("Exemplos %s",route.getKey()).isGreaterThan(0);
+            for(var example:content.path("examples"))assertExample(example.path("value"),content.path("schema"),schemas);
+        }
+        var created=document.path("paths").path(base).path("post").at("/responses/201/content/application~1json");
+        assertThat(created.path("examples").has("ativa")).isTrue();
+        for(var example:created.path("examples"))assertExample(example.path("value"),created.path("schema"),schemas);
+        var history=document.path("paths").path(base).path("get").at("/responses/200/content/application~1json/examples");
+        assertThat(history.path("vazio").path("value").isArray()).isTrue();assertThat(history.path("vazio").path("value").size()).isZero();
+        var detail=document.path("paths").path(base+"/{movimentacaoId}").path("get").at("/responses/200/content/application~1json/examples");
+        assertThat(detail.path("estornada").at("/value/movimentacao/situacao").asText()).isEqualTo("ESTORNADA");
+        assertThat(detail.path("estornada").at("/value/estorno/movimentacaoOriginalId")).isEqualTo(detail.path("estornada").at("/value/movimentacao/id"));
+    }
+    @Test
+    void documentsFinancialAndCustodyConflictsWithoutPermittingNewLegacyDeficits()throws Exception{
+        var paths=openApiDocument().path("paths");
+        var finance=paths.path("/operacoes").path("post");
+        for(String code:List.of("POSICAO_INSUFICIENTE","SALDO_CORRETORA_INSUFICIENTE","MOVIMENTACAO_CUSTODIA_INVALIDADA","CONFLITO_HISTORICO_QUANTITATIVO","INTEGRIDADE_DADOS_VIOLADA","CONFLITO_TRANSACIONAL_TRANSITORIO"))
+            assertThat(finance.at("/responses/409/description").asText()).contains(code);
+        assertThat(finance.path("description").asText()).contains("legados","novas escritas deficitárias");
+        var custody=paths.path("/carteiras/{carteiraId}/movimentacoes-custodia").path("post");
+        for(String code:List.of("SALDO_ORIGEM_INSUFICIENTE","POSICAO_CUSTODIA_INDISPONIVEL","MOVIMENTACAO_CUSTODIA_INVALIDADA","CONFLITO_HISTORICO_QUANTITATIVO","LIMITE_POSICAO_CUSTODIA"))
+            assertThat(custody.at("/responses/409/description").asText()).contains(code);
+        assertThat(paths.path("/carteiras/{carteiraId}/posicoes/distribuicao-corretoras").path("get").path("description").asText()).contains("legados","novos POSTs");
+    }
+    @Test
+    void documentsGenericFirstDeficitWithExactFinancialAndCustodyPositions()throws Exception{
+        var document=openApiDocument();var schemas=document.at("/components/schemas");var d=schemas.path("PrimeiroDeficitResponse");
+        assertThat(d.path("properties").size()).isEqualTo(6);assertThat(d.path("required").size()).isEqualTo(6);
+        for(String campo:List.of("dominio","id","natureza","dataEfetiva","posicaoCronologica","saldoAposEvento"))
+            assertThat(d.path("properties").has(campo)).isTrue();
+        for(String campo:List.of("operacaoId","dataOperacao","ordemNoDia","saldoAposOperacao"))
+            assertThat(d.path("properties").has(campo)).isFalse();
+        assertThat(d.at("/properties/saldoAposEvento/type").asText()).isEqualTo("number");
+        var alternativas=d.at("/properties/posicaoCronologica/oneOf");assertThat(alternativas.size()).isEqualTo(2);
+        assertThat(alternativas).extracting(n->n.path("$ref").asText()).containsExactlyInAnyOrder(
+            "#/components/schemas/PosicaoFinanceiraDeficitResponse","#/components/schemas/PosicaoCustodiaResponse");
+        assertThat(schemas.at("/PosicaoFinanceiraDeficitResponse/properties").size()).isEqualTo(1);
+        for(String campo:List.of("numerador","denominador"))assertThat(schemas.path("PosicaoCustodiaResponse").path("properties").path(campo).path("type").asText()).isEqualTo("string");
+        assertThat(d.at("/example/dominio").asText()).isEqualTo("CUSTODIA");
+        assertThat(d.at("/example/posicaoCronologica/numerador").asText()).isEqualTo("9007199254740993");
     }
 
     @Test
@@ -428,14 +566,23 @@ class OpenApiDocumentationTest {
             return;
         }
         if (schema.has("anyOf")) {
-            JsonNode alternative = schema.path("anyOf").get(value.isNull() ? 1 : 0);
-            assertExample(value, alternative, schemas);
-            return;
+            assertThat(matchingAlternatives(value,schema.path("anyOf"),schemas)).isGreaterThan(0);return;
+        }
+        if(schema.has("oneOf")){
+            assertThat(matchingAlternatives(value,schema.path("oneOf"),schemas))
+                    .as("Correspondência exclusiva oneOf, valor=%s schema=%s",value,schema).isEqualTo(1);return;
+        }
+        if(schema.has("allOf")){
+            for(var part:schema.path("allOf"))assertExample(value,part,schemas);return;
         }
         Set<String> types = new HashSet<>();
         if (schema.path("type").isArray()) schema.path("type").forEach(type -> types.add(type.asText()));
         else types.add(schema.path("type").asText());
-        if (value.isNull()) { assertThat(types).contains("null"); return; }
+        if (value.isNull()) {
+            assertThat(types).contains("null");
+            if(schema.has("enum"))assertThat(schema.path("enum")).anyMatch(JsonNode::isNull);
+            return;
+        }
         if (value.isObject()) {
             assertThat(types).contains("object");
             for (JsonNode required : schema.path("required")) assertThat(value.has(required.asText())).isTrue();
@@ -448,12 +595,20 @@ class OpenApiDocumentationTest {
             value.forEach(item -> assertExample(item, schema.path("items"), schemas));
         } else if (value.isNumber()) {
             assertThat(types).contains(value.isIntegralNumber() && types.contains("integer") ? "integer" : "number");
+        } else if(value.isBoolean()){
+            assertThat(types).contains("boolean");
         } else {
             assertThat(types).contains("string");
             if (schema.path("format").asText().equals("date")) java.time.LocalDate.parse(value.asText());
             if (schema.path("format").asText().equals("date-time")) java.time.OffsetDateTime.parse(value.asText());
             if (schema.has("enum")) assertThat(schema.path("enum")).extracting(JsonNode::asText).contains(value.asText());
+            if(schema.has("maxLength"))assertThat(value.asText().length()).isLessThanOrEqualTo(schema.path("maxLength").asInt());
         }
+    }
+    private int matchingAlternatives(JsonNode value,JsonNode alternatives,JsonNode schemas){
+        int count=0;
+        for(var alternative:alternatives){try{assertExample(value,alternative,schemas);count++;}catch(AssertionError mismatch){/* outra variante deve corresponder */}}
+        return count;
     }
 
     private Map<String, Set<String>> collectFunctionalOperations(JsonNode paths) {

@@ -38,10 +38,7 @@
           "saldoNegativoAtual": true,
           "possuiDeficitHistorico": true,
           "primeiroDeficit": {
-            "operacaoId": 20,
-            "dataOperacao": "2026-10-02",
-            "ordemNoDia": 2,
-            "saldoAposOperacao": -40
+            "dominio":"FINANCEIRO","id":20,"natureza":"VENDA","dataEfetiva":"2026-10-02","posicaoCronologica":{"ordemNoDia":2},"saldoAposEvento":-40
           }
         }
       ]

@@ -53,8 +53,15 @@
                     {{diagnostic.saldoNegativoAtual ? 'Saldo negativo atual.' : 'Déficit histórico regularizado.'}}</p>
                   <p>Saldo atual atribuído: {{quantity(diagnostic.quantidadeFinal, position.mercado)}}.</p>
                   @if (diagnostic.primeiroDeficit; as first) {
-                    <p>Primeiro déficit: {{civilDate(first.dataOperacao)}}, ordem {{first.ordemNoDia}}, operação {{first.operacaoId}}.
-                      Saldo após a operação: {{quantity(first.saldoAposOperacao, position.mercado)}}.</p>
+                    @if (first.dominio === 'FINANCEIRO') {
+                      <p>Primeiro déficit: {{civilDate(first.dataEfetiva)}}, ordem {{first.posicaoCronologica.ordemNoDia}}, operação {{first.id}}.
+                        Saldo após a operação: {{quantity(first.saldoAposEvento, position.mercado)}}.</p>
+                    } @else {
+                      <p>Primeiro déficit: {{civilDate(first.dataEfetiva)}}, âncora financeira {{first.posicaoCronologica.ordemFinanceiraAncora}},
+                        fração {{first.posicaoCronologica.numerador}}/{{first.posicaoCronologica.denominador}},
+                        {{first.natureza === 'TRANSFERENCIA' ? 'transferência de custódia' : 'atribuição de custódia'}} {{first.id}}.
+                        Saldo após o evento: {{quantity(first.saldoAposEvento, position.mercado)}}.</p>
+                    }
                   }
                 </aside>
               }

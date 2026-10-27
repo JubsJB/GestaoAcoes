@@ -4,7 +4,10 @@ import com.projeto.entities.Corretora;
 import com.projeto.entities.Mercado;
 import com.projeto.entities.Moeda;
 import com.projeto.entities.Operacao;
-import com.projeto.entities.TipoOperacao;
+import com.projeto.entities.MovimentacaoCustodia;
+import com.projeto.entities.EstornoMovimentacaoCustodia;
+import com.projeto.entities.VinculoEstornoConsultado;
+import static com.projeto.services.EventoQuantitativo.*;
 import com.projeto.services.exceptions.ApiException;
 import com.projeto.services.exceptions.ErrorCodes;
 import org.springframework.http.HttpStatus;
@@ -19,7 +22,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
-/** Pure projection of a caller-owned consistent operation snapshot; no database access. */
+/** Projeção pura de fontes completas no snapshot do chamador; sem consultas ou regras de escrita. */
 @Component
 public final class CalculadoraDistribuicaoCorretora {
     private static final Comparator<Operacao> CRONOLOGIA = Comparator
@@ -36,7 +39,12 @@ public final class CalculadoraDistribuicaoCorretora {
     }
 
     public Distribuicao calcular(Long carteiraId, List<Operacao> operacoes) {
-        if (carteiraId == null || carteiraId <= 0 || operacoes == null) {
+        return calcular(carteiraId,operacoes,List.of(),List.of());
+    }
+
+    public Distribuicao calcular(Long carteiraId,List<Operacao> operacoes,
+            List<MovimentacaoCustodia> movimentos,List<EstornoMovimentacaoCustodia> estornos) {
+        if (carteiraId == null || carteiraId <= 0 || operacoes == null || movimentos==null || estornos==null) {
             throw new IllegalArgumentException("Carteira e snapshot de operacoes obrigatorios");
         }
         Map<Long, List<Operacao>> porAcao = new LinkedHashMap<>();
@@ -52,12 +60,37 @@ public final class CalculadoraDistribuicaoCorretora {
             }
             porAcao.computeIfAbsent(op.getAcao().getId(), ignored -> new ArrayList<>()).add(op);
         }
+        Map<Long,List<MovimentacaoCustodia>> custodiasPorAcao=new LinkedHashMap<>();
+        Map<Long,MovimentacaoCustodia> originais=new LinkedHashMap<>();
+        for(var m:movimentos){
+            if(m==null || !carteiraId.equals(m.getCarteiraId()) || originais.putIfAbsent(m.getId(),m)!=null)
+                throw historicoInvalido(carteiraId);
+            m.validarEstruturaHistorica();
+            custodiasPorAcao.computeIfAbsent(m.getAcaoId(),ignorado->new ArrayList<>()).add(m);
+            porAcao.computeIfAbsent(m.getAcaoId(),ignorado->new ArrayList<>());
+        }
+        Map<Long,EstornoMovimentacaoCustodia> porOriginal=new LinkedHashMap<>();
+        for(var e:estornos){
+            if(e==null || !originais.containsKey(e.getMovimentacaoOriginalId())
+                    || porOriginal.putIfAbsent(e.getMovimentacaoOriginalId(),e)!=null)throw historicoInvalido(carteiraId);
+        }
         List<Posicao> posicoes = new ArrayList<>();
-        for (List<Operacao> historico : porAcao.values()) {
+        for (var entrada : porAcao.entrySet()) {
+            List<Operacao> historico=entrada.getValue();
+            var custodias=custodiasPorAcao.getOrDefault(entrada.getKey(),List.of());
             historico.sort(CRONOLOGIA);
             var replay = consolidado.validarQuantidade(historico);
             if (!replay.valido()) throw historicoInvalido(carteiraId);
             BigDecimal quantidade = replay.posicao().quantidadeAtual();
+            var vinculos=custodias.stream().map(m->porOriginal.containsKey(m.getId())
+                    ?VinculoEstornoConsultado.vinculoPresente(m.getId(),porOriginal.get(m.getId()))
+                    :VinculoEstornoConsultado.ausenciaVerificada(m.getId())).toList();
+            MotorReplayQuantitativo.Estado estado;
+            try{
+                var fontes=new AdaptadorEventosQuantitativos().adaptar(carteiraId,entrada.getKey(),historico,custodias,vinculos);
+                var eventos=new NormalizadorEventosQuantitativos().normalizar(carteiraId,entrada.getKey(),fontes.financeiros(),fontes.custodias());
+                estado=new MotorReplayQuantitativo().reproduzir(eventos).estadoFinal();
+            }catch(IllegalArgumentException estruturaInvalida){throw historicoInvalido(carteiraId);}
             if (quantidade.signum() == 0) continue;
 
             var acao = historico.get(0).getAcao();
@@ -65,16 +98,22 @@ public final class CalculadoraDistribuicaoCorretora {
                     || acao.getMoeda() != (acao.getMercado() == Mercado.BRASIL ? Moeda.BRL : Moeda.USD)) {
                 throw historicoInvalido(carteiraId);
             }
-            Map<Long, Grupo> grupos = new LinkedHashMap<>();
+            Map<Long,String> nomes=new LinkedHashMap<>();
             for (Operacao op : historico) {
                 Corretora corretora = op.getCorretora();
                 Long id = corretora == null ? null : corretora.getId();
                 if (corretora != null && (id == null || id <= 0)) throw historicoInvalido(carteiraId);
-                Grupo grupo = grupos.computeIfAbsent(id, ignored -> new Grupo(id, nome(corretora)));
-                grupo.aplicar(op);
+                nomes.putIfAbsent(id,nome(corretora));
             }
-            List<DiagnosticoCorretora> diagnosticos = grupos.values().stream()
-                    .map(Grupo::diagnostico).sorted(ORDEM_GRUPO).toList();
+            for(var m:custodias){
+                nomes.putIfAbsent(m.getCorretoraOrigemId(),nome(m.getCorretoraOrigem()));
+                nomes.putIfAbsent(m.getCorretoraDestinoId(),nome(m.getCorretoraDestino()));
+            }
+            List<DiagnosticoCorretora> diagnosticos=estado.saldos().entrySet().stream().map(s->{
+                var primeiro=estado.primeirosNegativos().get(s.getKey());
+                return new DiagnosticoCorretora(s.getKey().corretoraId(),nomes.get(s.getKey().corretoraId()),s.getValue(),
+                        s.getValue().signum()<0,primeiro!=null,primeiro==null?null:evidencia(primeiro));
+            }).sorted(ORDEM_GRUPO).toList();
             List<QuantidadeCorretora> visiveis = diagnosticos.stream()
                     .filter(d -> d.quantidadeFinal().signum() != 0)
                     .map(d -> new QuantidadeCorretora(d.corretoraId(), d.nome(), d.quantidadeFinal())).toList();
@@ -112,26 +151,13 @@ public final class CalculadoraDistribuicaoCorretora {
                 "Historico de Operacoes inconsistente", Map.of("carteiraId", carteiraId));
     }
 
-    private static final class Grupo {
-        private final Long id;
-        private final String nome;
-        private BigDecimal quantidade = BigDecimal.ZERO;
-        private PrimeiroDeficit primeiro;
-
-        private Grupo(Long id, String nome) { this.id = id; this.nome = nome; }
-
-        private void aplicar(Operacao op) {
-            quantidade = op.getTipo() == TipoOperacao.COMPRA
-                    ? quantidade.add(op.getQuantidade()) : quantidade.subtract(op.getQuantidade());
-            if (primeiro == null && quantidade.signum() < 0) {
-                primeiro = new PrimeiroDeficit(op.getId(), op.getDataOperacao(), op.getOrdemNoDia(), quantidade);
-            }
-        }
-
-        private DiagnosticoCorretora diagnostico() {
-            return new DiagnosticoCorretora(id, nome, quantidade, quantidade.signum() < 0,
-                    primeiro != null, primeiro);
-        }
+    private static PrimeiroDeficit evidencia(MotorReplayQuantitativo.PrimeiroNegativo primeiro){
+        var p=primeiro.posicao();
+        Map<String,Object> posicao=p.financeira()?Map.of("ordemNoDia",p.ancoraFinanceira())
+                :Map.of("ordemFinanceiraAncora",p.ancoraFinanceira(),"numerador",p.fracao().getNumerador().toString(),
+                        "denominador",p.fracao().getDenominador().toString());
+        return new PrimeiroDeficit(primeiro.identidade().dominio(),primeiro.identidade().idPersistido(),
+                primeiro.natureza(),p.dataEfetiva(),posicao,primeiro.saldoAposEvento());
     }
 
     public record Distribuicao(Long carteiraId, List<Posicao> posicoes) {
@@ -150,8 +176,10 @@ public final class CalculadoraDistribuicaoCorretora {
     public record DiagnosticoCorretora(Long corretoraId, String nome, BigDecimal quantidadeFinal,
                                      boolean saldoNegativoAtual, boolean possuiDeficitHistorico,
                                      PrimeiroDeficit primeiroDeficit) { }
-    public record PrimeiroDeficit(Long operacaoId, LocalDate dataOperacao, Integer ordemNoDia,
-                                 BigDecimal saldoAposOperacao) { }
+    public record PrimeiroDeficit(Dominio dominio,Long id,Natureza natureza,LocalDate dataEfetiva,
+                                 Map<String,Object> posicaoCronologica,BigDecimal saldoAposEvento) {
+        public PrimeiroDeficit {posicaoCronologica=Map.copyOf(posicaoCronologica);}
+    }
     public record DiagnosticoReconciliacao(String codigo) { }
     record Reconciliacao(BigDecimal quantidadeAtribuidaTotal, boolean reconciliada,
                          DiagnosticoReconciliacao diagnostico) { }

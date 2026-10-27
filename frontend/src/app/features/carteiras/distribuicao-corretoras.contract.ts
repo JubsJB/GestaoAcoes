@@ -1,9 +1,9 @@
 import { parseLosslessJson } from '../../core/http/lossless-json';
 import { DistribuicaoCarteiraResponse } from './models/distribuicao-corretoras';
 
-const IDS = new Set(['carteiraId', 'acaoId', 'corretoraId', 'operacaoId', 'ordemNoDia']);
+const IDS = new Set(['carteiraId', 'acaoId', 'corretoraId', 'id', 'ordemNoDia']);
 const NUMERIC_FIELDS = new Set([...IDS, 'quantidadeConsolidada', 'quantidadeAtribuidaTotal',
-  'quantidadeLiquida', 'quantidadeFinal', 'saldoAposOperacao']);
+  'quantidadeLiquida', 'quantidadeFinal', 'saldoAposEvento', 'ordemFinanceiraAncora']);
 const DECIMAL = /^-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?$/;
 
 export function parseDistribuicaoCorretoras(text: string): DistribuicaoCarteiraResponse {
@@ -17,8 +17,9 @@ function restoreIdentifiers(value: unknown): void {
   if (Array.isArray(value)) { value.forEach(restoreIdentifiers); return; }
   if (!record(value)) return;
   for (const [key, item] of Object.entries(value)) {
-    if (IDS.has(key) && item !== null) {
-      if (typeof item !== 'string' || !/^[1-9]\d*$/.test(item)
+    if ((IDS.has(key) || key === 'ordemFinanceiraAncora') && item !== null) {
+      const integer = key === 'ordemFinanceiraAncora' ? /^(?:0|[1-9]\d*)$/ : /^[1-9]\d*$/;
+      if (typeof item !== 'string' || !integer.test(item)
           || BigInt(item) > BigInt(Number.MAX_SAFE_INTEGER)) throw new Error('Identificador nao representavel.');
       value[key] = Number(item);
     } else restoreIdentifiers(item);
@@ -63,9 +64,28 @@ function diagnostic(value: unknown): boolean {
 }
 
 function firstDeficit(value: unknown): boolean {
-  return fields(value, ['operacaoId', 'dataOperacao', 'ordemNoDia', 'saldoAposOperacao'])
-    && id(value['operacaoId']) && id(value['ordemNoDia']) && value['ordemNoDia'] <= 2147483647
-    && civilDate(value['dataOperacao']) && decimal(value['saldoAposOperacao'], 'negative');
+  if (!fields(value, ['dominio', 'id', 'natureza', 'dataEfetiva', 'posicaoCronologica', 'saldoAposEvento'])
+      || !id(value['id']) || !civilDate(value['dataEfetiva']) || !decimal(value['saldoAposEvento'], 'negative')) return false;
+  const position = value['posicaoCronologica'];
+  if (value['dominio'] === 'FINANCEIRO') {
+    return (value['natureza'] === 'COMPRA' || value['natureza'] === 'VENDA')
+      && fields(position, ['ordemNoDia']) && id(position['ordemNoDia']) && position['ordemNoDia'] <= 2147483647;
+  }
+  return value['dominio'] === 'CUSTODIA'
+    && (value['natureza'] === 'TRANSFERENCIA' || value['natureza'] === 'ATRIBUICAO')
+    && fields(position, ['ordemFinanceiraAncora', 'numerador', 'denominador'])
+    && typeof position['ordemFinanceiraAncora'] === 'number' && Number.isInteger(position['ordemFinanceiraAncora'])
+    && position['ordemFinanceiraAncora'] >= 0 && position['ordemFinanceiraAncora'] <= 2147483647
+    && rational(position['numerador'], position['denominador']);
+}
+
+function rational(numerator: unknown, denominator: unknown): boolean {
+  if (typeof numerator !== 'string' || typeof denominator !== 'string'
+      || !/^[1-9]\d{0,511}$/.test(numerator) || !/^[1-9]\d{0,511}$/.test(denominator)) return false;
+  let n = BigInt(numerator), d = BigInt(denominator);
+  if (n >= d) return false;
+  while (d !== 0n) { const remainder = n % d; n = d; d = remainder; }
+  return n === 1n;
 }
 
 function broker(value: Record<string, unknown>): boolean {
@@ -92,7 +112,7 @@ function decimal(value: unknown, sign?: 'positive' | 'negative' | 'nonzero'): va
   return nonzero && (sign === 'nonzero' || (sign === 'negative') === value.startsWith('-'));
 }
 
-// This is an operation LocalDate, not the restricted financial quotation DATA domain.
+// Data efetiva civil do evento, não o domínio restrito DATA da cotação financeira.
 function civilDate(value: unknown): boolean {
   if (typeof value !== 'string') return false;
   const match = /^((?:\d{4}|-\d{4,9}|\+[1-9]\d{4,8}))-(\d{2})-(\d{2})$/.exec(value);

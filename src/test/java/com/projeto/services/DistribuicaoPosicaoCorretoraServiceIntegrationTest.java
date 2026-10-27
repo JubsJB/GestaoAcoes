@@ -77,7 +77,7 @@ class DistribuicaoPosicaoCorretoraServiceIntegrationTest {
         assertEquals(primeiro, segundo);
         assertTrue(primeiro.contains("\"quantidadeConsolidada\":0.123456"));
         assertTrue(primeiro.contains("Sem corretora informada"));
-        assertEquals(4, stats.getPrepareStatementCount());
+        assertEquals(8, stats.getPrepareStatementCount()); // duas leituras, quatro consultas completas por snapshot
         assertEquals(0, stats.getEntityInsertCount());
         assertEquals(0, stats.getEntityUpdateCount());
         assertEquals(0, stats.getEntityDeleteCount());
@@ -157,7 +157,7 @@ class DistribuicaoPosicaoCorretoraServiceIntegrationTest {
         for (int i = 1; i < 6; i++) {
             assertTrue(p.corretoras().get(i - 1).corretoraId() < p.corretoras().get(i).corretoraId());
         }
-        assertEquals(2, stats.getPrepareStatementCount());
+        assertEquals(4, stats.getPrepareStatementCount()); // carteira, operações, originais e vínculos em lote
     }
 
     @Test void snapshotMantemOperacoesENomesQuandoOutraTransacaoEscreve() {
@@ -221,9 +221,9 @@ class DistribuicaoPosicaoCorretoraServiceIntegrationTest {
         var zero = p.diagnosticosCorretoras().get(1);
         assertEquals("Z", zero.nome()); assertEquals(0, zero.quantidadeFinal().signum());
         assertTrue(zero.possuiDeficitHistorico());
-        assertEquals(2, zero.primeiroDeficit().ordemNoDia());
+        assertEquals(2, zero.primeiroDeficit().posicaoCronologica().get("ordemNoDia"));
         assertTrue(p.diagnosticosCorretoras().get(2).saldoNegativoAtual());
-        assertEquals(2, stats.getPrepareStatementCount());
+        assertEquals(4, stats.getPrepareStatementCount()); // fontes completas no mesmo snapshot, sem consultas por grupo
         assertEquals(0, stats.getEntityInsertCount());
         assertEquals(0, stats.getEntityUpdateCount());
         assertEquals(0, stats.getEntityDeleteCount());

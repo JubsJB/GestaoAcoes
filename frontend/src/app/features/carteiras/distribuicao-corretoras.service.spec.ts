@@ -6,7 +6,7 @@ import { Subject, switchMap } from 'rxjs';
 import { provideApiConfig } from '../../core/config/api.config';
 import { httpErrorInterceptor } from '../../core/http/http-error.interceptor';
 import { DistribuicaoCorretorasService } from './distribuicao-corretoras.service';
-import { DISTRIBUICAO_EXAMPLES } from './testing/distribuicao-corretoras.fixtures';
+import { DISTRIBUICAO_EXAMPLES, DISTRIBUICAO_CUSTODIA_EXAMPLE } from './testing/distribuicao-corretoras.fixtures';
 
 describe('DistribuicaoCorretorasService', () => {
   let service: DistribuicaoCorretorasService;
@@ -18,6 +18,31 @@ describe('DistribuicaoCorretorasService', () => {
     service = TestBed.inject(DistribuicaoCorretorasService); http = TestBed.inject(HttpTestingController);
   });
   afterEach(() => http.verify());
+  it('recebe custodia lossless no mesmo endpoint e sem nova chamada HTTP', () => {
+    let result: any;
+    service.consultar(1).subscribe(v => result = v);
+    http.expectOne(path).flush(DISTRIBUICAO_CUSTODIA_EXAMPLE.replace('"saldoAposEvento":-40', '"saldoAposEvento":-9999999999999.123456'));
+    expect(result.posicoes[0].diagnosticosCorretoras[1].primeiroDeficit).toEqual({dominio: 'CUSTODIA', id: 20,
+      natureza: 'TRANSFERENCIA', dataEfetiva: '2026-10-02', posicaoCronologica: { ordemFinanceiraAncora: 0,
+        numerador: '9007199254740993', denominador: '9007199254740994' }, saldoAposEvento: '-9999999999999.123456'});
+    http.expectNone(path);
+  });
+  it('contrato legado ou posicao incompleta nao vira sucesso nem retry automatico', () => {
+    const legacy = DISTRIBUICAO_EXAMPLES[1].replace(
+      '{"dominio":"FINANCEIRO","id":20,"natureza":"VENDA","dataEfetiva":"2026-10-02","posicaoCronologica":{"ordemNoDia":2},"saldoAposEvento":-40}',
+      '{"operacaoId":20,"dataOperacao":"2026-10-02","ordemNoDia":2,"saldoAposOperacao":-40}');
+    for (const body of [legacy, DISTRIBUICAO_CUSTODIA_EXAMPLE.replace('"denominador":"9007199254740994"', '"extra":null')]) {
+      let failure: any, delivered = false;
+      service.consultar(1).subscribe({next: () => delivered = true, error: error => failure = error});
+      http.expectOne(path).flush(body);expect(delivered).toBe(false);expect(failure.kind).toBe('technical');http.expectNone(path);
+    }
+  });
+  it('normaliza erro textual preservando o novo saldo decimal sem arredondar', () => {
+    let failure: any;
+    service.consultar(1).subscribe({error: error => failure = error});
+    http.expectOne(path).flush('{"timeStamp":1,"status":409,"error":"Conflict","message":"Histórico inconsistente","path":"/carteiras/1/posicoes/distribuicao-corretoras","code":"HISTORICO_OPERACOES_INCONSISTENTE","details":{"saldoAposEvento":-9999999999999.123456}}', {status: 409, statusText: 'Conflict'});
+    expect(failure.kind).toBe('standard');expect(failure.details.saldoAposEvento).toBe('-9999999999999.123456');http.expectNone(path);
+  });
 
   for (const [index, example] of DISTRIBUICAO_EXAMPLES.entries()) {
     it(`consome exemplo ${index + 1} como sucesso HTTP, sem endpoints adicionais`, () => {
