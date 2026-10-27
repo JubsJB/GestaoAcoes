@@ -3,6 +3,9 @@ package com.projeto.services.exceptions;
 import org.springframework.http.HttpStatus;
 
 import java.util.Map;
+import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.Objects;
 
 public class ApiException extends RuntimeException {
 
@@ -20,7 +23,13 @@ public class ApiException extends RuntimeException {
         super(message);
         this.status = status;
         this.code = code;
-        this.details = details == null ? Map.of() : Map.copyOf(details);
+        if (details == null) {
+            this.details = Map.of();
+        } else {
+            Map<String, Object> copy = new LinkedHashMap<>();
+            details.forEach((key, value) -> copy.put(Objects.requireNonNull(key), value));
+            this.details = Collections.unmodifiableMap(copy);
+        }
     }
 
     public HttpStatus getStatus() {

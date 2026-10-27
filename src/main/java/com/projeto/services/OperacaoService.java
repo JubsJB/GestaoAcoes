@@ -28,33 +28,16 @@ public class OperacaoService {
   this.mapper=mapper;this.clock=clock;this.persistence=persistence;
  }
  public OperacaoResponse cadastrar(OperacaoCreateRequest request){
-  if(request==null)throw invalid("request","Corpo da requisição é obrigatório");
-  if(request.getCarteiraId()==null)throw invalid("carteiraId","Carteira é obrigatória");
-  if(request.getMercado()==null)throw invalid("mercado","Mercado é obrigatório");
-  if(request.getTipo()==null)throw invalid("tipo","Tipo é obrigatório");
-  String ticker=tickers.normalizeAndValidate(request.getTicker());
-  carteiras.findById(request.getCarteiraId()).orElseThrow(()->new ObjectNotFoundException("Carteira não encontrada para o id: "+request.getCarteiraId()));
-  acoes.findByTickerAndMercado(ticker,request.getMercado()).orElseThrow(()->new ObjectNotFoundException("Ação não encontrada para ticker "+ticker+" no mercado "+request.getMercado()));
-  if(request.getCorretoraId()!=null)corretoras.findById(request.getCorretoraId()).orElseThrow(()->new ObjectNotFoundException("Corretora não encontrada para o id: "+request.getCorretoraId()));
-  BigDecimal quantity=operand(request.getQuantidade(),"quantidade","Quantidade");
-  if(request.getMercado()==Mercado.BRASIL&&quantity.stripTrailingZeros().scale()>0)throw invalid("quantidade","Quantidade deve ser matematicamente inteira para o mercado BRASIL");
-  validateDate(request.getDataOperacao(),request.getMercado());
+  if(request==null)throw OperacaoPersistenceCommand.invalida("request","Corpo da requisição é obrigatório");
   BigDecimal price;
-  if(request instanceof OperacaoVendaCreateRequest sale)price=operand(sale.getPrecoUnitario(),"precoUnitario","Preço unitário");
-  else if(request instanceof OperacaoCompraCreateRequest purchase){
-   price=operand(purchase.getPrecoUnitario(),"precoUnitario","Preco unitario");
-  }else throw invalid("tipo","Tipo de operação inválido");
-  return persistence.persistir(new OperacaoPersistenceCommand(request.getCarteiraId(),ticker,request.getMercado(),request.getCorretoraId(),request.getTipo(),quantity,price,request.getDataOperacao()));
+  if(request instanceof OperacaoVendaCreateRequest sale && request.getTipo()==TipoOperacao.VENDA)price=sale.getPrecoUnitario();
+  else if(request instanceof OperacaoCompraCreateRequest purchase && request.getTipo()==TipoOperacao.COMPRA)price=purchase.getPrecoUnitario();
+  else throw OperacaoPersistenceCommand.invalida("tipo","Tipo de operação inválido");
+  var command = new OperacaoPersistenceCommand(request.getCarteiraId(),request.getTicker(),request.getMercado(),
+          request.getCorretoraId(),request.getTipo(),request.getQuantidade(),price,request.getDataOperacao()).validada(clock,tickers);
+  try { return persistence.persistir(command); }
+  catch (RuntimeException falha) { throw FalhasEscritaOperacao.traduzir(falha); }
  }
- private BigDecimal operand(BigDecimal value,String field,String label){
-  if(value==null)throw invalid(field,label+" é obrigatório");if(value.signum()<=0)throw invalid(field,label+" deve ser maior que zero");
-  if(value.scale()>SCALE)throw invalid(field,label+" deve possuir no máximo 6 casas decimais");
-  BigDecimal n;try{n=value.setScale(SCALE,RoundingMode.UNNECESSARY);}catch(ArithmeticException e){throw invalid(field,label+" não pode ser arredondado ou truncado");}
-  if(n.precision()>PRECISION)throw invalid(field,label+" excede a precisão máxima 19");return n;
- }
- private void validateDate(LocalDate date,Mercado market){if(date==null)throw invalid("dataOperacao","Data da operação é obrigatória");
-  if(date.isAfter(LocalDate.now(clock.withZone(market==Mercado.BRASIL?BRAZIL:USA))))throw invalid("dataOperacao","Data da operação não pode ser futura");}
- private ApiException invalid(String f,String m){return new ApiException(HttpStatus.BAD_REQUEST,ErrorCodes.REQUEST_INVALIDO,"Dados da requisição inválidos",Map.of(f,m));}
  @Transactional(readOnly=true) public List<OperacaoResponse> listar(){return operacoes.findAll(QUERY_ORDER).stream().map(mapper::toResponse).toList();}
  @Transactional(readOnly=true) public OperacaoResponse buscarPorId(Long id){return mapper.toResponse(operacoes.findById(id).orElseThrow(()->new ObjectNotFoundException("Operação não encontrada para o id: "+id)));}
  @Transactional(readOnly=true) public List<OperacaoResponse> listarPorCarteira(Long id){carteiras.findById(id).orElseThrow(()->new ObjectNotFoundException("Carteira não encontrada para o id: "+id));return operacoes.findByCarteiraIdOrderByDataOperacaoAscOrdemNoDiaAscIdAsc(id).stream().map(mapper::toResponse).toList();}

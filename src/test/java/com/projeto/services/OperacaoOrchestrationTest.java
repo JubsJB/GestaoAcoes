@@ -44,10 +44,11 @@ class OperacaoOrchestrationTest {
   ArgumentCaptor<OperacaoPersistenceCommand> command=ArgumentCaptor.forClass(OperacaoPersistenceCommand.class);
   verify(persistence).persistir(command.capture());assertEquals(new BigDecimal("20.250000"),command.getValue().precoUnitario());
  }
- @Test void invalidReferencesFailBeforeProviderAndPersistence(){
-  when(carteiras.findById(404L)).thenReturn(Optional.empty());
+ @Test void missingReferencesAreResolvedInWriterWithoutProviders(){
+  when(persistence.persistir(any())).thenThrow(new com.projeto.services.exceptions.ObjectNotFoundException("Carteira não encontrada"));
   assertThrows(RuntimeException.class,()->service.cadastrar(new OperacaoCompraCreateRequest(404L,"PETR4",Mercado.BRASIL,null,BigDecimal.ONE,LocalDate.of(2026,8,20),BigDecimal.TEN)));
-  verifyNoInteractions(brasil,eua,persistence);
+  verifyNoInteractions(brasil,eua,carteiras,acoes,corretoras);
+  verify(persistence).persistir(any());
  }
  @Test void missingZeroNegativeAndExcessPrecisionPricesFail(){
   for(BigDecimal price:Arrays.asList(null,BigDecimal.ZERO,BigDecimal.ONE.negate(),new BigDecimal("1.0000001"))){

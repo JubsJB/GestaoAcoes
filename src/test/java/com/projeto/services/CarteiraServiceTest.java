@@ -54,17 +54,36 @@ class CarteiraServiceTest {
     @Mock
     private SnapshotCarteiraRepository snapshotCarteiraRepository;
 
+    @Mock private com.projeto.repositories.MovimentacaoCustodiaRepository movimentacoes;
+    @Mock private com.projeto.repositories.EstornoMovimentacaoCustodiaRepository estornos;
     private CarteiraService service;
 
     @BeforeEach
     void setUp() {
+        org.springframework.transaction.support.TransactionSynchronizationManager.setActualTransactionActive(true);
+        org.springframework.transaction.support.TransactionSynchronizationManager.setCurrentTransactionIsolationLevel(java.sql.Connection.TRANSACTION_READ_COMMITTED);
         service = new CarteiraService(
                 repository,
-                operacaoRepository,
-                snapshotCarteiraRepository,
                 new CarteiraMapper(),
-                Clock.fixed(NOW, ZoneOffset.UTC)
+                Clock.fixed(NOW, ZoneOffset.UTC),
+                new CarteiraExclusaoPersistenceService(repository,operacaoRepository,snapshotCarteiraRepository,movimentacoes,estornos)
         );
+    }
+
+    @org.junit.jupiter.api.AfterEach void limparContextoSimulado() {
+        org.springframework.transaction.support.TransactionSynchronizationManager.clear();
+    }
+
+    @Test
+    void rejectsDeletionWhenEstornoRepositoryReportsHistoryWithoutLoadingOriginals() {
+        var persisted = carteira(49L,"Carteira com vínculo",OffsetDateTime.parse("2026-08-13T03:30:00Z"));
+        when(repository.findByIdForUpdate(49L)).thenReturn(Optional.of(persisted));
+        when(estornos.existsByMovimentacaoOriginal_Carteira_Id(49L)).thenReturn(true);
+        var erro = assertThrows(ApiException.class, () -> service.excluir(49L));
+        assertEquals("CARTEIRA_POSSUI_MOVIMENTACOES_CUSTODIA", erro.getCode());
+        verify(movimentacoes).existsByCarteira_Id(49L);
+        verify(estornos).existsByMovimentacaoOriginal_Carteira_Id(49L);
+        verify(repository,never()).delete(any());
     }
 
     @Test
@@ -430,10 +449,9 @@ class CarteiraServiceTest {
 
         return new CarteiraService(
                 repository,
-                operacaoRepository,
-                snapshotCarteiraRepository,
                 new CarteiraMapper(),
-                clockThatMustNotBeUsed
+                clockThatMustNotBeUsed,
+                new CarteiraExclusaoPersistenceService(repository,operacaoRepository,snapshotCarteiraRepository,movimentacoes,estornos)
         );
     }
 }

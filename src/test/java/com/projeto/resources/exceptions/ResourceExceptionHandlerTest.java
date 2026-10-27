@@ -5,6 +5,11 @@ import ch.qos.logback.classic.Logger;
 import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.read.ListAppender;
 import com.projeto.services.exceptions.ErrorCodes;
+import com.projeto.services.exceptions.ApiException;
+import org.springframework.http.HttpStatus;
+import java.math.BigDecimal;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import jakarta.servlet.http.HttpServletRequest;
 import org.junit.jupiter.api.Test;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -14,10 +19,37 @@ import org.slf4j.LoggerFactory;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 class ResourceExceptionHandlerTest {
+
+    @Test
+    void returnsDomainConflictWithNullEventAndAvailableQuantity() {
+        HttpServletRequest request = mock(HttpServletRequest.class);
+        when(request.getRequestURI()).thenReturn("/operacoes");
+        Map<String, Object> details = new LinkedHashMap<>();
+        details.put("evento", null);
+        details.put("quantidadeDisponivel", new BigDecimal("2"));
+        var exception = new ApiException(HttpStatus.CONFLICT, ErrorCodes.POSICAO_INSUFICIENTE,
+                "Posição insuficiente para a venda", details);
+
+        var response = new ResourceExceptionHandler().handleApiException(exception, request);
+        var error = response.getBody();
+        assertEquals(409, response.getStatusCode().value());
+        assertNotNull(error);
+        assertNotNull(error.getTimeStamp());
+        assertEquals(409, error.getStatus());
+        assertEquals("Conflict", error.getError());
+        assertEquals("Posição insuficiente para a venda", error.getMessage());
+        assertEquals("/operacoes", error.getPath());
+        assertEquals("POSICAO_INSUFICIENTE", error.getCode());
+        assertTrue(error.getDetails().containsKey("evento"));
+        assertNull(error.getDetails().get("evento"));
+        assertEquals(new BigDecimal("2"), error.getDetails().get("quantidadeDisponivel"));
+    }
 
     @Test
     void returnsNeutralConflictWithoutExposingPersistenceDetails() {

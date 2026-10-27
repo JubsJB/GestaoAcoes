@@ -6,8 +6,6 @@ import com.projeto.dto.CarteiraUpdateRequest;
 import com.projeto.entities.Carteira;
 import com.projeto.mappers.CarteiraMapper;
 import com.projeto.repositories.CarteiraRepository;
-import com.projeto.repositories.OperacaoRepository;
-import com.projeto.repositories.SnapshotCarteiraRepository;
 import com.projeto.services.exceptions.ApiException;
 import com.projeto.services.exceptions.ErrorCodes;
 import com.projeto.services.exceptions.ObjectNotFoundException;
@@ -28,23 +26,16 @@ public class CarteiraService {
     private static final int MAX_NAME_LENGTH = 255;
 
     private final CarteiraRepository repository;
-    private final OperacaoRepository operacaoRepository;
-    private final SnapshotCarteiraRepository snapshotCarteiraRepository;
     private final CarteiraMapper mapper;
     private final Clock clock;
+    private final CarteiraExclusaoPersistenceService exclusao;
 
-    public CarteiraService(
-            CarteiraRepository repository,
-            OperacaoRepository operacaoRepository,
-            SnapshotCarteiraRepository snapshotCarteiraRepository,
-            CarteiraMapper mapper,
-            Clock clock
-    ) {
-        this.repository = repository;
-        this.operacaoRepository = operacaoRepository;
-        this.snapshotCarteiraRepository = snapshotCarteiraRepository;
-        this.mapper = mapper;
-        this.clock = clock;
+    public CarteiraService(CarteiraRepository repository, CarteiraMapper mapper, Clock clock,
+            CarteiraExclusaoPersistenceService exclusao) {
+        this.repository=repository;
+        this.mapper=mapper;
+        this.clock=clock;
+        this.exclusao=exclusao;
     }
 
     @Transactional
@@ -86,32 +77,9 @@ public class CarteiraService {
         return mapper.toResponse(repository.saveAndFlush(carteira));
     }
 
-    @Transactional
     public void excluir(Long id) {
-        Carteira carteira = repository.findByIdForUpdate(id)
-                .orElseThrow(() -> new ObjectNotFoundException(
-                        "Carteira não encontrada para o id: " + id
-                ));
-
-        if (operacaoRepository.existsByCarteiraId(id)) {
-            throw new ApiException(
-                    HttpStatus.CONFLICT,
-                    ErrorCodes.CARTEIRA_POSSUI_OPERACOES,
-                    "Carteira possui operações e não pode ser excluída",
-                    Map.of("carteiraId", id)
-            );
-        }
-
-        if (snapshotCarteiraRepository.existsByCarteiraId(id)) {
-            throw new ApiException(
-                    HttpStatus.CONFLICT,
-                    ErrorCodes.CARTEIRA_POSSUI_SNAPSHOTS,
-                    "Carteira possui snapshots e não pode ser excluída",
-                    Map.of("carteiraId", id)
-            );
-        }
-
-        repository.delete(carteira);
+        try { exclusao.excluir(id); }
+        catch (RuntimeException falha) { throw FalhasEscritaOperacao.traduzir(falha); }
     }
 
     private String normalizeAndValidateName(String value) {
