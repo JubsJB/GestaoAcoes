@@ -132,7 +132,7 @@ Não duplicar cálculos financeiros em Controllers, componentes Angular, integra
 
 ## 7. Operações
 
-Toda movimentação de ações deve ser representada através de uma operação.
+Toda compra ou venda de ações deve ser representada através de uma operação financeira. Movimentações internas de custódia e seus estornos possuem registros próprios, conforme a seção 7.1; não devem ser inseridos como operações financeiras.
 
 Os tipos inicialmente suportados são:
 
@@ -158,6 +158,21 @@ Campos adicionais podem existir conforme o modelo de domínio e o PRD.
 Não assumir que a cotação atual do ativo corresponde ao preço da operação.
 
 O preço da operação representa o preço efetivamente registrado no momento da compra ou venda.
+
+### 7.1 Custódia interna e auditoria
+
+- Preservar o enum financeiro COMPRA/VENDA. TRANSFERENCIA e ATRIBUICAO pertencem a MovimentacaoCustodia; EstornoMovimentacaoCustodia é vínculo único com a original, não operação financeira nem transferência inversa.
+- Transferência exige corretoras existentes/distintas na mesma carteira. Atribuição consome o grupo sem corretora (origem null), sem editar a compra original nem criar corretora fictícia.
+- Estorno neutraliza o efeito histórico desde a posição original. Não apagar, editar, substituir ou estornar em cascata; conservar originais e vínculos mesmo quando a situação derivada for ESTORNADA. Não há endpoint individual de estorno nem edição/exclusão de custódia.
+- Toda escrita quantitativa e exclusão usam o mesmo lock da carteira como primeiro acesso da escrita, REQUIRED/READ_COMMITTED/readOnly=false. Rejeitar contexto externo incompatível, revalidar fontes completas após espera e manter save/flush/rollback integral. Não usar consulta pública REQUIRES_NEW para candidata nem adicionar retries automáticos.
+- Novas vendas validam consolidado e saldo local da corretora/grupo null. Compras/vendas retroativas e custódia protegem o histórico completo, inclusive eventos posteriores e custódias ativas; não criar, agravar ou prolongar déficits. Saldo de outra carteira, ação ou corretora não financia a candidata.
+- Preservar legado: negativos locais continuam consultáveis e não autorizam novas escritas inválidas. Não revalidar vendas antigas como novas, renumerar ordens, preencher corretoras ou corrigir dados silenciosamente. Fixtures legadas negativas devem ser persistidas explicitamente em teste isolado, sem afrouxar POST.
+- Custódia não altera quantidade consolidada, preço médio, custo, realizado, não realizado, rentabilidade, patrimônio ou snapshots para as mesmas operações/cotações. Reutilizar o núcleo quantitativo; não duplicar fórmulas financeiras no frontend ou serviço de custódia.
+- Quantidade exata NUMERIC(19,6), positiva, BRASIL inteira/EUA até seis casas. Aceitar entrada numérica ou string decimal conforme contrato; resposta numérica exige parsing lossless no Angular. Não converter quantidades, saldos ou frações exatas por Number/parseFloat/double nem arredondar para acomodar entrada inválida.
+- Cronologia efetiva: operação financeira por dataOperacao/ordemNoDia; custódia por dataEfetiva/ordemFinanceiraAncora/fração racional canônica em (0,1), com componentes textuais de até 512 dígitos. Comparar matematicamente, jamais por ordenação lexical no SQL. Não reposicionar originais; limite excedido é conflito sem escrita.
+- Não confundir ordem efetiva com histórico: dataRegistro DESC, MOVIMENTACAO antes de ESTORNO, id DESC; identidade discriminada por (tipoRegistro,id). Manter nulls, vínculo, frações textuais e instante fisicamente persistido nos DTOs. Data futura usa fuso do mercado (São Paulo/Nova York).
+- Preservar códigos/precedência do OpenSpec, incluindo causa em details.motivo no cadastro. Só traduzir falhas reconhecidas como CONFLITO_TRANSACIONAL_TRANSITORIO; não expor SQL, causas internas ou credenciais, consultar após flush falho ou esconder erros de domínio.
+- Deploy de backend/Angular é coordenado pelo contrato genérico FINANCEIRO/CUSTODIA de primeiroDeficit. Rollback operacional conserva auditoria e schema; se a aplicação anterior não entende custódia, suspender escritas até versão compatível. Não propor drop, apagar estornos ou contornar os bloqueios de rollback da migration 008.
 
 ---
 

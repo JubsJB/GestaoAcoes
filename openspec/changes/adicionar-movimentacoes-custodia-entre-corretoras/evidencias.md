@@ -1,5 +1,7 @@
 # Evidências de conclusão — homologações 1.9/1.10 e Etapa 3
 
+**Acompanhamento atualizado em 29/10/2026:** 58 tarefas concluídas e duas desmarcadas (5.10 e 6.5 parciais com exceções aceitas). A auditoria 6.9 e a validação final 6.10 estão concluídas e aprovadas tecnicamente. O registro de 6.10 está ao final; as afirmações e métricas das rodadas anteriores permanecem históricas, sem substituição de seus resultados. Consulte [excecoes-homologacao.md](excecoes-homologacao.md) e [validacao-final.md](validacao-final.md).
+
 Estado atual em **25/10/2026**: concluídas 1.9, 1.10 e 3.1–3.10, total de **12 tarefas concluídas e 48 desmarcadas**, conforme [tasks.md](tasks.md). Desmarcação não significa ausência de implementação. O fechamento da Etapa 3, sua rastreabilidade e a validação global atual estão registrados ao final deste documento; não encerram outras etapas nem autorizam novas implementações, execuções ou publicação Git.
 
 **Registro histórico de 24/10/2026:** naquele fechamento documental da change `adicionar-movimentacoes-custodia-entre-corretoras`, somente 1.9 e 1.10 foram encerradas, permanecendo 58 tarefas desmarcadas. As seções seguintes preservam as evidências e os limites daquele registro. Afirmações de escopo e pendências daquela data não substituem o fechamento posterior da Etapa 3 abaixo.
@@ -302,3 +304,63 @@ Hashes SHA-256 a seguir calculados sobre os arquivos locais existentes durante e
 ### Validação documental do fechamento da Etapa 4
 
 Em 26/10/2026, `openspec validate adicionar-movimentacoes-custodia-entre-corretoras --type change --strict --no-interactive --json` retornou **ExitCode 0, valid=true, issues=[], um item aprovado e zero reprovados**. A validação é estática e não constitui execução de Maven, Angular ou PostgreSQL. Conferência final: 60 tarefas, 22 concluídas e 38 desmarcadas; somente caixas 4.1–4.10 alteradas neste fechamento, sem reescrever critérios. Etapas 5/6 e caixas das demais etapas preservadas. Apenas tasks.md e evidencias.md foram atualizados na documentação versionável da change; relatório JSON da validação e conferências locais foram conservados em target/.
+## Regularização documental após auditoria 6.9 — 29/10/2026
+
+**Registro histórico anterior à validação final 6.10:** a contagem de 57/60 e as referências a 6.10 pendente nesta seção retratam a regularização daquele momento. O estado posterior aprovado é 58/60, registrado na seção seguinte.
+
+Auditoria e matriz integral aprovadas pelo usuário. Fonte local: `target/custodia-auditoria69-20261029-145858/relatorio.md` e `matriz-60-tarefas.json`, com os critérios originais, implementação, testes, resultados e ação por tarefa. A conferência desta rodada releu as 60 linhas e verificou os hashes das 186 fontes registradas, sem divergências antes da atualização documental. Não houve nova execução de teste ou homologação.
+
+| Itens agora marcados | Justificativa e evidência existente |
+| --- | --- |
+| 1.1–1.8 | Entidades separadas, reconstrução estrita, posição racional, repositórios em lote, migration 008 e constraints. Testes de domínio/hidratação, 114 H2 de persistência/integridade/repositórios/upgrade e homologação PostgreSQL 1.9 já registrada. Fontes: `target/custodia-19-final.log`, XMLs em `target/validacao-etapa4-global-20261026-214309/backend-surefire-final/` e matriz 6.9. |
+| 2.1–2.10 | Eventos/normalizador/adaptador, replay puro, busca determinística e comparação diferencial; casos de déficit novo/agravado/prolongado/inalterado/reduzido, checkpoints e limite. XMLs globais históricos: racional 60, racional transitório 22, eventos 12, normalizador 21, adaptador 52, replay 30, buscador 33, posição cronológica 5, validador 41 e núcleo integrado 29. São contagens por classe, não percentuais de cobertura nem nova execução. Capacidade física complementar na homologação 1.10 preservada. |
+| 5.1–5.2 | Modelos, serviço HTTP e parsing lossless: 84 casos novos e 179 regressões no Incremento 1; distribuição genérica reutilizada da Etapa 4, sem reimplementação. Fonte: `target/custodia-etapa5-incremento1-20261027-210804/relatorio.md`. |
+| 5.3–5.6 | Formulário contextual, saldo auxiliar, histórico separado e confirmação de estorno. Fontes: `target/custodia-etapa5-incremento2-20261027-212027/relatorio.md` (346 únicos consolidados) e `target/custodia-etapa5-incremento3-20261027-213517/relatorio.md` (388 últimos resultados únicos). Não somar seleções que repetem arquivos. |
+| 5.7–5.9 | Gerações/contexto, mensagens e detalhes exatos, sucesso separado da falha de leitura, retry exclusivamente GET. Fonte: `target/custodia-etapa5-incremento4-20261027-215100/relatorio.md` (426 únicos em 18 arquivos). Correções posteriores de foco e layout: 75 e 82 testes direcionados, respectivamente; resultados sobrepostos não são somados. A prova manual da falha seletiva é exceção de 6.5, não uma aprovação fictícia. |
+| 6.1, 6.2, 6.4 | `target/custodia-etapa6-incremento1-20261028-201406/relatorio.md` e `surefire-final/`: 107 únicos em 11 classes, zero falhas/erros/skips. Dois novos casos BR/EUA com invariância de posição, resultados, patrimônio e snapshots; legado negativo consultável, precisão/cronologia/rollback. Nenhuma fixture incompatível remanescente identificada na seleção. |
+| 6.3 | `target/custodia-etapa6-reconciliacao63-20261028-202330/relatorio.md`: Opção A, reaproveitamento integral dos 26 cenários PostgreSQL 3.10, incluindo espera/releitura e isolamento após lock. Não houve nova homologação. |
+| 6.6–6.8 | PRD, README, AGENTS.md e Postman harmonizados com o código. `target/custodia-etapa6-documentacao-20261028-202744/relatorio.md` e `validacao-documental.json`: conferência estática aprovada, sete requests/quatro rotas de custódia e 25 respostas salvas; oito arquivos de migration/nove changeSets. Nenhuma request Postman ou deploy executado. |
+| 6.9 | Matriz completa das 60 tarefas, rastreabilidade dos 32 critérios mínimos e extras, 36 requisitos em dez deltas, inspeção financeira/contratual e preservação. Auditoria aprovada pelo usuário, incluindo reconhecimento das duas exceções não homologadas. Nenhuma nova falha funcional conhecida identificada; isso não promete ausência absoluta de bugs. |
+
+Foram alteradas somente 35 checkboxes anteriormente desmarcadas, preservando literalmente descrições e numeração. As 22 conclusões anteriores permanecem intactas. **Estado documental: 57 concluídas, três desmarcadas.** 5.10 e 6.5 são parciais, com dispensas e riscos residuais aceitos; 6.10 continua pendente. A auditoria concluída não equivale ao encerramento de toda a change.
+
+### Exceções e resultados históricos
+
+O registro durável em [excecoes-homologacao.md](excecoes-homologacao.md) distingue implementação atendida, evidência automatizada e verificação manual não executada. Avaliação sonora real e falha seletiva de GET após POST no navegador **não foram aprovadas**; foram dispensadas para esta entrega por decisão explícita do usuário. Os critérios originais não foram alterados nem essas duas tarefas marcadas como integralmente concluídas.
+
+As correções de foco e responsividade foram aprovadas com testes direcionados e confirmação em navegador real; a massa visual extensa também foi aprovada. A homologação funcional preservou três originais estornadas e três estornos, saldo final observado de 100 PETR4 sem corretora/A0/B0, operações financeiras intactas e vínculos únicos. A rodada assistida não criou a atribuição extra condicionada ao bloqueio de GET. Fontes: `target/custodia-homologacao-retomada-20261029-065213/relatorio.md`, `target/custodia-correcao-layout-20261029-071541/relatorio.md`, `target/custodia-homologacao-residual-20261029-073111/relatorio.md` e `target/custodia-homologacao-assistida-20261029-143802/relatorio.md`.
+
+As homologações PostgreSQL 1.9/1.10/3.10 e seus hashes/limites permanecem nas seções anteriores. BUILD SUCCESS, contagens e percentuais globais de 25/10 e 26/10 não são resultados da regularização ou da futura 6.10. Falhas históricas e respectivas correções não foram apagadas nem reinterpretadas como rodadas aprovadas.
+
+### Preparação de 6.10, sem execução
+
+Plano em [validacao-final.md](validacao-final.md): uma global backend Maven/H2 pelo script existente, cobertura global Angular após aprovação do backend, build Angular e OpenSpec estrito, além de preservação/revisão de Git, Graphify e migrations. Regressões aplicáveis já integram as suítes; não repetir PostgreSQL ou homologações manuais dispensadas. Limites de linhas/ramos mantidos em 80%, exigindo artefatos e resultados novos.
+
+Nenhum Maven, teste Angular, build de aplicação, PostgreSQL, Docker, OpenSpec estrito, nova movimentação ou operação Git de escrita foi executado nesta regularização. A conferência documental é leitura/comparação de critérios, hashes, caminhos e contagens, não a validação final 6.10. Serviços não foram reiniciados ou encerrados.
+
+### Integridade e conservação
+
+| Fonte aprovada | SHA-256 conferido nesta regularização |
+| --- | --- |
+| `target/custodia-auditoria69-20261029-145858/relatorio.md` | 854cbfe554df76fcb709a414879fcadc663d45619396e6ace12b82d1f01c085d |
+| `target/custodia-auditoria69-20261029-145858/matriz-60-tarefas.json` | ee6ca1a7f04d3fdd2133a1c7b12daf754837fe4fcccb9b2bfeda373e68ccd34e |
+
+Esses artefatos em target/ não são versionados; preservar relatórios, backups e hashes. A nova pasta de regularização registra as 35 marcações e a preservação dos arquivos anteriores. Não executar clean para encerrar a change.
+
+## Conclusão da validação final 6.10 — 29/10/2026
+
+A validação final foi executada e aprovada tecnicamente; o usuário autorizou posteriormente a marcação de 6.10. Estado atual: **58 tarefas marcadas e duas desmarcadas, 5.10 e 6.5**. A aprovação não preenche retroativamente as verificações manuais dispensadas nem autoriza arquivamento ou operações Git.
+
+Fonte da execução: `target/custodia-validacao-final-20261029-190655/relatorio.md` e `resultado-consolidado.json`. A contagem de 57 marcadas no consolidado é o retrato correto da execução, anterior à autorização para marcar 6.10; o artefato histórico não foi alterado.
+
+| Verificação | Resultado aprovado dessa rodada |
+| --- | --- |
+| Backend Maven/H2 | BUILD SUCCESS, ExitCode 0; 2.376 contabilizados, 2.274 aprovados, zero falhas/erros, 102 skips esperados e nenhum inesperado; nenhum PostgreSQL real executado. |
+| JaCoCo BUNDLE | Dados novos, report/check executados; LINE 96,18% e BRANCH 85,28%, limites de 80% atendidos. Não são percentuais reutilizados da Etapa 4. |
+| Angular | 976 testes aprovados em 81 arquivos, zero falhas/erros/skips, ExitCode 0; linhas 98,71% e ramos 93,33%, limites de 80% atendidos. |
+| Build de produção | ExitCode 0, com três warnings não bloqueantes de tamanho de bundle/estilos; nenhum limite alterado. |
+| Migrations | Oito arquivos, nove changeSets únicos, hashes preservados; instalação/upgrade/Hibernate/integridade/rollback H2 aprovados na global, sem repetir PostgreSQL. |
+| OpenSpec estrito | ExitCode 0, valid=true, issues=[]; um item aprovado, zero reprovados. |
+| Preservação | Fontes, testes, configurações e documentos preservados na execução; serviços mantidos ativos; cache estrutural Graphify atualizado conforme o plano, sem alterar fontes. |
+
+As exceções de 5.10 e 6.5 permanecem exatamente as aceitas em [excecoes-homologacao.md](excecoes-homologacao.md). Não houve nova homologação manual, movimento, teste Maven/Angular ou execução PostgreSQL nesta atualização dos resumos. Os registros históricos e os três warnings do build foram preservados.

@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "Gestão de Ações — MVP",
-    "description": "Coleção documental do MVP: 26 operações de negócio distintas, organizadas por domínio, mais exemplos alternativos/negativos e documentação técnica. Importe no Postman e execute manualmente em banco de desenvolvimento. Não é uma sequência idempotente: POSTs criam dados e DELETE exclui a carteira descartável. Defina cnpj real e dataOperacao apropriada; execute criação de carteira/ação antes das operações. IDs são capturados somente após sucesso, ou podem ser preenchidos com registros existentes. Não há autenticação da aplicação; chaves de providers ficam exclusivamente no backend. Exemplos de preços/quantidades são ilustrativos, não cotações. Cada request testa o status esperado; erros de provider fazem o teste de sucesso falhar. Ver README raiz para configuração e limitações.",
+    "description": "Coleção documental do MVP: 30 operações de negócio distintas, organizadas por domínio, mais exemplos alternativos/negativos e documentação técnica. Importe no Postman e execute manualmente em banco de testes com dados descartáveis. Não é uma sequência idempotente: POSTs criam dados e DELETE exclui a carteira descartável. Defina cnpj real e dataOperacao apropriada; execute criação de carteira/ação antes das operações. IDs são capturados somente após sucesso, ou podem ser preenchidos com registros existentes. Não há autenticação da aplicação; chaves de providers ficam exclusivamente no backend. Exemplos de preços/quantidades são ilustrativos, não cotações. Cada request testa o status esperado; erros de provider fazem o teste de sucesso falhar. Ver README raiz para configuração e limitações. Custódia acrescenta quatro operações distintas em sete exemplos de request, com variantes de natureza/corpo; IDs de original e estorno são separados. Os exemplos de custódia devem usar massa descartável, conforme README; não são uma sequência automática nem uma autorização de uso do banco de desenvolvimento.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "auth": {
@@ -96,6 +96,41 @@
     {
       "key": "dataOperacao",
       "value": "2026-09-09",
+      "type": "string"
+    },
+    {
+      "key": "corretoraOrigemId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "corretoraDestinoId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "movimentacaoCustodiaId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "estornoCustodiaId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "quantidadeCustodia",
+      "value": "4.000000",
+      "type": "string"
+    },
+    {
+      "key": "dataEfetivaCustodia",
+      "value": "2026-10-01",
+      "type": "string"
+    },
+    {
+      "key": "motivoEstorno",
+      "value": "Correção de custódia",
       "type": "string"
     }
   ],
@@ -1425,6 +1460,1480 @@
             }
           ],
           "response": []
+        }
+      ]
+    },
+    {
+      "name": "Custódia",
+      "description": "Controle interno, sem transferência institucional. Exemplos salvos ilustrativos, não evidências reais. Não executar todas as variantes de estorno em sequência nem rodar a coleção contra dados reais. Prepare carteira/ação/corretoras e compras compatíveis em massa descartável. Ajuste IDs/data/mercado/quantidades; não há criação automática de referências ou limpeza de auditoria. Quantidade textual de entrada e fração string preservam precisão. Novas vendas também validam saldo local (SALDO_CORRETORA_INSUFICIENTE), histórico e custódias; negativos locais legados continuam consultáveis. Sucesso de POST não deve ser confundido com falha posterior de GET. Deploy exige backend/Angular coordenados; rollback preserva schema/auditoria e bloqueia escritas de backend incompatível. Ver README.",
+      "item": [
+        {
+          "name": "Registrar TRANSFERENCIA",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/carteiras/{{carteiraId}}/movimentacoes-custodia",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "carteiras",
+                "{{carteiraId}}",
+                "movimentacoes-custodia"
+              ]
+            },
+            "description": "Carteira vem só do path. Origem/destino existentes e distintos; prepare compra/saldo na origem e data não futura por mercado. Quantidade positiva NUMERIC(19,6): BRASIL inteira/EUA até seis casas. Número JSON ou string decimal aceitos; string evita conversão binária no cliente. Não enviar ID, carteiraId, acaoId, âncora/fração, preço ou auditoria. 201 retorna a original e Location de seu detalhe. Sem retry automático.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"natureza\":\"TRANSFERENCIA\",\"ticker\":\"{{ticker}}\",\"mercado\":\"{{mercado}}\",\"corretoraOrigemId\":{{corretoraOrigemId}},\"corretoraDestinoId\":{{corretoraDestinoId}},\"quantidade\":\"{{quantidadeCustodia}}\",\"dataEfetiva\":\"{{dataEfetivaCustodia}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status esperado: 201\", function () { pm.response.to.have.status(201); });",
+                  "pm.test(\"Resposta JSON\", function () { pm.response.json(); });",
+                  "if (pm.response.code === 201) { const match = /^\\s*\\{\\s*\"id\"\\s*:\\s*(\\d+)/.exec(pm.response.text()); if (match) pm.collectionVariables.set(\"movimentacaoCustodiaId\", match[1]); }"
+                ]
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "201 original ATIVA — exemplo documental",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/carteiras/{{carteiraId}}/movimentacoes-custodia",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "carteiras",
+                    "{{carteiraId}}",
+                    "movimentacoes-custodia"
+                  ]
+                },
+                "description": "Carteira vem só do path. Origem/destino existentes e distintos; prepare compra/saldo na origem e data não futura por mercado. Quantidade positiva NUMERIC(19,6): BRASIL inteira/EUA até seis casas. Número JSON ou string decimal aceitos; string evita conversão binária no cliente. Não enviar ID, carteiraId, acaoId, âncora/fração, preço ou auditoria. 201 retorna a original e Location de seu detalhe. Sem retry automático.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\"natureza\":\"TRANSFERENCIA\",\"ticker\":\"{{ticker}}\",\"mercado\":\"{{mercado}}\",\"corretoraOrigemId\":{{corretoraOrigemId}},\"corretoraDestinoId\":{{corretoraDestinoId}},\"quantidade\":\"{{quantidadeCustodia}}\",\"dataEfetiva\":\"{{dataEfetivaCustodia}}\"}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Created",
+              "code": 201,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                },
+                {
+                  "key": "Location",
+                  "value": "http://localhost:8080/carteiras/1/movimentacoes-custodia/10"
+                }
+              ],
+              "body": "{\n  \"id\": 10,\n  \"tipoRegistro\": \"MOVIMENTACAO\",\n  \"natureza\": \"TRANSFERENCIA\",\n  \"situacao\": \"ATIVA\",\n  \"carteiraId\": 1,\n  \"acaoId\": 2,\n  \"ticker\": \"PETR4\",\n  \"mercado\": \"BRASIL\",\n  \"corretoraOrigemId\": 3,\n  \"corretoraDestinoId\": 4,\n  \"quantidade\": 4.000000,\n  \"dataEfetiva\": \"2026-10-01\",\n  \"dataRegistro\": \"2026-10-24T12:00:00Z\",\n  \"posicaoCronologica\": {\n    \"ordemFinanceiraAncora\": 1,\n    \"numerador\": \"1\",\n    \"denominador\": \"2\"\n  },\n  \"movimentacaoOriginalId\": null,\n  \"estornoId\": null,\n  \"motivo\": null\n}"
+            },
+            {
+              "name": "400 REQUEST_INVALIDO — exemplo documental",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/carteiras/{{carteiraId}}/movimentacoes-custodia",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "carteiras",
+                    "{{carteiraId}}",
+                    "movimentacoes-custodia"
+                  ]
+                },
+                "description": "Carteira vem só do path. Origem/destino existentes e distintos; prepare compra/saldo na origem e data não futura por mercado. Quantidade positiva NUMERIC(19,6): BRASIL inteira/EUA até seis casas. Número JSON ou string decimal aceitos; string evita conversão binária no cliente. Não enviar ID, carteiraId, acaoId, âncora/fração, preço ou auditoria. 201 retorna a original e Location de seu detalhe. Sem retry automático.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\"natureza\":\"TRANSFERENCIA\",\"ticker\":\"PETR4\",\"mercado\":\"BRASIL\",\"corretoraOrigemId\":3,\"corretoraDestinoId\":3,\"quantidade\":\"4.000000\",\"dataEfetiva\":\"2026-10-01\"}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"timeStamp\": 1792843200000,\n  \"status\": 400,\n  \"error\": \"Bad Request\",\n  \"message\": \"Dados da requisição inválidos\",\n  \"path\": \"/carteiras/1/movimentacoes-custodia\",\n  \"code\": \"REQUEST_INVALIDO\",\n  \"details\": {\n    \"corretoraDestinoId\": \"Origem e destino devem ser distintos\"\n  }\n}"
+            },
+            {
+              "name": "400 DATA_EFETIVA_FUTURA — exemplo documental",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/carteiras/{{carteiraId}}/movimentacoes-custodia",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "carteiras",
+                    "{{carteiraId}}",
+                    "movimentacoes-custodia"
+                  ]
+                },
+                "description": "Carteira vem só do path. Origem/destino existentes e distintos; prepare compra/saldo na origem e data não futura por mercado. Quantidade positiva NUMERIC(19,6): BRASIL inteira/EUA até seis casas. Número JSON ou string decimal aceitos; string evita conversão binária no cliente. Não enviar ID, carteiraId, acaoId, âncora/fração, preço ou auditoria. 201 retorna a original e Location de seu detalhe. Sem retry automático.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\"natureza\":\"TRANSFERENCIA\",\"ticker\":\"PETR4\",\"mercado\":\"BRASIL\",\"corretoraOrigemId\":3,\"corretoraDestinoId\":4,\"quantidade\":\"4.000000\",\"dataEfetiva\":\"2099-10-01\"}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"timeStamp\": 1792843200000,\n  \"status\": 400,\n  \"error\": \"Bad Request\",\n  \"message\": \"Data efetiva futura no mercado\",\n  \"path\": \"/carteiras/1/movimentacoes-custodia\",\n  \"code\": \"DATA_EFETIVA_FUTURA\",\n  \"details\": {\n    \"dataEfetiva\": \"Data efetiva não pode ser futura\"\n  }\n}"
+            },
+            {
+              "name": "404 referência ausente — exemplo documental",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/carteiras/{{carteiraId}}/movimentacoes-custodia",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "carteiras",
+                    "{{carteiraId}}",
+                    "movimentacoes-custodia"
+                  ]
+                },
+                "description": "Carteira vem só do path. Origem/destino existentes e distintos; prepare compra/saldo na origem e data não futura por mercado. Quantidade positiva NUMERIC(19,6): BRASIL inteira/EUA até seis casas. Número JSON ou string decimal aceitos; string evita conversão binária no cliente. Não enviar ID, carteiraId, acaoId, âncora/fração, preço ou auditoria. 201 retorna a original e Location de seu detalhe. Sem retry automático.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\"natureza\":\"TRANSFERENCIA\",\"ticker\":\"PETR4\",\"mercado\":\"BRASIL\",\"corretoraOrigemId\":3,\"corretoraDestinoId\":999999,\"quantidade\":\"4.000000\",\"dataEfetiva\":\"2026-10-01\"}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Not Found",
+              "code": 404,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"timeStamp\": 1792843200000,\n  \"status\": 404,\n  \"error\": \"Not Found\",\n  \"message\": \"Corretora não encontrada\",\n  \"path\": \"/carteiras/1/movimentacoes-custodia\",\n  \"code\": null,\n  \"details\": {}\n}"
+            },
+            {
+              "name": "409 SALDO_ORIGEM_INSUFICIENTE — exemplo documental",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/carteiras/{{carteiraId}}/movimentacoes-custodia",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "carteiras",
+                    "{{carteiraId}}",
+                    "movimentacoes-custodia"
+                  ]
+                },
+                "description": "Carteira vem só do path. Origem/destino existentes e distintos; prepare compra/saldo na origem e data não futura por mercado. Quantidade positiva NUMERIC(19,6): BRASIL inteira/EUA até seis casas. Número JSON ou string decimal aceitos; string evita conversão binária no cliente. Não enviar ID, carteiraId, acaoId, âncora/fração, preço ou auditoria. 201 retorna a original e Location de seu detalhe. Sem retry automático.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\"natureza\":\"TRANSFERENCIA\",\"ticker\":\"{{ticker}}\",\"mercado\":\"{{mercado}}\",\"corretoraOrigemId\":{{corretoraOrigemId}},\"corretoraDestinoId\":{{corretoraDestinoId}},\"quantidade\":\"{{quantidadeCustodia}}\",\"dataEfetiva\":\"{{dataEfetivaCustodia}}\"}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Conflict",
+              "code": 409,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"timeStamp\": 1792843200000,\n  \"status\": 409,\n  \"error\": \"Conflict\",\n  \"message\": \"Movimentação incompatível com o histórico quantitativo\",\n  \"path\": \"/carteiras/1/movimentacoes-custodia\",\n  \"code\": \"SALDO_ORIGEM_INSUFICIENTE\",\n  \"details\": {\n    \"carteiraId\": 1,\n    \"acaoId\": 2,\n    \"origem\": {\n      \"corretoraId\": 3,\n      \"categoria\": \"CORRETORA\"\n    },\n    \"evento\": null,\n    \"quantidadeSolicitada\": 4,\n    \"motivo\": \"SALDO_ORIGEM_INSUFICIENTE\",\n    \"saldoAntes\": 2,\n    \"saldoDepois\": -2,\n    \"deficitAntes\": 0,\n    \"deficitDepois\": 2,\n    \"quantidadeDisponivel\": 2,\n    \"grupo\": {\n      \"corretoraId\": 3,\n      \"categoria\": \"CORRETORA\"\n    }\n  }\n}"
+            },
+            {
+              "name": "409 POSICAO_CUSTODIA_INDISPONIVEL — exemplo documental",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/carteiras/{{carteiraId}}/movimentacoes-custodia",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "carteiras",
+                    "{{carteiraId}}",
+                    "movimentacoes-custodia"
+                  ]
+                },
+                "description": "Carteira vem só do path. Origem/destino existentes e distintos; prepare compra/saldo na origem e data não futura por mercado. Quantidade positiva NUMERIC(19,6): BRASIL inteira/EUA até seis casas. Número JSON ou string decimal aceitos; string evita conversão binária no cliente. Não enviar ID, carteiraId, acaoId, âncora/fração, preço ou auditoria. 201 retorna a original e Location de seu detalhe. Sem retry automático.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\"natureza\":\"TRANSFERENCIA\",\"ticker\":\"{{ticker}}\",\"mercado\":\"{{mercado}}\",\"corretoraOrigemId\":{{corretoraOrigemId}},\"corretoraDestinoId\":{{corretoraDestinoId}},\"quantidade\":\"{{quantidadeCustodia}}\",\"dataEfetiva\":\"{{dataEfetivaCustodia}}\"}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Conflict",
+              "code": 409,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"timeStamp\": 1792843200000,\n  \"status\": 409,\n  \"error\": \"Conflict\",\n  \"message\": \"Movimentação incompatível com o histórico quantitativo\",\n  \"path\": \"/carteiras/1/movimentacoes-custodia\",\n  \"code\": \"POSICAO_CUSTODIA_INDISPONIVEL\",\n  \"details\": {\n    \"carteiraId\": 1,\n    \"acaoId\": 2,\n    \"origem\": {\n      \"corretoraId\": 3,\n      \"categoria\": \"CORRETORA\"\n    },\n    \"evento\": {\n      \"dominio\": \"FINANCEIRO\",\n      \"id\": 7,\n      \"natureza\": \"VENDA\",\n      \"dataEfetiva\": \"2026-10-02\",\n      \"posicaoCronologica\": {\n        \"ordemNoDia\": 1\n      }\n    },\n    \"quantidadeSolicitada\": 4,\n    \"motivo\": \"CONFLITO_HISTORICO_QUANTITATIVO\",\n    \"saldoAntes\": 2,\n    \"saldoDepois\": -2,\n    \"deficitAntes\": 0,\n    \"deficitDepois\": 2,\n    \"grupo\": {\n      \"corretoraId\": 3,\n      \"categoria\": \"CORRETORA\"\n    }\n  }\n}"
+            },
+            {
+              "name": "409 LIMITE_POSICAO_CUSTODIA — exemplo documental",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/carteiras/{{carteiraId}}/movimentacoes-custodia",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "carteiras",
+                    "{{carteiraId}}",
+                    "movimentacoes-custodia"
+                  ]
+                },
+                "description": "Carteira vem só do path. Origem/destino existentes e distintos; prepare compra/saldo na origem e data não futura por mercado. Quantidade positiva NUMERIC(19,6): BRASIL inteira/EUA até seis casas. Número JSON ou string decimal aceitos; string evita conversão binária no cliente. Não enviar ID, carteiraId, acaoId, âncora/fração, preço ou auditoria. 201 retorna a original e Location de seu detalhe. Sem retry automático.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\"natureza\":\"TRANSFERENCIA\",\"ticker\":\"{{ticker}}\",\"mercado\":\"{{mercado}}\",\"corretoraOrigemId\":{{corretoraOrigemId}},\"corretoraDestinoId\":{{corretoraDestinoId}},\"quantidade\":\"{{quantidadeCustodia}}\",\"dataEfetiva\":\"{{dataEfetivaCustodia}}\"}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Conflict",
+              "code": 409,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"timeStamp\": 1792843200000,\n  \"status\": 409,\n  \"error\": \"Conflict\",\n  \"message\": \"Limite da posição cronológica de custódia\",\n  \"path\": \"/carteiras/1/movimentacoes-custodia\",\n  \"code\": \"LIMITE_POSICAO_CUSTODIA\",\n  \"details\": {\n    \"carteiraId\": 1,\n    \"acaoId\": 2,\n    \"origem\": {\n      \"corretoraId\": 3,\n      \"categoria\": \"CORRETORA\"\n    },\n    \"evento\": null,\n    \"quantidadeSolicitada\": 4,\n    \"motivo\": \"LIMITE_POSICAO_CUSTODIA\"\n  }\n}"
+            },
+            {
+              "name": "409 CONFLITO_TRANSACIONAL_TRANSITORIO — exemplo documental",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/carteiras/{{carteiraId}}/movimentacoes-custodia",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "carteiras",
+                    "{{carteiraId}}",
+                    "movimentacoes-custodia"
+                  ]
+                },
+                "description": "Carteira vem só do path. Origem/destino existentes e distintos; prepare compra/saldo na origem e data não futura por mercado. Quantidade positiva NUMERIC(19,6): BRASIL inteira/EUA até seis casas. Número JSON ou string decimal aceitos; string evita conversão binária no cliente. Não enviar ID, carteiraId, acaoId, âncora/fração, preço ou auditoria. 201 retorna a original e Location de seu detalhe. Sem retry automático.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\"natureza\":\"TRANSFERENCIA\",\"ticker\":\"{{ticker}}\",\"mercado\":\"{{mercado}}\",\"corretoraOrigemId\":{{corretoraOrigemId}},\"corretoraDestinoId\":{{corretoraDestinoId}},\"quantidade\":\"{{quantidadeCustodia}}\",\"dataEfetiva\":\"{{dataEfetivaCustodia}}\"}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Conflict",
+              "code": 409,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"timeStamp\": 1792843200000,\n  \"status\": 409,\n  \"error\": \"Conflict\",\n  \"message\": \"Conflito transacional transitório\",\n  \"path\": \"/carteiras/1/movimentacoes-custodia\",\n  \"code\": \"CONFLITO_TRANSACIONAL_TRANSITORIO\",\n  \"details\": {}\n}"
+            }
+          ]
+        },
+        {
+          "name": "Registrar ATRIBUICAO",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/carteiras/{{carteiraId}}/movimentacoes-custodia",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "carteiras",
+                "{{carteiraId}}",
+                "movimentacoes-custodia"
+              ]
+            },
+            "description": "Usa quantidade do grupo sem corretora: prepare compra com corretoraId=null. corretoraOrigemId pode ser omitido ou null, nunca ID positivo. Destino existente; preserva compra e cálculos. Mesmos limites de precisão/data da transferência. Ajuste quantidade disponível antes de executar; não pressupõe que transferência anterior criou saldo sem corretora.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"natureza\":\"ATRIBUICAO\",\"ticker\":\"{{ticker}}\",\"mercado\":\"{{mercado}}\",\"corretoraOrigemId\":null,\"corretoraDestinoId\":{{corretoraDestinoId}},\"quantidade\":\"{{quantidadeCustodia}}\",\"dataEfetiva\":\"{{dataEfetivaCustodia}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status esperado: 201\", function () { pm.response.to.have.status(201); });",
+                  "pm.test(\"Resposta JSON\", function () { pm.response.json(); });",
+                  "if (pm.response.code === 201) { const match = /^\\s*\\{\\s*\"id\"\\s*:\\s*(\\d+)/.exec(pm.response.text()); if (match) pm.collectionVariables.set(\"movimentacaoCustodiaId\", match[1]); }"
+                ]
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "201 atribuição ATIVA, entrada numérica — exemplo documental",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/carteiras/{{carteiraId}}/movimentacoes-custodia",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "carteiras",
+                    "{{carteiraId}}",
+                    "movimentacoes-custodia"
+                  ]
+                },
+                "description": "Usa quantidade do grupo sem corretora: prepare compra com corretoraId=null. corretoraOrigemId pode ser omitido ou null, nunca ID positivo. Destino existente; preserva compra e cálculos. Mesmos limites de precisão/data da transferência. Ajuste quantidade disponível antes de executar; não pressupõe que transferência anterior criou saldo sem corretora.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\"natureza\":\"ATRIBUICAO\",\"ticker\":\"PETR4\",\"mercado\":\"BRASIL\",\"corretoraOrigemId\":null,\"corretoraDestinoId\":4,\"quantidade\":4.000000,\"dataEfetiva\":\"2026-10-01\"}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Created",
+              "code": 201,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                },
+                {
+                  "key": "Location",
+                  "value": "http://localhost:8080/carteiras/1/movimentacoes-custodia/10"
+                }
+              ],
+              "body": "{\n  \"id\": 10,\n  \"tipoRegistro\": \"MOVIMENTACAO\",\n  \"natureza\": \"ATRIBUICAO\",\n  \"situacao\": \"ATIVA\",\n  \"carteiraId\": 1,\n  \"acaoId\": 2,\n  \"ticker\": \"PETR4\",\n  \"mercado\": \"BRASIL\",\n  \"corretoraOrigemId\": null,\n  \"corretoraDestinoId\": 4,\n  \"quantidade\": 4.000000,\n  \"dataEfetiva\": \"2026-10-01\",\n  \"dataRegistro\": \"2026-10-24T12:00:00Z\",\n  \"posicaoCronologica\": {\n    \"ordemFinanceiraAncora\": 1,\n    \"numerador\": \"1\",\n    \"denominador\": \"2\"\n  },\n  \"movimentacaoOriginalId\": null,\n  \"estornoId\": null,\n  \"motivo\": null\n}"
+            }
+          ]
+        },
+        {
+          "name": "Consultar histórico (filtros opcionais)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/carteiras/{{carteiraId}}/movimentacoes-custodia",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "carteiras",
+                "{{carteiraId}}",
+                "movimentacoes-custodia"
+              ],
+              "query": [
+                {
+                  "key": "natureza",
+                  "value": "ESTORNO",
+                  "disabled": true
+                },
+                {
+                  "key": "situacao",
+                  "value": "ESTORNADA",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Conjunto completo, inclusive posições encerradas, sem paginação. natureza=TRANSFERENCIA|ATRIBUICAO|ESTORNO; situacao=ATIVA|ESTORNADA. Situação restringe originais; ESTORNO explícito inclui estornos mesmo com situação. Sem natureza e com situação, somente originais. Ordem dataRegistro DESC, MOVIMENTACAO antes de ESTORNO no empate e id DESC. Identidade (tipoRegistro,id); nulos e frações textuais preservados."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status esperado: 200\", function () { pm.response.to.have.status(200); });",
+                  "pm.test(\"Resposta JSON\", function () { pm.response.json(); });"
+                ]
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "200 histórico sem filtros — exemplo documental",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/carteiras/{{carteiraId}}/movimentacoes-custodia",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "carteiras",
+                    "{{carteiraId}}",
+                    "movimentacoes-custodia"
+                  ],
+                  "query": [
+                    {
+                      "key": "natureza",
+                      "value": "ESTORNO",
+                      "disabled": true
+                    },
+                    {
+                      "key": "situacao",
+                      "value": "ESTORNADA",
+                      "disabled": true
+                    }
+                  ]
+                },
+                "description": "Conjunto completo, inclusive posições encerradas, sem paginação. natureza=TRANSFERENCIA|ATRIBUICAO|ESTORNO; situacao=ATIVA|ESTORNADA. Situação restringe originais; ESTORNO explícito inclui estornos mesmo com situação. Sem natureza e com situação, somente originais. Ordem dataRegistro DESC, MOVIMENTACAO antes de ESTORNO no empate e id DESC. Identidade (tipoRegistro,id); nulos e frações textuais preservados."
+              },
+              "status": "OK",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "[\n  {\n    \"id\": 20,\n    \"tipoRegistro\": \"ESTORNO\",\n    \"natureza\": \"ESTORNO\",\n    \"situacao\": null,\n    \"carteiraId\": 1,\n    \"acaoId\": 2,\n    \"ticker\": \"PETR4\",\n    \"mercado\": \"BRASIL\",\n    \"corretoraOrigemId\": 3,\n    \"corretoraDestinoId\": 4,\n    \"quantidade\": 4.000000,\n    \"dataEfetiva\": \"2026-10-01\",\n    \"dataRegistro\": \"2026-10-24T13:00:00Z\",\n    \"posicaoCronologica\": {\n      \"ordemFinanceiraAncora\": 1,\n      \"numerador\": \"1\",\n      \"denominador\": \"2\"\n    },\n    \"movimentacaoOriginalId\": 10,\n    \"estornoId\": 20,\n    \"motivo\": \"Correção de custódia\"\n  },\n  {\n    \"id\": 10,\n    \"tipoRegistro\": \"MOVIMENTACAO\",\n    \"natureza\": \"TRANSFERENCIA\",\n    \"situacao\": \"ESTORNADA\",\n    \"carteiraId\": 1,\n    \"acaoId\": 2,\n    \"ticker\": \"PETR4\",\n    \"mercado\": \"BRASIL\",\n    \"corretoraOrigemId\": 3,\n    \"corretoraDestinoId\": 4,\n    \"quantidade\": 4.000000,\n    \"dataEfetiva\": \"2026-10-01\",\n    \"dataRegistro\": \"2026-10-24T12:00:00Z\",\n    \"posicaoCronologica\": {\n      \"ordemFinanceiraAncora\": 1,\n      \"numerador\": \"1\",\n      \"denominador\": \"2\"\n    },\n    \"movimentacaoOriginalId\": null,\n    \"estornoId\": 20,\n    \"motivo\": null\n  }\n]"
+            },
+            {
+              "name": "200 histórico vazio — exemplo documental",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/carteiras/{{carteiraId}}/movimentacoes-custodia",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "carteiras",
+                    "{{carteiraId}}",
+                    "movimentacoes-custodia"
+                  ],
+                  "query": [
+                    {
+                      "key": "natureza",
+                      "value": "ESTORNO",
+                      "disabled": true
+                    },
+                    {
+                      "key": "situacao",
+                      "value": "ESTORNADA",
+                      "disabled": true
+                    }
+                  ]
+                },
+                "description": "Conjunto completo, inclusive posições encerradas, sem paginação. natureza=TRANSFERENCIA|ATRIBUICAO|ESTORNO; situacao=ATIVA|ESTORNADA. Situação restringe originais; ESTORNO explícito inclui estornos mesmo com situação. Sem natureza e com situação, somente originais. Ordem dataRegistro DESC, MOVIMENTACAO antes de ESTORNO no empate e id DESC. Identidade (tipoRegistro,id); nulos e frações textuais preservados."
+              },
+              "status": "OK",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "[]"
+            },
+            {
+              "name": "200 natureza=ESTORNO e situacao=ESTORNADA — exemplo documental",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/carteiras/{{carteiraId}}/movimentacoes-custodia?natureza=ESTORNO&situacao=ESTORNADA",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "carteiras",
+                    "{{carteiraId}}",
+                    "movimentacoes-custodia"
+                  ],
+                  "query": [
+                    {
+                      "key": "natureza",
+                      "value": "ESTORNO",
+                      "disabled": false
+                    },
+                    {
+                      "key": "situacao",
+                      "value": "ESTORNADA",
+                      "disabled": false
+                    }
+                  ]
+                },
+                "description": "Conjunto completo, inclusive posições encerradas, sem paginação. natureza=TRANSFERENCIA|ATRIBUICAO|ESTORNO; situacao=ATIVA|ESTORNADA. Situação restringe originais; ESTORNO explícito inclui estornos mesmo com situação. Sem natureza e com situação, somente originais. Ordem dataRegistro DESC, MOVIMENTACAO antes de ESTORNO no empate e id DESC. Identidade (tipoRegistro,id); nulos e frações textuais preservados."
+              },
+              "status": "OK",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "[\n  {\n    \"id\": 20,\n    \"tipoRegistro\": \"ESTORNO\",\n    \"natureza\": \"ESTORNO\",\n    \"situacao\": null,\n    \"carteiraId\": 1,\n    \"acaoId\": 2,\n    \"ticker\": \"PETR4\",\n    \"mercado\": \"BRASIL\",\n    \"corretoraOrigemId\": 3,\n    \"corretoraDestinoId\": 4,\n    \"quantidade\": 4.000000,\n    \"dataEfetiva\": \"2026-10-01\",\n    \"dataRegistro\": \"2026-10-24T13:00:00Z\",\n    \"posicaoCronologica\": {\n      \"ordemFinanceiraAncora\": 1,\n      \"numerador\": \"1\",\n      \"denominador\": \"2\"\n    },\n    \"movimentacaoOriginalId\": 10,\n    \"estornoId\": 20,\n    \"motivo\": \"Correção de custódia\"\n  }\n]"
+            },
+            {
+              "name": "400 REQUEST_INVALIDO — exemplo documental",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/carteiras/{{carteiraId}}/movimentacoes-custodia?natureza=INVALIDA",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "carteiras",
+                    "{{carteiraId}}",
+                    "movimentacoes-custodia"
+                  ],
+                  "query": [
+                    {
+                      "key": "natureza",
+                      "value": "INVALIDA"
+                    }
+                  ]
+                },
+                "description": "Conjunto completo, inclusive posições encerradas, sem paginação. natureza=TRANSFERENCIA|ATRIBUICAO|ESTORNO; situacao=ATIVA|ESTORNADA. Situação restringe originais; ESTORNO explícito inclui estornos mesmo com situação. Sem natureza e com situação, somente originais. Ordem dataRegistro DESC, MOVIMENTACAO antes de ESTORNO no empate e id DESC. Identidade (tipoRegistro,id); nulos e frações textuais preservados."
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"timeStamp\": 1792843200000,\n  \"status\": 400,\n  \"error\": \"Bad Request\",\n  \"message\": \"Natureza ou situação inválida\",\n  \"path\": \"/carteiras/1/movimentacoes-custodia\",\n  \"code\": \"REQUEST_INVALIDO\",\n  \"details\": {}\n}"
+            },
+            {
+              "name": "404 referência ausente — exemplo documental",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/carteiras/{{carteiraId}}/movimentacoes-custodia",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "carteiras",
+                    "{{carteiraId}}",
+                    "movimentacoes-custodia"
+                  ],
+                  "query": [
+                    {
+                      "key": "natureza",
+                      "value": "ESTORNO",
+                      "disabled": true
+                    },
+                    {
+                      "key": "situacao",
+                      "value": "ESTORNADA",
+                      "disabled": true
+                    }
+                  ]
+                },
+                "description": "Conjunto completo, inclusive posições encerradas, sem paginação. natureza=TRANSFERENCIA|ATRIBUICAO|ESTORNO; situacao=ATIVA|ESTORNADA. Situação restringe originais; ESTORNO explícito inclui estornos mesmo com situação. Sem natureza e com situação, somente originais. Ordem dataRegistro DESC, MOVIMENTACAO antes de ESTORNO no empate e id DESC. Identidade (tipoRegistro,id); nulos e frações textuais preservados."
+              },
+              "status": "Not Found",
+              "code": 404,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"timeStamp\": 1792843200000,\n  \"status\": 404,\n  \"error\": \"Not Found\",\n  \"message\": \"Carteira não encontrada\",\n  \"path\": \"/carteiras/1/movimentacoes-custodia\",\n  \"code\": null,\n  \"details\": {}\n}"
+            }
+          ]
+        },
+        {
+          "name": "Consultar detalhe da original",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/carteiras/{{carteiraId}}/movimentacoes-custodia/{{movimentacaoCustodiaId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "carteiras",
+                "{{carteiraId}}",
+                "movimentacoes-custodia",
+                "{{movimentacaoCustodiaId}}"
+              ]
+            },
+            "description": "movimentacaoCustodiaId identifica a original desta carteira; não usar estornoCustodiaId como se fosse a original. Retorna {movimentacao,estorno}, com estorno null quando ausente. Não existe endpoint individual de estorno. Quantidades são números JSON: guardar texto bruto/usar parsing lossless ao consumir valores exatos."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status esperado: 200\", function () { pm.response.to.have.status(200); });",
+                  "pm.test(\"Resposta JSON\", function () { pm.response.json(); });"
+                ]
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "200 detalhe ATIVA — exemplo documental",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/carteiras/{{carteiraId}}/movimentacoes-custodia/{{movimentacaoCustodiaId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "carteiras",
+                    "{{carteiraId}}",
+                    "movimentacoes-custodia",
+                    "{{movimentacaoCustodiaId}}"
+                  ]
+                },
+                "description": "movimentacaoCustodiaId identifica a original desta carteira; não usar estornoCustodiaId como se fosse a original. Retorna {movimentacao,estorno}, com estorno null quando ausente. Não existe endpoint individual de estorno. Quantidades são números JSON: guardar texto bruto/usar parsing lossless ao consumir valores exatos."
+              },
+              "status": "OK",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"movimentacao\": {\n    \"id\": 10,\n    \"tipoRegistro\": \"MOVIMENTACAO\",\n    \"natureza\": \"TRANSFERENCIA\",\n    \"situacao\": \"ATIVA\",\n    \"carteiraId\": 1,\n    \"acaoId\": 2,\n    \"ticker\": \"PETR4\",\n    \"mercado\": \"BRASIL\",\n    \"corretoraOrigemId\": 3,\n    \"corretoraDestinoId\": 4,\n    \"quantidade\": 4.000000,\n    \"dataEfetiva\": \"2026-10-01\",\n    \"dataRegistro\": \"2026-10-24T12:00:00Z\",\n    \"posicaoCronologica\": {\n      \"ordemFinanceiraAncora\": 1,\n      \"numerador\": \"1\",\n      \"denominador\": \"2\"\n    },\n    \"movimentacaoOriginalId\": null,\n    \"estornoId\": null,\n    \"motivo\": null\n  },\n  \"estorno\": null\n}"
+            },
+            {
+              "name": "200 detalhe ESTORNADA — exemplo documental",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/carteiras/{{carteiraId}}/movimentacoes-custodia/{{movimentacaoCustodiaId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "carteiras",
+                    "{{carteiraId}}",
+                    "movimentacoes-custodia",
+                    "{{movimentacaoCustodiaId}}"
+                  ]
+                },
+                "description": "movimentacaoCustodiaId identifica a original desta carteira; não usar estornoCustodiaId como se fosse a original. Retorna {movimentacao,estorno}, com estorno null quando ausente. Não existe endpoint individual de estorno. Quantidades são números JSON: guardar texto bruto/usar parsing lossless ao consumir valores exatos."
+              },
+              "status": "OK",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"movimentacao\": {\n    \"id\": 10,\n    \"tipoRegistro\": \"MOVIMENTACAO\",\n    \"natureza\": \"TRANSFERENCIA\",\n    \"situacao\": \"ESTORNADA\",\n    \"carteiraId\": 1,\n    \"acaoId\": 2,\n    \"ticker\": \"PETR4\",\n    \"mercado\": \"BRASIL\",\n    \"corretoraOrigemId\": 3,\n    \"corretoraDestinoId\": 4,\n    \"quantidade\": 4.000000,\n    \"dataEfetiva\": \"2026-10-01\",\n    \"dataRegistro\": \"2026-10-24T12:00:00Z\",\n    \"posicaoCronologica\": {\n      \"ordemFinanceiraAncora\": 1,\n      \"numerador\": \"1\",\n      \"denominador\": \"2\"\n    },\n    \"movimentacaoOriginalId\": null,\n    \"estornoId\": 20,\n    \"motivo\": null\n  },\n  \"estorno\": {\n    \"id\": 20,\n    \"tipoRegistro\": \"ESTORNO\",\n    \"natureza\": \"ESTORNO\",\n    \"situacao\": null,\n    \"carteiraId\": 1,\n    \"acaoId\": 2,\n    \"ticker\": \"PETR4\",\n    \"mercado\": \"BRASIL\",\n    \"corretoraOrigemId\": 3,\n    \"corretoraDestinoId\": 4,\n    \"quantidade\": 4.000000,\n    \"dataEfetiva\": \"2026-10-01\",\n    \"dataRegistro\": \"2026-10-24T13:00:00Z\",\n    \"posicaoCronologica\": {\n      \"ordemFinanceiraAncora\": 1,\n      \"numerador\": \"1\",\n      \"denominador\": \"2\"\n    },\n    \"movimentacaoOriginalId\": 10,\n    \"estornoId\": 20,\n    \"motivo\": \"Correção de custódia\"\n  }\n}"
+            },
+            {
+              "name": "404 referência ausente — exemplo documental",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/carteiras/{{carteiraId}}/movimentacoes-custodia/{{movimentacaoCustodiaId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "carteiras",
+                    "{{carteiraId}}",
+                    "movimentacoes-custodia",
+                    "{{movimentacaoCustodiaId}}"
+                  ]
+                },
+                "description": "movimentacaoCustodiaId identifica a original desta carteira; não usar estornoCustodiaId como se fosse a original. Retorna {movimentacao,estorno}, com estorno null quando ausente. Não existe endpoint individual de estorno. Quantidades são números JSON: guardar texto bruto/usar parsing lossless ao consumir valores exatos."
+              },
+              "status": "Not Found",
+              "code": 404,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"timeStamp\": 1792843200000,\n  \"status\": 404,\n  \"error\": \"Not Found\",\n  \"message\": \"Movimentação não encontrada\",\n  \"path\": \"/carteiras/1/movimentacoes-custodia/10\",\n  \"code\": null,\n  \"details\": {}\n}"
+            }
+          ]
+        },
+        {
+          "name": "Registrar estorno com motivo",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/carteiras/{{carteiraId}}/movimentacoes-custodia/{{movimentacaoCustodiaId}}/estornos",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "carteiras",
+                "{{carteiraId}}",
+                "movimentacoes-custodia",
+                "{{movimentacaoCustodiaId}}",
+                "estornos"
+              ]
+            },
+            "description": "Executar uma única variante para cada original ATIVA. Sem corpo, {} ou motivo opcional string/null, até 1000 caracteres; branco vira null e texto não branco é preservado. Sem campos calculados/IDs no corpo. Neutraliza desde a posição original, sem transferência inversa ou cascata, conservando auditoria. 201 retorna {movimentacao,estorno} e Location do detalhe original. Duplicidade/histórico/concorrência podem retornar409; sem retry automático.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"motivo\":\"{{motivoEstorno}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status esperado: 201\", function () { pm.response.to.have.status(201); });",
+                  "pm.test(\"Resposta JSON\", function () { pm.response.json(); });",
+                  "if (pm.response.code === 201) { const match = /\"estorno\"\\s*:\\s*\\{\\s*\"id\"\\s*:\\s*(\\d+)/.exec(pm.response.text()); if (match) pm.collectionVariables.set(\"estornoCustodiaId\", match[1]); }"
+                ]
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "201 original ESTORNADA e vínculo — exemplo documental",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/carteiras/{{carteiraId}}/movimentacoes-custodia/{{movimentacaoCustodiaId}}/estornos",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "carteiras",
+                    "{{carteiraId}}",
+                    "movimentacoes-custodia",
+                    "{{movimentacaoCustodiaId}}",
+                    "estornos"
+                  ]
+                },
+                "description": "Executar uma única variante para cada original ATIVA. Sem corpo, {} ou motivo opcional string/null, até 1000 caracteres; branco vira null e texto não branco é preservado. Sem campos calculados/IDs no corpo. Neutraliza desde a posição original, sem transferência inversa ou cascata, conservando auditoria. 201 retorna {movimentacao,estorno} e Location do detalhe original. Duplicidade/histórico/concorrência podem retornar409; sem retry automático.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\"motivo\":\"{{motivoEstorno}}\"}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Created",
+              "code": 201,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                },
+                {
+                  "key": "Location",
+                  "value": "http://localhost:8080/carteiras/1/movimentacoes-custodia/10"
+                }
+              ],
+              "body": "{\n  \"movimentacao\": {\n    \"id\": 10,\n    \"tipoRegistro\": \"MOVIMENTACAO\",\n    \"natureza\": \"TRANSFERENCIA\",\n    \"situacao\": \"ESTORNADA\",\n    \"carteiraId\": 1,\n    \"acaoId\": 2,\n    \"ticker\": \"PETR4\",\n    \"mercado\": \"BRASIL\",\n    \"corretoraOrigemId\": 3,\n    \"corretoraDestinoId\": 4,\n    \"quantidade\": 4.000000,\n    \"dataEfetiva\": \"2026-10-01\",\n    \"dataRegistro\": \"2026-10-24T12:00:00Z\",\n    \"posicaoCronologica\": {\n      \"ordemFinanceiraAncora\": 1,\n      \"numerador\": \"1\",\n      \"denominador\": \"2\"\n    },\n    \"movimentacaoOriginalId\": null,\n    \"estornoId\": 20,\n    \"motivo\": null\n  },\n  \"estorno\": {\n    \"id\": 20,\n    \"tipoRegistro\": \"ESTORNO\",\n    \"natureza\": \"ESTORNO\",\n    \"situacao\": null,\n    \"carteiraId\": 1,\n    \"acaoId\": 2,\n    \"ticker\": \"PETR4\",\n    \"mercado\": \"BRASIL\",\n    \"corretoraOrigemId\": 3,\n    \"corretoraDestinoId\": 4,\n    \"quantidade\": 4.000000,\n    \"dataEfetiva\": \"2026-10-01\",\n    \"dataRegistro\": \"2026-10-24T13:00:00Z\",\n    \"posicaoCronologica\": {\n      \"ordemFinanceiraAncora\": 1,\n      \"numerador\": \"1\",\n      \"denominador\": \"2\"\n    },\n    \"movimentacaoOriginalId\": 10,\n    \"estornoId\": 20,\n    \"motivo\": \"Correção de custódia\"\n  }\n}"
+            },
+            {
+              "name": "400 REQUEST_INVALIDO — exemplo documental",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/carteiras/{{carteiraId}}/movimentacoes-custodia/{{movimentacaoCustodiaId}}/estornos",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "carteiras",
+                    "{{carteiraId}}",
+                    "movimentacoes-custodia",
+                    "{{movimentacaoCustodiaId}}",
+                    "estornos"
+                  ]
+                },
+                "description": "Executar uma única variante para cada original ATIVA. Sem corpo, {} ou motivo opcional string/null, até 1000 caracteres; branco vira null e texto não branco é preservado. Sem campos calculados/IDs no corpo. Neutraliza desde a posição original, sem transferência inversa ou cascata, conservando auditoria. 201 retorna {movimentacao,estorno} e Location do detalhe original. Duplicidade/histórico/concorrência podem retornar409; sem retry automático.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\"motivo\":3}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"timeStamp\": 1792843200000,\n  \"status\": 400,\n  \"error\": \"Bad Request\",\n  \"message\": \"Corpo da requisição inválido ou contém campos não permitidos\",\n  \"path\": \"/carteiras/1/movimentacoes-custodia/10/estornos\",\n  \"code\": \"REQUEST_INVALIDO\",\n  \"details\": {}\n}"
+            },
+            {
+              "name": "404 referência ausente — exemplo documental",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/carteiras/{{carteiraId}}/movimentacoes-custodia/{{movimentacaoCustodiaId}}/estornos",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "carteiras",
+                    "{{carteiraId}}",
+                    "movimentacoes-custodia",
+                    "{{movimentacaoCustodiaId}}",
+                    "estornos"
+                  ]
+                },
+                "description": "Executar uma única variante para cada original ATIVA. Sem corpo, {} ou motivo opcional string/null, até 1000 caracteres; branco vira null e texto não branco é preservado. Sem campos calculados/IDs no corpo. Neutraliza desde a posição original, sem transferência inversa ou cascata, conservando auditoria. 201 retorna {movimentacao,estorno} e Location do detalhe original. Duplicidade/histórico/concorrência podem retornar409; sem retry automático.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\"motivo\":\"{{motivoEstorno}}\"}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Not Found",
+              "code": 404,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"timeStamp\": 1792843200000,\n  \"status\": 404,\n  \"error\": \"Not Found\",\n  \"message\": \"Movimentação não encontrada\",\n  \"path\": \"/carteiras/1/movimentacoes-custodia/10/estornos\",\n  \"code\": null,\n  \"details\": {}\n}"
+            },
+            {
+              "name": "409 ESTORNO_DUPLICADO — exemplo documental",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/carteiras/{{carteiraId}}/movimentacoes-custodia/{{movimentacaoCustodiaId}}/estornos",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "carteiras",
+                    "{{carteiraId}}",
+                    "movimentacoes-custodia",
+                    "{{movimentacaoCustodiaId}}",
+                    "estornos"
+                  ]
+                },
+                "description": "Executar uma única variante para cada original ATIVA. Sem corpo, {} ou motivo opcional string/null, até 1000 caracteres; branco vira null e texto não branco é preservado. Sem campos calculados/IDs no corpo. Neutraliza desde a posição original, sem transferência inversa ou cascata, conservando auditoria. 201 retorna {movimentacao,estorno} e Location do detalhe original. Duplicidade/histórico/concorrência podem retornar409; sem retry automático.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\"motivo\":\"{{motivoEstorno}}\"}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Conflict",
+              "code": 409,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"timeStamp\": 1792843200000,\n  \"status\": 409,\n  \"error\": \"Conflict\",\n  \"message\": \"Movimentação já estornada\",\n  \"path\": \"/carteiras/1/movimentacoes-custodia/10/estornos\",\n  \"code\": \"ESTORNO_DUPLICADO\",\n  \"details\": {\n    \"carteiraId\": 1,\n    \"acaoId\": 2,\n    \"origem\": {\n      \"corretoraId\": 3,\n      \"categoria\": \"CORRETORA\"\n    },\n    \"evento\": {\n      \"dominio\": \"CUSTODIA\",\n      \"id\": 10,\n      \"natureza\": \"TRANSFERENCIA\",\n      \"dataEfetiva\": \"2026-10-01\",\n      \"posicaoCronologica\": {\n        \"ordemFinanceiraAncora\": 1,\n        \"numerador\": \"1\",\n        \"denominador\": \"2\"\n      }\n    },\n    \"motivo\": \"ESTORNO_DUPLICADO\"\n  }\n}"
+            },
+            {
+              "name": "409 MOVIMENTACAO_CUSTODIA_INVALIDADA — exemplo documental",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/carteiras/{{carteiraId}}/movimentacoes-custodia/{{movimentacaoCustodiaId}}/estornos",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "carteiras",
+                    "{{carteiraId}}",
+                    "movimentacoes-custodia",
+                    "{{movimentacaoCustodiaId}}",
+                    "estornos"
+                  ]
+                },
+                "description": "Executar uma única variante para cada original ATIVA. Sem corpo, {} ou motivo opcional string/null, até 1000 caracteres; branco vira null e texto não branco é preservado. Sem campos calculados/IDs no corpo. Neutraliza desde a posição original, sem transferência inversa ou cascata, conservando auditoria. 201 retorna {movimentacao,estorno} e Location do detalhe original. Duplicidade/histórico/concorrência podem retornar409; sem retry automático.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\"motivo\":\"{{motivoEstorno}}\"}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Conflict",
+              "code": 409,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"timeStamp\": 1792843200000,\n  \"status\": 409,\n  \"error\": \"Conflict\",\n  \"message\": \"Estorno incompatível com o histórico quantitativo\",\n  \"path\": \"/carteiras/1/movimentacoes-custodia/10/estornos\",\n  \"code\": \"MOVIMENTACAO_CUSTODIA_INVALIDADA\",\n  \"details\": {\n    \"carteiraId\": 1,\n    \"acaoId\": 2,\n    \"origem\": {\n      \"corretoraId\": 3,\n      \"categoria\": \"CORRETORA\"\n    },\n    \"evento\": {\n      \"dominio\": \"CUSTODIA\",\n      \"id\": 30,\n      \"natureza\": \"TRANSFERENCIA\",\n      \"dataEfetiva\": \"2026-10-02\",\n      \"posicaoCronologica\": {\n        \"ordemFinanceiraAncora\": 0,\n        \"numerador\": \"1\",\n        \"denominador\": \"2\"\n      }\n    },\n    \"motivo\": \"MOVIMENTACAO_CUSTODIA_INVALIDADA\",\n    \"saldoAntes\": 0,\n    \"saldoDepois\": -4,\n    \"deficitAntes\": 0,\n    \"deficitDepois\": 4,\n    \"quantidadeDisponivel\": 0,\n    \"grupo\": {\n      \"corretoraId\": 4,\n      \"categoria\": \"CORRETORA\"\n    }\n  }\n}"
+            },
+            {
+              "name": "409 CONFLITO_HISTORICO_QUANTITATIVO — exemplo documental",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/carteiras/{{carteiraId}}/movimentacoes-custodia/{{movimentacaoCustodiaId}}/estornos",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "carteiras",
+                    "{{carteiraId}}",
+                    "movimentacoes-custodia",
+                    "{{movimentacaoCustodiaId}}",
+                    "estornos"
+                  ]
+                },
+                "description": "Executar uma única variante para cada original ATIVA. Sem corpo, {} ou motivo opcional string/null, até 1000 caracteres; branco vira null e texto não branco é preservado. Sem campos calculados/IDs no corpo. Neutraliza desde a posição original, sem transferência inversa ou cascata, conservando auditoria. 201 retorna {movimentacao,estorno} e Location do detalhe original. Duplicidade/histórico/concorrência podem retornar409; sem retry automático.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\"motivo\":\"{{motivoEstorno}}\"}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Conflict",
+              "code": 409,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"timeStamp\": 1792843200000,\n  \"status\": 409,\n  \"error\": \"Conflict\",\n  \"message\": \"Estorno incompatível com o histórico quantitativo\",\n  \"path\": \"/carteiras/1/movimentacoes-custodia/10/estornos\",\n  \"code\": \"CONFLITO_HISTORICO_QUANTITATIVO\",\n  \"details\": {\n    \"carteiraId\": 1,\n    \"acaoId\": 2,\n    \"origem\": {\n      \"corretoraId\": 3,\n      \"categoria\": \"CORRETORA\"\n    },\n    \"evento\": {\n      \"dominio\": \"FINANCEIRO\",\n      \"id\": 7,\n      \"natureza\": \"VENDA\",\n      \"dataEfetiva\": \"2026-10-02\",\n      \"posicaoCronologica\": {\n        \"ordemNoDia\": 1\n      }\n    },\n    \"motivo\": \"CONFLITO_HISTORICO_QUANTITATIVO\",\n    \"saldoAntes\": 0,\n    \"saldoDepois\": -4,\n    \"deficitAntes\": 0,\n    \"deficitDepois\": 4,\n    \"grupo\": {\n      \"corretoraId\": 4,\n      \"categoria\": \"CORRETORA\"\n    }\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Registrar estorno sem corpo (alternativa)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/carteiras/{{carteiraId}}/movimentacoes-custodia/{{movimentacaoCustodiaId}}/estornos",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "carteiras",
+                "{{carteiraId}}",
+                "movimentacoes-custodia",
+                "{{movimentacaoCustodiaId}}",
+                "estornos"
+              ]
+            },
+            "description": "Executar uma única variante para cada original ATIVA. Sem corpo, {} ou motivo opcional string/null, até 1000 caracteres; branco vira null e texto não branco é preservado. Sem campos calculados/IDs no corpo. Neutraliza desde a posição original, sem transferência inversa ou cascata, conservando auditoria. 201 retorna {movimentacao,estorno} e Location do detalhe original. Duplicidade/histórico/concorrência podem retornar409; sem retry automático."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status esperado: 201\", function () { pm.response.to.have.status(201); });",
+                  "pm.test(\"Resposta JSON\", function () { pm.response.json(); });",
+                  "if (pm.response.code === 201) { const match = /\"estorno\"\\s*:\\s*\\{\\s*\"id\"\\s*:\\s*(\\d+)/.exec(pm.response.text()); if (match) pm.collectionVariables.set(\"estornoCustodiaId\", match[1]); }"
+                ]
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "201 sem motivo — exemplo documental",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/carteiras/{{carteiraId}}/movimentacoes-custodia/{{movimentacaoCustodiaId}}/estornos",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "carteiras",
+                    "{{carteiraId}}",
+                    "movimentacoes-custodia",
+                    "{{movimentacaoCustodiaId}}",
+                    "estornos"
+                  ]
+                },
+                "description": "Executar uma única variante para cada original ATIVA. Sem corpo, {} ou motivo opcional string/null, até 1000 caracteres; branco vira null e texto não branco é preservado. Sem campos calculados/IDs no corpo. Neutraliza desde a posição original, sem transferência inversa ou cascata, conservando auditoria. 201 retorna {movimentacao,estorno} e Location do detalhe original. Duplicidade/histórico/concorrência podem retornar409; sem retry automático."
+              },
+              "status": "Created",
+              "code": 201,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                },
+                {
+                  "key": "Location",
+                  "value": "http://localhost:8080/carteiras/1/movimentacoes-custodia/10"
+                }
+              ],
+              "body": "{\n  \"movimentacao\": {\n    \"id\": 10,\n    \"tipoRegistro\": \"MOVIMENTACAO\",\n    \"natureza\": \"TRANSFERENCIA\",\n    \"situacao\": \"ESTORNADA\",\n    \"carteiraId\": 1,\n    \"acaoId\": 2,\n    \"ticker\": \"PETR4\",\n    \"mercado\": \"BRASIL\",\n    \"corretoraOrigemId\": 3,\n    \"corretoraDestinoId\": 4,\n    \"quantidade\": 4.000000,\n    \"dataEfetiva\": \"2026-10-01\",\n    \"dataRegistro\": \"2026-10-24T12:00:00Z\",\n    \"posicaoCronologica\": {\n      \"ordemFinanceiraAncora\": 1,\n      \"numerador\": \"1\",\n      \"denominador\": \"2\"\n    },\n    \"movimentacaoOriginalId\": null,\n    \"estornoId\": 20,\n    \"motivo\": null\n  },\n  \"estorno\": {\n    \"id\": 20,\n    \"tipoRegistro\": \"ESTORNO\",\n    \"natureza\": \"ESTORNO\",\n    \"situacao\": null,\n    \"carteiraId\": 1,\n    \"acaoId\": 2,\n    \"ticker\": \"PETR4\",\n    \"mercado\": \"BRASIL\",\n    \"corretoraOrigemId\": 3,\n    \"corretoraDestinoId\": 4,\n    \"quantidade\": 4.000000,\n    \"dataEfetiva\": \"2026-10-01\",\n    \"dataRegistro\": \"2026-10-24T13:00:00Z\",\n    \"posicaoCronologica\": {\n      \"ordemFinanceiraAncora\": 1,\n      \"numerador\": \"1\",\n      \"denominador\": \"2\"\n    },\n    \"movimentacaoOriginalId\": 10,\n    \"estornoId\": 20,\n    \"motivo\": null\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Registrar estorno com {} (alternativa)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/carteiras/{{carteiraId}}/movimentacoes-custodia/{{movimentacaoCustodiaId}}/estornos",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "carteiras",
+                "{{carteiraId}}",
+                "movimentacoes-custodia",
+                "{{movimentacaoCustodiaId}}",
+                "estornos"
+              ]
+            },
+            "description": "Executar uma única variante para cada original ATIVA. Sem corpo, {} ou motivo opcional string/null, até 1000 caracteres; branco vira null e texto não branco é preservado. Sem campos calculados/IDs no corpo. Neutraliza desde a posição original, sem transferência inversa ou cascata, conservando auditoria. 201 retorna {movimentacao,estorno} e Location do detalhe original. Duplicidade/histórico/concorrência podem retornar409; sem retry automático.",
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status esperado: 201\", function () { pm.response.to.have.status(201); });",
+                  "pm.test(\"Resposta JSON\", function () { pm.response.json(); });",
+                  "if (pm.response.code === 201) { const match = /\"estorno\"\\s*:\\s*\\{\\s*\"id\"\\s*:\\s*(\\d+)/.exec(pm.response.text()); if (match) pm.collectionVariables.set(\"estornoCustodiaId\", match[1]); }"
+                ]
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "201 sem motivo — exemplo documental",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/carteiras/{{carteiraId}}/movimentacoes-custodia/{{movimentacaoCustodiaId}}/estornos",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "carteiras",
+                    "{{carteiraId}}",
+                    "movimentacoes-custodia",
+                    "{{movimentacaoCustodiaId}}",
+                    "estornos"
+                  ]
+                },
+                "description": "Executar uma única variante para cada original ATIVA. Sem corpo, {} ou motivo opcional string/null, até 1000 caracteres; branco vira null e texto não branco é preservado. Sem campos calculados/IDs no corpo. Neutraliza desde a posição original, sem transferência inversa ou cascata, conservando auditoria. 201 retorna {movimentacao,estorno} e Location do detalhe original. Duplicidade/histórico/concorrência podem retornar409; sem retry automático.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Created",
+              "code": 201,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                },
+                {
+                  "key": "Location",
+                  "value": "http://localhost:8080/carteiras/1/movimentacoes-custodia/10"
+                }
+              ],
+              "body": "{\n  \"movimentacao\": {\n    \"id\": 10,\n    \"tipoRegistro\": \"MOVIMENTACAO\",\n    \"natureza\": \"TRANSFERENCIA\",\n    \"situacao\": \"ESTORNADA\",\n    \"carteiraId\": 1,\n    \"acaoId\": 2,\n    \"ticker\": \"PETR4\",\n    \"mercado\": \"BRASIL\",\n    \"corretoraOrigemId\": 3,\n    \"corretoraDestinoId\": 4,\n    \"quantidade\": 4.000000,\n    \"dataEfetiva\": \"2026-10-01\",\n    \"dataRegistro\": \"2026-10-24T12:00:00Z\",\n    \"posicaoCronologica\": {\n      \"ordemFinanceiraAncora\": 1,\n      \"numerador\": \"1\",\n      \"denominador\": \"2\"\n    },\n    \"movimentacaoOriginalId\": null,\n    \"estornoId\": 20,\n    \"motivo\": null\n  },\n  \"estorno\": {\n    \"id\": 20,\n    \"tipoRegistro\": \"ESTORNO\",\n    \"natureza\": \"ESTORNO\",\n    \"situacao\": null,\n    \"carteiraId\": 1,\n    \"acaoId\": 2,\n    \"ticker\": \"PETR4\",\n    \"mercado\": \"BRASIL\",\n    \"corretoraOrigemId\": 3,\n    \"corretoraDestinoId\": 4,\n    \"quantidade\": 4.000000,\n    \"dataEfetiva\": \"2026-10-01\",\n    \"dataRegistro\": \"2026-10-24T13:00:00Z\",\n    \"posicaoCronologica\": {\n      \"ordemFinanceiraAncora\": 1,\n      \"numerador\": \"1\",\n      \"denominador\": \"2\"\n    },\n    \"movimentacaoOriginalId\": 10,\n    \"estornoId\": 20,\n    \"motivo\": null\n  }\n}"
+            }
+          ]
         }
       ]
     },

@@ -16,7 +16,8 @@ O núcleo atual é focado em carteiras de ações, com posição consolidada por
 | --- | --- |
 | **Ações BRASIL/EUA** | Cadastro validado por ticker e mercado, listagem, consulta e atualização manual de cotação no detalhe da ação. |
 | **Corretoras** | Cadastro por CNPJ, consulta cadastral, validação de endereço e consulta por ID ou CNPJ. |
-| **Carteiras** | Criação, consulta, renomeação e exclusão de carteiras sem operações ou snapshots vinculados. Seleção de carteira compartilhada entre telas. |
+| **Carteiras** | Criação, consulta, renomeação e exclusão de carteiras sem operações, snapshots ou histórico de custódia/estorno. Seleção de carteira compartilhada entre telas. |
+| **Custódia interna** | Transferência entre corretoras existentes, atribuição do grupo sem corretora, histórico com filtros/detalhe e estorno retroativo auditável no detalhe da Carteira. |
 | **Compras e vendas** | Registro e consulta de operações, corretora opcional, prévia histórica de compra e sugestão de preço de venda, ambas editáveis. |
 | **Posições e resultados** | Quantidade atual, preço médio, custo, cotação persistida, valor atual, resultados realizados e não realizados e rentabilidade. |
 | **Dashboard** | Resumo por moeda, histórico patrimonial, distribuição da carteira, desempenho por ativo com resultado não realizado e rentabilidade complementar, e resultados realizados individuais. Registro de operação em dialog contextual; posições detalhadas disponíveis na Carteira. |
@@ -44,11 +45,19 @@ Distribuição da carteira por ativo e moeda, seguida por desempenho com resulta
 
 ### Distribuição de posição por corretora
 
-No detalhe da Carteira, em **Posições abertas**, cada ativo possui uma seção expansível com nomes das corretoras e quantidades líquidas atribuídas pelas operações registradas. Operações sem corretora são agrupadas em **Sem corretora informada**. A distribuição é informativa: não comprova custódia real nem realiza transferências ou conciliação com extratos.
+No detalhe da Carteira, em **Posições abertas**, cada ativo possui uma seção expansível com nomes das corretoras e quantidades líquidas derivadas das operações financeiras e movimentações efetivas de custódia. Operações sem corretora são agrupadas em **Sem corretora informada**. A distribuição é informativa: não comprova custódia externa nem executa transferências junto às instituições ou conciliação com extratos.
 
 O replay cronológico preserva quantidades decimais exatas, saldos negativos e o primeiro déficit histórico, mesmo após regularização. Agrupamentos zerados não geram linhas quantitativas, mas seus avisos históricos permanecem identificáveis. A reconciliação compara todos os saldos, inclusive negativos, com a posição consolidada do mesmo conjunto consistente de operações; divergências são apresentadas sem correção automática.
 
-Consulta: `GET /carteiras/{carteiraId}/posicoes/distribuicao-corretoras`. Retorna somente posições consolidadas abertas; carteira sem posições retorna coleção vazia, e carteira inexistente retorna 404. O endpoint é separado do contrato atual de posições. Corretora continua opcional; vendas, preço médio, custo, resultados e indicadores consolidados não mudam. Falhas do painel não ocultam a tabela consolidada.
+Consulta: `GET /carteiras/{carteiraId}/posicoes/distribuicao-corretoras`. Retorna somente posições consolidadas abertas; carteira sem posições retorna coleção vazia, e carteira inexistente retorna 404. O endpoint é separado do contrato atual de posições. Corretora continua opcional; novas vendas também validam saldo local e histórico, sem mudar fórmulas consolidadas. Falhas do painel não ocultam a tabela consolidada. `primeiroDeficit` identifica `dominio` FINANCEIRO/CUSTODIA, `id`, `natureza`, `dataEfetiva`, `posicaoCronologica` e `saldoAposEvento`; a posição usa `ordemNoDia` no financeiro ou âncora/fração textual na custódia.
+
+### Movimentações de custódia
+
+No detalhe da Carteira, **Movimentar custódia** registra TRANSFERENCIA entre corretoras distintas ou ATRIBUICAO do grupo **Sem corretora informada** para uma corretora existente. A carteira vem do contexto; informe ação, natureza, corretoras aplicáveis, quantidade e data efetiva. O saldo auxiliar é atual e não garante disponibilidade na data retroativa: o backend valida todo o histórico, inclusive eventos posteriores.
+
+O histórico de custódia é separado do financeiro e permite filtros por natureza/situação. Cada original tem identidade `(MOVIMENTACAO,id)` e situação ATIVA/ESTORNADA; o registro de estorno tem identidade `(ESTORNO,id)`, vínculo com a original e situação nula. O detalhe é sempre o da original. **Estornar** exige confirmação e aceita motivo opcional de até 1.000 caracteres; neutraliza o efeito desde a posição original, preserva auditoria e pode ser rejeitado por dependências posteriores. Não cria transferência inversa.
+
+Custódia não altera a compra, quantidade consolidada, preço médio, custo, resultados, rentabilidade ou patrimônio para as mesmas operações/cotações, nem cria snapshot automaticamente. Não há edição/exclusão de movimentações, endpoint individual de estorno, transferência entre carteiras ou integração institucional. Após POST confirmado, histórico e distribuição são recarregados independentemente; falha de leitura mantém a confirmação e oferece retry somente do GET afetado.
 
 ### Registro de operações
 
@@ -92,6 +101,7 @@ Os cálculos oficiais ficam no backend e utilizam `BigDecimal`, com precisão e 
 | **Patrimônio** | Soma do valor atual das posições abertas, separada por moeda; não representa saldo em dinheiro de uma conta de investimentos. |
 
 - Venda acima da quantidade cronologicamente disponível é rejeitada, inclusive se uma inserção retroativa invalidar operações posteriores.
+- Novas vendas exigem saldo na corretora informada ou no grupo sem corretora; saldo de outro grupo não pode financiá-las. Compras/vendas retroativas também preservam custódias ativas e não criam, agravam ou prolongam déficits históricos. Negativos locais legados continuam consultáveis, sem liberar novas escritas inválidas.
 - O processamento respeita `dataOperacao` e `ordemNoDia`. A ordem no dia e o `valorTotal` são gerados pelo backend.
 - Quantidade e preço devem ser positivos e representáveis com até 13 dígitos inteiros e seis casas decimais. Ações brasileiras exigem quantidade inteira; datas futuras não são aceitas.
 - BRL e USD não são somados em um total convertido. A cotação mais recente pode estar defasada e não modifica os preços das operações já registradas.
@@ -242,7 +252,7 @@ npm start
 
 Em Linux/macOS, use `./mvnw` e exporte as variáveis com a sintaxe do shell. Maven e frontend têm builds independentes. O [proxy de desenvolvimento](frontend/proxy.conf.json) remove `/api` e encaminha ao backend em `localhost:8080`. O build frontend gera `frontend/dist/frontend/browser/`; fora do Docker, a hospedagem precisa fornecer proxy e fallback de rotas equivalentes.
 
-O [changelog Liquibase](src/main/resources/db/changelog/db.changelog-master.yaml) contém seis migrations, abrangendo corretoras, ações, carteiras, operações, histórico de cotações e snapshots por moeda. Hibernate valida o schema (`ddl-auto=validate` no profile `dev`). H2 não é fallback da aplicação normal. Bancos legados criados fora do changelog precisam de reconciliação; não há baseline automático documentado.
+O [changelog Liquibase](src/main/resources/db/changelog/db.changelog-master.yaml) inclui **oito arquivos de migration (001–008), com nove changeSets**. Além dos cadastros, operações, histórico de cotações e snapshots, inclui referências temporais de cotação (007) e custódia/estornos (008, dois changeSets). Hibernate valida o schema (`ddl-auto=validate` no profile `dev`). H2 não é fallback da aplicação normal. Bancos legados criados fora do changelog precisam de reconciliação; não há baseline automático documentado.
 
 ### Primeiro uso e API
 
@@ -263,6 +273,7 @@ Com o backend ativo:
 | Ações | `POST/GET /acoes`, `GET /acoes/{id}`, `GET /acoes/por-ticker`, `PATCH /acoes/{id}/cotacao` |
 | Carteiras | `POST/GET /carteiras`, `GET/PATCH/DELETE /carteiras/{id}` |
 | Operações | `POST/GET /operacoes`, `GET /operacoes/{id}`, `GET /operacoes/previa-compra`, `GET /carteiras/{carteiraId}/operacoes`, `GET /carteiras/{carteiraId}/operacoes/sugestao-preco-venda` |
+| Custódia | `POST/GET /carteiras/{carteiraId}/movimentacoes-custodia`, `GET /carteiras/{carteiraId}/movimentacoes-custodia/{movimentacaoId}`, `POST /carteiras/{carteiraId}/movimentacoes-custodia/{movimentacaoId}/estornos` |
 | Indicadores | `GET /carteiras/{carteiraId}/posicoes`, `/resultados-realizados`, `/patrimonio`, `/resumo`, `/evolucao-patrimonial`; `POST /carteiras/{carteiraId}/snapshots` |
 
 Prévia e sugestão recebem `ticker`, `mercado` e `dataOperacao`. Não há GET individual de snapshot, apesar do `Location` de criação; a consulta disponível é a evolução patrimonial.
@@ -271,9 +282,21 @@ A coleção usa a URL direta do backend, sem `/api`. Ajuste `baseUrl`, CNPJ e da
 
 Execute COMPRA antes de VENDA; os exemplos compram 10 e vendem 5. A exclusão usa `carteiraDescartavelId`, de uma carteira criada vazia para esse fim. A coleção cria dados, consome cotas e executa exclusão real: não é idempotente. Uma prévia indisponível não impede o POST com preço manual válido.
 
+Na pasta Custódia da coleção, configure `corretoraOrigemId`, `corretoraDestinoId` e `dataEfetivaCustodia`. Transferência exige compra/saldo na origem; atribuição exige compra sem corretora. Use massa descartável e quantidades compatíveis: os exemplos não formam um roteiro que possa ser repetido indiscriminadamente. `movimentacaoCustodiaId` é ID de original; `estornoCustodiaId` é separado. As respostas salvas são exemplos documentais, não evidências de execução. Quantidade de entrada admite número JSON ou string decimal (exemplos usam string); resposta é numérica, e clientes devem fazer parsing sem perda de precisão. A âncora e as frações são calculadas pelo servidor; os componentes da fração são strings de até 512 dígitos.
+
 Erros seguem `timeStamp`, `status`, `error`, `message`, `path`, `code` e `details`. Incluem validação, ausência, conflitos, histórico indisponível, limites e falhas externas; consulte o OpenAPI para os códigos de cada endpoint.
 
+Custódia usa 400 para estrutura/data futura, 404 para referências/contexto e 409 para saldo, histórico, limite, duplicidade, integridade ou concorrência reconhecida. `POSICAO_CUSTODIA_INDISPONIVEL` pode trazer a causa em `details.motivo`; não substituir esse código pelo motivo. Não há retry automático de escrita nem idempotency key.
+
+Na exclusão de carteira, operações financeiras precedem snapshots, que precedem histórico de custódia/estorno: códigos `CARTEIRA_POSSUI_OPERACOES`, `CARTEIRA_POSSUI_SNAPSHOTS` e `CARTEIRA_POSSUI_MOVIMENTACOES_CUSTODIA`, respectivamente. Uma original estornada continua sendo histórico e não libera exclusão.
+
 </details>
+
+### Deploy coordenado e rollback
+
+Backend e Angular devem ser entregues de forma coordenada: `primeiroDeficit` agora distingue eventos FINANCEIRO/CUSTODIA, e novas vendas validam saldo local mesmo sem movimentações de custódia. Planeje backup recuperável do banco e confira a versão do changelog antes de uma implantação autorizada; Liquibase aplica o schema aditivo e Hibernate o valida. As homologações PostgreSQL anteriores não autorizam, por si só, aplicação em outro banco. A coleção Postman não é um script de deploy.
+
+Se houver retorno a backend incompatível com custódia, suspenda as escritas até restaurar uma versão compatível. Preserve as tabelas, originais, estornos e registros Liquibase; não executar drop, limpar auditoria ou marcar reversões fictícias. O rollback estrutural de ambos os changeSets 008 é bloqueado explicitamente para preservar auditoria/integridade e exige plano separado e autorização. Não há deploy automatizado ou comando de rollback destrutivo suportado.
 
 ## 🧪 Testes e qualidade
 
