@@ -20,6 +20,14 @@ import { DistribuicaoCorretorasService } from '../distribuicao-corretoras.servic
 import { parseDistribuicaoCorretoras } from '../distribuicao-corretoras.contract';
 import { DISTRIBUICAO_EXAMPLES } from '../testing/distribuicao-corretoras.fixtures';
 import { DistribuicaoCarteiraResponse } from '../models/distribuicao-corretoras';
+import { CustodiaFormDialogComponent } from '../custodia-form-dialog.component';
+import { originalCustodia } from '../testing/custodia.fixtures';
+import { MovimentacaoCustodia } from '../models/custodia';
+import { CustodiaService } from '../custodia.service';
+import { CustodiaHistoricoComponent } from '../custodia-historico.component';
+import { By } from '@angular/platform-browser';
+import { parseDetalheCustodia } from '../custodia.contract';
+import { estornoCustodia } from '../testing/custodia.fixtures';
 
 const CARTEIRA: CarteiraResponse = { id: 3, nome: 'Carteira detalhada', dataCriacao: '2026-08-31T12:00:00Z' };
 const httpError = (status: number, message: string) => ({ status, code: null, message, details: {} }) as unknown as NormalizedHttpError;
@@ -31,12 +39,81 @@ describe('CarteiraDetailPageComponent', () => {
     const dashboard = { listarPosicoes: vi.fn().mockReturnValue(of([])) };
     const distribution = { consultar: vi.fn((id: number) => of<DistribuicaoCarteiraResponse>({ carteiraId: id, posicoes: [] })) };
     const operations = { listarPorCarteira: vi.fn().mockReturnValue(of([])), cadastrar: vi.fn() };
-    const closed = new Subject<CarteiraResponse | OperacaoResponse | boolean | undefined>(); const dialog = { open: vi.fn().mockReturnValue({ afterClosed: () => closed, close: vi.fn() }) }; const toast = { show: vi.fn() };
-    await TestBed.configureTestingModule({ imports: [CarteiraDetailPageComponent], providers: [{provide:DistribuicaoCorretorasService,useValue:distribution},{provide:CorretorasService,useValue:{listar:vi.fn().mockReturnValue(of([]))}},{ provide: CARTEIRA_STORAGE, useValue: null }, { provide: DashboardService, useValue: dashboard }, provideRouter([]), { provide: ActivatedRoute, useValue: { paramMap: params } }, { provide: CarteirasService, useValue: service }, { provide: OperacoesService, useValue: operations }, { provide: MatDialog, useValue: dialog }, { provide: SuccessToastService, useValue: toast }] }).compileComponents();
+    const custodia = { historico: vi.fn().mockReturnValue(of([])) };
+    const closed = new Subject<CarteiraResponse | OperacaoResponse | MovimentacaoCustodia | boolean | undefined>(); const dialog = { open: vi.fn().mockReturnValue({ afterClosed: () => closed, close: vi.fn() }) }; const toast = { show: vi.fn() };
+    await TestBed.configureTestingModule({ imports: [CarteiraDetailPageComponent], providers: [{provide:CustodiaService,useValue:custodia},{provide:DistribuicaoCorretorasService,useValue:distribution},{provide:CorretorasService,useValue:{listar:vi.fn().mockReturnValue(of([]))}},{ provide: CARTEIRA_STORAGE, useValue: null }, { provide: DashboardService, useValue: dashboard }, provideRouter([]), { provide: ActivatedRoute, useValue: { paramMap: params } }, { provide: CarteirasService, useValue: service }, { provide: OperacoesService, useValue: operations }, { provide: MatDialog, useValue: dialog }, { provide: SuccessToastService, useValue: toast }] }).compileComponents();
     const router = TestBed.inject(Router); vi.spyOn(router, 'currentNavigation').mockReturnValue(info ? ({ extras: { info: { carteira: info } } } as never) : null); vi.spyOn(router, 'navigate').mockResolvedValue(true);
-    const fixture = TestBed.createComponent(CarteiraDetailPageComponent); fixture.detectChanges(); return { fixture, service, closed, dialog, toast, router, params, dashboard, operations, distribution };
+    const fixture = TestBed.createComponent(CarteiraDetailPageComponent); fixture.detectChanges(); return { fixture, service, closed, dialog, toast, router, params, dashboard, operations, distribution, custodia };
   }
   afterEach(() => TestBed.resetTestingModule());
+
+  it('cadastro confirmado recarrega histórico e distribuição sem repetir escrita ou apagar financeiro', async () => {
+    const r = await create(CARTEIRA);
+    const b = [...r.fixture.nativeElement.querySelectorAll('button')].find((v: HTMLButtonElement) => v.textContent?.includes('Movimentar custódia'));
+    b.click(); const antesFinanceiro = r.operations.listarPorCarteira.mock.calls.length;
+    r.closed.next(originalCustodia({ carteiraId: 3, quantidade: '40' }) as unknown as MovimentacaoCustodia);
+    r.fixture.detectChanges();
+    expect(r.custodia.historico).toHaveBeenCalledTimes(2); expect(r.distribution.consultar).toHaveBeenCalledTimes(2);
+    expect(r.operations.listarPorCarteira).toHaveBeenCalledTimes(antesFinanceiro);
+    expect(r.fixture.nativeElement.textContent).toContain('Movimentação #10 registrada com sucesso');
+  });
+
+  it('mantém histórico de custódia separado e acessível sem posição aberta', async () => {
+    const r = await create(CARTEIRA);
+    expect(r.fixture.nativeElement.querySelector('app-custodia-historico')).not.toBeNull();
+    expect(r.custodia.historico).toHaveBeenCalledExactlyOnceWith(3, {});
+    expect(r.fixture.nativeElement.textContent).toContain('Histórico de operações');
+    expect(r.fixture.nativeElement.textContent).toContain('Histórico de custódia');
+  });
+  it('falha de histórico não remove posições consolidadas válidas', async () => {
+    const r = await create(CARTEIRA);
+    const position = { acaoId: 1, ticker: 'PETR4', nomeEmpresa: 'Petrobras', mercado: 'BRASIL', moeda: 'BRL',
+      quantidadeAtual: '5', precoMedio: '40', custoPosicao: '200', cotacaoAtual: '48.2',
+      dataHoraCotacao: '2026-01-01T00:00:00Z', referenciaMercadoCotacao: { tipo: 'DESCONHECIDA', data: null, instante: null },
+      cotacaoObtidaEm: null, valorAtualPosicao: '241', resultadoNaoRealizado: '41', rentabilidadePercentual: '20.5' };
+    r.dashboard.listarPosicoes.mockReturnValue(of([position]));
+    (r.fixture.componentInstance as any).loadPositions(); r.fixture.detectChanges();
+    r.custodia.historico.mockReturnValue(throwError(() => httpError(500, 'Falha no histórico')));
+    r.fixture.nativeElement.querySelector('app-custodia-historico button').click(); r.fixture.detectChanges();
+    expect(r.fixture.nativeElement.textContent).toContain('Falha no histórico');
+    expect(r.fixture.nativeElement.querySelector('app-portfolio-positions table')?.textContent).toContain('R$ 241,00');
+    expect(r.fixture.nativeElement.textContent).toContain('Histórico de operações');
+  });
+  it('recebe sucesso contextual de estorno com recarga independente das consultas', async () => {
+    const r = await create(CARTEIRA);
+    const child = r.fixture.debugElement.query(By.directive(CustodiaHistoricoComponent)).componentInstance as CustodiaHistoricoComponent;
+    const d = parseDetalheCustodia(JSON.stringify({ movimentacao: originalCustodia({ carteiraId: 3, situacao: 'ESTORNADA', estornoId: 20 }),
+      estorno: estornoCustodia({ carteiraId: 3 }) }), 3, 10);
+    const consultas = r.distribution.consultar.mock.calls.length;
+    child.estornoConfirmado.emit(d); r.fixture.detectChanges();
+    expect(r.toast.show).toHaveBeenCalledExactlyOnceWith('Estorno de custódia confirmado com sucesso.');
+    expect(r.distribution.consultar).toHaveBeenCalledTimes(consultas + 1); expect(r.custodia.historico).toHaveBeenCalledTimes(2);
+    child.estornoConfirmado.emit({ ...d, movimentacao: { ...d.movimentacao, carteiraId: 9 } });
+    expect(r.toast.show).toHaveBeenCalledOnce();
+  });
+
+  it('abre custódia na carteira fixa e recebe sucesso sem alterar histórico financeiro', async () => {
+    const r = await create(CARTEIRA);
+    const b = [...r.fixture.nativeElement.querySelectorAll('button')].find((v: HTMLButtonElement) => v.textContent?.includes('Movimentar custódia'));
+    expect(b).toBeDefined(); b!.click();
+    expect(r.dialog.open).toHaveBeenCalledWith(CustodiaFormDialogComponent, expect.objectContaining({
+      data: { carteira: CARTEIRA }, restoreFocus: true, ariaLabelledBy: 'custodia-form-title', ariaDescribedBy: 'custodia-form-description' }));
+    const antes = r.operations.listarPorCarteira.mock.calls.length;
+    const distribuicaoAntes = r.distribution.consultar.mock.calls.length;
+    r.closed.next(originalCustodia({ carteiraId: 3, quantidade: '40' }) as unknown as MovimentacaoCustodia); r.fixture.detectChanges();
+    expect(r.toast.show).toHaveBeenCalledWith('Movimentação de custódia registrada com sucesso.');
+    expect(r.operations.listarPorCarteira).toHaveBeenCalledTimes(antes);
+    expect(r.distribution.consultar).toHaveBeenCalledTimes(distribuicaoAntes + 1);
+  });
+
+  it('descarta resultado tardio de custódia depois da troca de carteira', async () => {
+    const r = await create(CARTEIRA);
+    const b = [...r.fixture.nativeElement.querySelectorAll('button')].find((v: HTMLButtonElement) => v.textContent?.includes('Movimentar custódia'));
+    expect(b).toBeDefined(); b!.click();
+    r.params.next(convertToParamMap({ id: '4' }));
+    r.closed.next(originalCustodia({ carteiraId: 3, quantidade: '40' }) as unknown as MovimentacaoCustodia);
+    expect(r.toast.show).not.toHaveBeenCalled();
+  });
 
   it('recarrega distribuicao apos operacao confirmada sem alterar payload financeiro', async () => {
     const result = await create(CARTEIRA);

@@ -1,4 +1,4 @@
-import { HttpClient, HttpParams } from '@angular/common/http';
+import { HttpClient, HttpErrorResponse, HttpParams } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
 import { catchError, map, Observable, throwError } from 'rxjs';
 
@@ -6,6 +6,7 @@ import { API_BASE_URL } from '../../core/config/api-base-url.token';
 import { NormalizedHttpError } from '../../core/errors/normalized-http-error';
 import { isStandardError } from '../../core/http/http-error-normalizer';
 import { parseOperationJson } from './lossless-operation-json';
+import { parseErroQuantitativo } from '../../core/http/quantitative-error-json';
 import { Mercado } from '../acoes/models/acao';
 import { OperacaoCreateRequest, OperacaoResponse, PreviaPrecoCompraResponse, SugestaoPrecoVendaResponse } from './models/operacao';
 
@@ -48,10 +49,10 @@ export class OperacoesService {
 
   private parseTextError(error: unknown): unknown {
     const normalized = error as NormalizedHttpError;
-    const original = normalized?.originalError;
+    const original = error instanceof HttpErrorResponse ? error : normalized?.originalError;
     if (!original || typeof original.error !== 'string') return error;
     try {
-      const standard = parseOperationJson<unknown>(original.error);
+      const standard = parseErroQuantitativo(original.error);
       if (!isStandardError(standard)) return error;
       return { kind: 'standard', status: standard.status, code: standard.code, message: standard.message, details: standard.details, standardError: standard, originalError: original } satisfies NormalizedHttpError;
     } catch { return error; }

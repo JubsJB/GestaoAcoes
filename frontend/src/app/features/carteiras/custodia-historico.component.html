@@ -1,0 +1,36 @@
+<section aria-labelledby="custodia-historico-title">
+  <h2 #tituloHistorico id="custodia-historico-title" tabindex="-1">Histórico de custódia</h2>
+  <p>Transferências, atribuições e estornos de controle interno, separados das operações financeiras. Não comprovam custódia externa.</p>
+  <form class="filtros" [formGroup]="filtros">
+    <mat-form-field appearance="outline"><mat-label>Natureza da custódia</mat-label><mat-select formControlName="natureza"><mat-option value="">Todas</mat-option><mat-option value="TRANSFERENCIA">Transferência</mat-option><mat-option value="ATRIBUICAO">Atribuição</mat-option><mat-option value="ESTORNO">Estorno</mat-option></mat-select></mat-form-field>
+    <mat-form-field appearance="outline"><mat-label>Situação da movimentação</mat-label><mat-select formControlName="situacao"><mat-option value="">Todas</mat-option><mat-option value="ATIVA">Ativa</mat-option><mat-option value="ESTORNADA">Estornada</mat-option></mat-select></mat-form-field>
+    <button mat-stroked-button type="button" (click)="carregar()" [disabled]="carregando()">Atualizar histórico de custódia</button>
+  </form>
+  <p>O filtro de situação se aplica às originais. Natureza ESTORNO inclui estornos mesmo com situação selecionada.</p>
+  @if(consultaAnteriorAoEstorno()){
+    <app-feedback-alert variant="info" message="Estorno confirmado após esta consulta. Atualize o histórico para obter o conjunto completo e os vínculos atuais."/>
+  }
+  @if(carregando()){<p role="status" aria-live="polite">Carregando histórico de custódia…</p>}
+  @else if(erro()){
+    <app-feedback-alert variant="error" [message]="erro()!.message" [details]="erro()!.details"/>
+    <button mat-stroked-button type="button" (click)="carregar()">Tentar novamente o histórico de custódia</button>
+  }@else if(!itens().length){<p role="status">Nenhuma movimentação de custódia encontrada para esses filtros.</p>}
+  @else{
+    <table class="collection-table" role="table"><caption>Registros de custódia, na ordem recebida do servidor</caption>
+      <thead role="rowgroup"><tr role="row"><th scope="col">Ativo</th><th scope="col">Natureza</th><th scope="col">Situação</th><th scope="col">Quantidade</th><th scope="col">Origem / destino</th><th scope="col">Datas</th><th scope="col">Posição</th><th scope="col">Auditoria / vínculo</th><th scope="col">Ações</th></tr></thead>
+      <tbody role="rowgroup">@for(r of itens();track identidade(r)){
+        <tr role="row" [attr.data-registro]="identidade(r)">
+          <th scope="row" role="rowheader">{{r.ticker}}<small>{{r.mercado}} · {{r.tipoRegistro}} #{{r.id}}</small></th>
+          <td role="cell"><span class="cell-label">Natureza</span>{{r.natureza}}</td>
+          <td role="cell"><span class="cell-label">Situação</span>@if(r.tipoRegistro === 'MOVIMENTACAO'){ {{r.situacao}} }@else{<span aria-label="Situação não se aplica ao estorno">—</span>}</td>
+          <td role="cell" class="numeric"><span class="cell-label">Quantidade</span>{{quantidade(r.quantidade,r.mercado)}}</td>
+          <td role="cell"><span class="cell-label">Origem / destino</span>{{nome(r.corretoraOrigemId)}} → {{nome(r.corretoraDestinoId)}}</td>
+          <td role="cell"><span class="cell-label">Datas</span>Efetiva: <time [attr.datetime]="r.dataEfetiva">{{dataCivil(r.dataEfetiva)}}</time><small>Registro: {{instante(r.dataRegistro)}}</small><time [attr.datetime]="r.dataRegistro">{{r.dataRegistro}}</time></td>
+          <td role="cell" class="posicao"><span class="cell-label">Posição cronológica</span>Âncora {{r.posicaoCronologica.ordemFinanceiraAncora}} · {{r.posicaoCronologica.numerador}}/{{r.posicaoCronologica.denominador}}</td>
+          <td role="cell"><span class="cell-label">Auditoria / vínculo</span>Movimentação #{{originalId(r)}}@if(r.estornoId !== null){<small>Estorno #{{r.estornoId}}</small>}@if(r.tipoRegistro === 'ESTORNO'){<small>{{r.motivo === null ? 'Sem motivo informado' : r.motivo}}</small>}</td>
+          <td role="cell">@if(podeEstornar(r)){<button mat-stroked-button type="button" [attr.data-estornar]="r.id" [attr.aria-label]="'Estornar movimentação de custódia '+r.id+' '+r.ticker" (click)="confirmarEstorno(r)">Estornar</button>}</td>
+        </tr>
+      }</tbody>
+    </table>
+  }
+</section>

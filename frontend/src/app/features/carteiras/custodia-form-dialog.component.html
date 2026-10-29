@@ -1,0 +1,41 @@
+<h2 mat-dialog-title id="custodia-form-title">Nova movimentação de custódia</h2>
+<mat-dialog-content>
+  <p id="custodia-form-description">Controle interno de custódia na carteira <strong class="contexto">{{carteira.nome}} · #{{carteira.id}}</strong>. Não executa transferência junto à corretora.</p>
+  @if(erro()){<app-feedback-alert variant="error" [message]="mensagemErro()" [details]="detalhesErro()"/>}
+  @if(carregando()){<p class="progress" role="status" aria-live="polite"><mat-spinner diameter="24" aria-hidden="true"/>Carregando ações e corretoras…</p>}
+  @if(erroReferencias()){
+    <app-feedback-alert variant="error" message="Não foi possível carregar as referências existentes."/>
+    <button mat-stroked-button type="button" (click)="carregarReferencias()">Recarregar referências</button>
+  }
+  @if(!carregando() && !erroReferencias() && (!acoes().length || !corretoras().length)){
+    <app-feedback-alert variant="warning" message="É necessário ter ação e corretora cadastradas antes de registrar a custódia."/>
+  }
+  <form id="custodia-form" [formGroup]="form" (ngSubmit)="enviar()" novalidate aria-describedby="custodia-form-description">
+    <fieldset [disabled]="enviando() || carregando()" style="border:0;padding:0;margin:0;min-width:0">
+      <legend class="sr-only">Dados da movimentação de custódia</legend>
+      <div class="campos">
+        <mat-form-field appearance="outline" subscriptSizing="dynamic"><mat-label>Natureza</mat-label><mat-select formControlName="natureza"><mat-option value="TRANSFERENCIA">Transferência</mat-option><mat-option value="ATRIBUICAO">Atribuição</mat-option></mat-select></mat-form-field>
+        <mat-form-field appearance="outline" subscriptSizing="dynamic"><mat-label>Ação</mat-label><mat-select formControlName="acaoKey">@for(a of acoes();track a.id){<mat-option [value]="chave(a)">{{a.ticker}} · {{a.mercado}}</mat-option>}</mat-select>@if(invalido('acaoKey')){<mat-error>Selecione uma ação cadastrada.</mat-error>}</mat-form-field>
+        @if(form.controls.natureza.value === 'TRANSFERENCIA'){
+          <mat-form-field appearance="outline" subscriptSizing="dynamic"><mat-label>Corretora de origem</mat-label><mat-select formControlName="corretoraOrigemId">@for(b of corretoras();track b.id){<mat-option [value]="b.id">{{nome(b)}}</mat-option>}</mat-select>@if(invalido('corretoraOrigemId')){<mat-error>Selecione uma origem cadastrada.</mat-error>}</mat-form-field>
+        }@else{<p class="contexto">Origem: <strong>Sem corretora informada</strong></p>}
+        <mat-form-field appearance="outline" subscriptSizing="dynamic"><mat-label>Corretora de destino</mat-label><mat-select formControlName="corretoraDestinoId">@for(b of corretoras();track b.id){<mat-option [value]="b.id">{{nome(b)}}</mat-option>}</mat-select>@if(invalido('corretoraDestinoId')){<mat-error>Selecione um destino cadastrado.</mat-error>}</mat-form-field>
+        @if(form.touched && form.hasError('corretorasIguais')){<p class="wide" role="alert">Origem e destino devem ser corretoras distintas.</p>}
+        <mat-form-field appearance="outline" subscriptSizing="dynamic"><mat-label>Quantidade</mat-label><input matInput inputmode="decimal" formControlName="quantidade" aria-describedby="custodia-quantidade-hint"/><mat-hint id="custodia-quantidade-hint">{{acao()?.mercado === 'BRASIL' ? 'Brasil: unidades inteiras.' : 'EUA: até seis casas decimais.'}}</mat-hint>@if(invalido('quantidade')){<mat-error>Informe quantidade positiva, até 13 inteiros e 6 decimais; Brasil exige inteiro.</mat-error>}</mat-form-field>
+        <mat-form-field appearance="outline" subscriptSizing="dynamic"><mat-label>Data efetiva</mat-label><input matInput type="date" formControlName="dataEfetiva"/>@if(invalido('dataEfetiva')){<mat-error>Informe uma data civil válida, não futura no mercado selecionado.</mat-error>}</mat-form-field>
+      </div>
+    </fieldset>
+  </form>
+  <aside aria-label="Saldo atual auxiliar" aria-live="polite">
+    @if(saldoCarregando()){<p role="status">Carregando saldo atual…</p>}
+    @else if(saldoIndisponivel()){<p>Saldo atual indisponível. Você pode continuar; o backend validará a movimentação.</p>}
+    @else if(saldoAtual() !== null){<p>Saldo atual da origem: {{saldoAtual()}}</p>}
+    @else{<p>Não há saldo atual informado para esta ação e origem na distribuição de posições abertas.</p>}
+    <p>O saldo exibido é atual e não garante disponibilidade na data efetiva. O backend valida o histórico e escolhe a posição cronológica.</p>
+  </aside>
+  @if(enviando()){<p role="status" aria-live="polite">Registrando custódia…</p>}
+</mat-dialog-content>
+<mat-dialog-actions align="end">
+  <button mat-button type="button" [disabled]="enviando()" (click)="cancelar()">Cancelar</button>
+  <button mat-flat-button type="submit" form="custodia-form" [disabled]="bloqueado()" [attr.aria-busy]="enviando()">Registrar custódia</button>
+</mat-dialog-actions>

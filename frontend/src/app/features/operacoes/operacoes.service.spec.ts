@@ -1,9 +1,11 @@
-import { provideHttpClient } from '@angular/common/http';
+import { provideHttpClient, withInterceptors } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
 import { provideApiConfig } from '../../core/config/api.config';
 import { OperacaoCompraCreateRequest, OperacaoVendaCreateRequest } from './models/operacao';
 import { OperacoesService } from './operacoes.service';
+import { httpErrorInterceptor } from '../../core/http/http-error.interceptor';
+import { NormalizedHttpError } from '../../core/errors/normalized-http-error';
 
 const PURCHASE: OperacaoCompraCreateRequest = {
   carteiraId: 2, ticker: 'AAPL', mercado: 'EUA', corretoraId: null,
@@ -25,6 +27,18 @@ describe('OperacoesService', () => {
     http = TestBed.inject(HttpTestingController);
   });
   afterEach(() => http.verify());
+
+  it('preserva detalhes quantitativos textuais de rejeição financeira através do interceptor', () => {
+    TestBed.resetTestingModule();
+    TestBed.configureTestingModule({ providers: [provideHttpClient(withInterceptors([httpErrorInterceptor])), provideHttpClientTesting(), provideApiConfig()] });
+    service = TestBed.inject(OperacoesService); http = TestBed.inject(HttpTestingController);
+    let erro: NormalizedHttpError | undefined;
+    service.cadastrar(SALE).subscribe({ error: e => erro = e });
+    http.expectOne('/api/operacoes').flush('{"timeStamp":1,"status":409,"error":"Conflict","message":"Saldo local","path":"/operacoes","code":"SALDO_CORRETORA_INSUFICIENTE","details":{"quantidadeDisponivel":9999999999999.123456,"saldoDepois":-0.000001,"deficitDepois":1E-6,"evento":null}}',
+      { status: 409, statusText: 'Conflict' });
+    expect(erro?.details).toEqual({ quantidadeDisponivel: '9999999999999.123456', saldoDepois: '-0.000001', deficitDepois: '1E-6', evento: null });
+    http.expectNone('/api/operacoes');
+  });
 
   it('envia payload exato de COMPRA com preço e sem ordem ou campos derivados', () => {
     let result: unknown;

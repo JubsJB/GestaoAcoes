@@ -11,6 +11,7 @@ import { ActivatedRoute, convertToParamMap, ParamMap, Router, RouterLink } from 
 import { catchError, combineLatest, distinctUntilChanged, finalize, map, of, startWith, switchMap, tap, Subscription } from 'rxjs';
 
 import { NormalizedHttpError } from '../../../core/errors/normalized-http-error';
+import { detalhesQuantitativos, mensagemQuantitativa } from '../../../core/errors/quantitative-errors';
 import { FeedbackAlertComponent } from '../../../shared/feedback-alert/feedback-alert.component';
 import { PageHeaderComponent } from '../../../shared/page-header/page-header.component';
 import { StickyBackComponent } from '../../../shared/sticky-back/sticky-back.component';
@@ -36,7 +37,7 @@ export interface OperacaoFormDialogData { carteira: CarteiraResponse; }
       @if (!isDialog) { <app-sticky-back [route]="returnUrl()" label="Voltar" /> }
       <app-page-header headingId="operacao-form-title" eyebrow="Operações" title="Nova operação" [description]="contextPortfolio() ? 'Registre a movimentação na carteira ' + contextPortfolio()!.nome + '.' : 'Registre uma compra ou venda com os dados efetivamente negociados.'" />
       <p id="operacao-form-description" class="sr-only">Formulário de cadastro de operação financeira.</p>
-      @if (error()) { <app-feedback-alert variant="error" [message]="errorMessage()" [details]="error()!.details" /> }
+      @if (error()) { <app-feedback-alert variant="error" [message]="errorMessage()" [details]="detalhesErro()" /> }
       @if (referencesLoading() || portfolioLoading()) { <div class="app-state" role="status" aria-live="polite"><mat-spinner diameter="36" /> Carregando opções…</div> }
       @else {
         @if (referenceError()) { <app-feedback-alert variant="error" [message]="referenceError()!.message" [details]="referenceError()!.details" /> }
@@ -242,7 +243,10 @@ export class OperacaoFormPageComponent {
   protected errorMessage(): string {
     return this.messageForError(this.error()!);
   }
+  protected detalhesErro(): Record<string, unknown> { return detalhesQuantitativos(this.error()); }
   private messageForError(current: NormalizedHttpError): string {
+    const quantitativa = mensagemQuantitativa(current);
+    if (quantitativa) return quantitativa;
     const guidance: Record<string, string> = {
       POSICAO_INSUFICIENTE: 'A quantidade excede a posição disponível nesse ponto cronológico.',
       COTACAO_HISTORICA_INDISPONIVEL: 'Não foi encontrado fechamento para a data informada. Escolha uma data em que tenha ocorrido pregão.',

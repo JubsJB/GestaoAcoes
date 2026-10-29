@@ -17,6 +17,7 @@ import { CarteiraResponse } from '../models/carteira';
 import { CarteiraDetailPageComponent } from './carteira-detail-page.component';
 import { CarteirasListPageComponent } from './carteiras-list-page.component';
 import { DistribuicaoCorretorasService } from '../distribuicao-corretoras.service';
+import { CustodiaService } from '../custodia.service';
 
 const CARTEIRA: CarteiraResponse = { id: 6, nome: 'Inicial', dataCriacao: '2026-08-31T12:00:00Z' };
 const waitForDialogClose = () => new Promise((resolve) => setTimeout(resolve, 250));
@@ -37,6 +38,7 @@ describe('Carteiras com MatDialog real', () => {
   it('cancela edição real sem PATCH e confirma exclusão real com um DELETE', async () => {
     const service = { listar: vi.fn().mockReturnValue(of([CARTEIRA])), cadastrar: vi.fn(), buscarPorId: vi.fn(), atualizar: vi.fn().mockReturnValue(of(CARTEIRA)), excluir: vi.fn().mockReturnValue(of(undefined)) }; const toast = { show: vi.fn() };
     await TestBed.configureTestingModule({ imports: [CarteiraDetailPageComponent], providers: [{provide:CorretorasService,useValue:{listar:vi.fn().mockReturnValue(of([]))}},{ provide: CARTEIRA_STORAGE, useValue: null }, { provide: DashboardService, useValue: { listarPosicoes: () => of([]) } },provideRouter([]), { provide: ActivatedRoute, useValue: { paramMap: of(convertToParamMap({ id: 6 })) } }, { provide: CarteirasService, useValue: service }, { provide: OperacoesService, useValue: { listarPorCarteira: vi.fn().mockReturnValue(of([])), cadastrar: vi.fn() } }, { provide: SuccessToastService, useValue: toast }] }).compileComponents();
+    TestBed.overrideProvider(CustodiaService, { useValue: { historico: vi.fn().mockReturnValue(of([])) } });
     TestBed.overrideProvider(DistribuicaoCorretorasService, { useValue: { consultar: (id: number) => of({ carteiraId: id, posicoes: [] }) } });
     overlay = TestBed.inject(OverlayContainer); const router = TestBed.inject(Router); vi.spyOn(router, 'currentNavigation').mockReturnValue({ extras: { info: { carteira: CARTEIRA } } } as never); vi.spyOn(router, 'navigate').mockResolvedValue(true);
     const fixture: ComponentFixture<CarteiraDetailPageComponent> = TestBed.createComponent(CarteiraDetailPageComponent); fixture.detectChanges();

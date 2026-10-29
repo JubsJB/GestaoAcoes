@@ -44,6 +44,16 @@ describe('OperacaoFormPageComponent', () => {
     expect(fixture.nativeElement.querySelector('.operation-form .context')).toBeNull();
     expect(fixture.nativeElement.textContent).not.toContain('Esta operação será registrada nesta carteira.');
   });
+  it('explica saldo local sem expor mensagem SQL nem alterar campos da venda', async () => {
+    const post = new Subject<OperacaoResponse>(); const r = await create({ post });
+    setContext(r.component, 'VENDA'); r.component.form.controls['precoUnitario'].setValue('10');
+    const antes = r.component.form.getRawValue(); r.component.submit();
+    post.error({ kind: 'standard', status: 409, code: 'SALDO_CORRETORA_INSUFICIENTE', message: 'SQL SELECT interno',
+      details: { quantidadeDisponivel: '0.000001', evento: null, sql: 'stack secreto' } }); r.fixture.detectChanges();
+    expect(r.fixture.nativeElement.textContent).toContain('saldo da corretora');
+    expect(r.fixture.nativeElement.textContent).not.toContain('SQL'); expect(r.fixture.nativeElement.textContent).not.toContain('stack secreto');
+    expect(r.component.form.getRawValue()).toEqual(antes); expect(r.operations.cadastrar).toHaveBeenCalledOnce();
+  });
 
   it('dialog em modo contextual fecha somente em sucesso e conserva erro', async () => {
     const post=new Subject<OperacaoResponse>(); const dialogRef={close:vi.fn(),disableClose:false};
