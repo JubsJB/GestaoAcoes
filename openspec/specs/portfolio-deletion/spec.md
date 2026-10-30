@@ -29,7 +29,7 @@ Quando o identificador informado não corresponder a uma Carteira persistida, o 
 - **THEN** o sistema responde `404 Not Found` no formato `StandardError` vigente e não produz efeito adicional
 
 ### Requirement: Exclusão física isolada no modelo atual
-Enquanto a Carteira persistir somente `id`, `nome` e `dataCriacao` e não possuir Operações associadas, o sistema SHALL realizar exclusão física exclusivamente da Carteira identificada. A exclusão MUST NOT alterar ou excluir outras Carteiras e MUST NOT criar exclusão lógica, relacionamentos, Operações, posições, histórico ou snapshots.
+Carteira existente SHALL ser excluída fisicamente somente quando não possuir operações, snapshots, movimentações ou estornos de custódia. Exclusão SHALL atingir apenas a carteira indicada, sem exclusão lógica, novas relações ou remoção de histórico/auditoria. MUST NOT excluir outras carteiras ou referências.
 
 #### Scenario: Remoção efetiva do registro
 - **WHEN** uma Carteira existente e elegível é excluída com sucesso
@@ -62,11 +62,11 @@ A exclusão SHALL ser atômica e MUST NOT utilizar a data ou o relógio da aplic
 - **THEN** `POST /carteiras`, `GET /carteiras`, `GET /carteiras/{id}` e `PATCH /carteiras/{id}` mantêm seus status, payloads, validações e efeitos vigentes
 
 ### Requirement: Compatibilidade com o schema vigente
-A exclusão de Carteira SHALL operar sobre o schema atual e MUST NOT exigir alteração da entidade Carteira, do changeSet `003-create-carteira.yaml`, do changelog master, das dependências ou das configurações. Liquibase e Hibernate SHALL continuar inicializando e validando o mesmo schema em PostgreSQL e H2.
+Exclusão SHALL preservar entidade Carteira, changeSet003 e schema financeiro existente. Schema aditivo de custódia SHALL usar FKs restritivas sem cascade delete; inicialização Liquibase/Hibernate SHALL validar novos mapeamentos em PostgreSQL/H2 sem alterar changes históricos. Exclusão elegível SHALL funcionar com schema atualizado.
 
 #### Scenario: Inicialização e exclusão no H2
 - **WHEN** os testes iniciam o banco H2 pelo changelog Liquibase vigente e o Hibernate valida os mapeamentos
-- **THEN** uma Carteira pode ser persistida e excluída sem migration ou ajuste de schema
+- **THEN** uma Carteira pode ser persistida e excluída com migration aditiva de custódia e sem alterar a entidade Carteira ou migrations antigas
 
 ### Requirement: Bloqueio efetivo de exclusão de Carteira com Operações
 Com a introdução da persistência de Operações, o sistema SHALL considerar inelegível para exclusão física qualquer Carteira que possua uma ou mais Operações. `DELETE /carteiras/{id}` SHALL responder `409 Conflict` no formato `StandardError` com código `CARTEIRA_POSSUI_OPERACOES`, MUST preservar a Carteira e todas as Operações e MUST NOT usar cascade delete. Carteira sem Operações SHALL conservar o contrato vigente de exclusão com `204 No Content`. A exclusão e o registro concorrente de Operações SHALL ser coordenados pelo mesmo lock pessimista curto sobre a Carteira, limitado à transação de banco necessária e sem `@Version`.
@@ -102,3 +102,18 @@ Uma Carteira que possua ao menos um snapshot patrimonial SHALL ser inelegível p
 #### Scenario: Carteira sem Operações ou snapshots
 - **WHEN** a Carteira existente não possui Operações nem snapshots
 - **THEN** o contrato vigente permanece `204 No Content`, sem corpo ou `Location`
+
+### Requirement: Proteção da auditoria de custódia na exclusão
+DELETE de carteira SHALL adquirir mesmo lock das escritas quantitativas e recusar existência de movimentação ou estorno de custódia, incluindo originais estornadas, com409 CARTEIRA_POSSUI_MOVIMENTACOES_CUSTODIA. Bloqueios atuais de operações/snapshots SHALL permanecer e ter precedência vigente. Integridade referencial SHALL impedir remoção da auditoria mesmo em falha de serviço. Carteira sem qualquer histórico SHALL continuar elegível.
+
+#### Scenario: Histórico de custódia preservado
+- **WHEN** carteira possui custódia, inclusive estornada, e não há bloqueio financeiro anterior
+- **THEN** retorna409 CARTEIRA_POSSUI_MOVIMENTACOES_CUSTODIA sem apagar carteira ou registros
+
+#### Scenario: Exclusão concorrente
+- **WHEN** registro quantitativo e exclusão competem pela mesma carteira
+- **THEN** lock determina um resultado coerente sem referência órfã ou auditoria apagada
+
+#### Scenario: Bloqueio existente preservado
+- **WHEN** carteira possui operações ou snapshots
+- **THEN** mantém códigos e precedência atuais sem mudança para erro de custódia

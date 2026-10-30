@@ -197,7 +197,7 @@ Uma COMPRA válida SHALL usar o preço final informado e validado, persistir som
 - **THEN** a COMPRA é persistida atomicamente sem consulta histórica no POST e nenhum lock de Carteira fica associado à rede ou timeout da prévia
 
 ### Requirement: VENDA limitada pela posição cronologicamente disponível
-Antes de persistir uma VENDA, o sistema SHALL reproduzir todas as Operações da mesma Carteira e Ação, incluindo a candidata em sua posição cronológica, somando COMPRA e subtraindo VENDA. A criação SHALL ser permitida somente quando o saldo permanecer maior ou igual a zero em todos os pontos da sequência; caso contrário, SHALL responder `409 Conflict` com código `POSICAO_INSUFICIENTE` e não persistir a candidata. Operações de outras Carteiras ou Ações MUST NOT participar do saldo.
+Antes de persistir uma VENDA, o sistema SHALL reproduzir todas as operações da mesma carteira/ação incluindo candidata pela ordem financeira vigente e exigir saldo consolidado não negativo em todos os pontos. SHALL exigir também quantidade disponível suficiente antes da candidata no grupo da corretora informada ou no grupo sem corretora quando null/omitida, inclusive em carteiras sem custódias. Falha consolidada SHALL manter 409 POSICAO_INSUFICIENTE; falha local SHALL retornar 409 SALDO_CORRETORA_INSUFICIENTE. SHALL comparar efeitos posteriores pela regra diferencial e preservar custódias ativas. Operações legadas MUST NOT ser revalidadas como novas vendas locais. Nenhuma referência de outra carteira/ação SHALL fornecer saldo.
 
 #### Scenario: Venda dentro da posição
 - **WHEN** a quantidade vendida não torna negativo nenhum saldo cronológico
@@ -215,8 +215,28 @@ Antes de persistir uma VENDA, o sistema SHALL reproduzir todas as Operações da
 - **WHEN** existem compras da mesma Ação em outra Carteira ou de outra Ação na mesma Carteira
 - **THEN** essas Operações não aumentam a posição disponível para a VENDA avaliada
 
+#### Scenario: Consolidado suficiente e corretora insuficiente
+- **WHEN** há compra A100 e nova venda B10
+- **THEN** retorna 409 SALDO_CORRETORA_INSUFICIENTE, sem persistência
+
+#### Scenario: Venda no grupo sem corretora
+- **WHEN** compra A100 existe e nova venda omite corretora, sem saldo no grupo nulo
+- **THEN** retorna 409 SALDO_CORRETORA_INSUFICIENTE, mesmo sem custódias
+
+#### Scenario: Venda sem corretora com saldo próprio
+- **WHEN** grupo nulo possui100 e candidata vende40 sem agravar sufixo
+- **THEN** aceita, preservando corretora nula e consolidado
+
+#### Scenario: Legado independente inalterado
+- **WHEN** histórico contém déficit antigo em B e candidata em A tem saldo suficiente sem piorar B
+- **THEN** aceita sem exigir regularização global
+
+#### Scenario: Venda que invalida transferência
+- **WHEN** compra A100 precede T1 A→B80 e candidata retroativa vende A30 antes de T1
+- **THEN** retorna 409 MOVIMENTACAO_CUSTODIA_INVALIDADA e preserva T1, pois consolidado e saldo local passam e invalidação de custódia precede o déficit por grupo que T1 produziria
+
 ### Requirement: Inserção retroativa preserva toda a sequência
-O sistema SHALL aceitar Operação retroativa somente quando todo o replay da mesma Carteira e Ação permanecer sem saldo negativo. Uma nova Operação em data que já contém Operações SHALL ser anexada ao final daquele dia por `MAX(ordemNoDia)+1`; não haverá inserção entre ordens existentes, reordenação manual ou `horaOperacao`. O usuário SHALL cadastrar Operações do mesmo dia na sequência real desejada.
+O sistema SHALL aceitar operação retroativa somente se replay financeiro consolidado permanecer válido e comparação diferencial quantitativa não criar, agravar ou prolongar déficit por grupo nem invalidar custódia ativa. SHALL alinhar união dos pontos por identidade discriminada/posição, transportando saldo sem evento; deficitDepois SHALL ser <= deficitAntes em cada ponto. Nova operação na mesma data SHALL receber MAX(ordemNoDia)+1, sem inserir entre ordens financeiras, reordenação manual ou horaOperacao. Custódias existentes MUST NOT ser reposicionadas: âncora após antiga última operação permanece antes da nova operação, inclusive em dia antes sem operações. Compras positivas SHALL poder reduzir déficits legados; fórmulas financeiras permanecem vigentes.
 
 #### Scenario: Operação retroativa no mesmo dia
 - **WHEN** a data retroativa já possui Operações para a combinação
@@ -230,8 +250,24 @@ O sistema SHALL aceitar Operação retroativa somente quando todo o replay da me
 - **WHEN** a candidata torna negativo o saldo em seu ponto ou em qualquer Operação posterior
 - **THEN** o sistema responde `409 POSICAO_INSUFICIENTE` e preserva o histórico existente
 
+#### Scenario: Compra retroativa reduz déficit legado
+- **WHEN** nova compra válida aumenta saldo do grupo antes de venda legada deficitária
+- **THEN** aceita quando todos os pontos melhoram ou permanecem iguais, sem editar venda antiga
+
+#### Scenario: Compra não reposiciona custódia
+- **WHEN** compra é adicionada após a última ordem na data de custódia existente
+- **THEN** custódia conserva sua posição anterior à nova compra
+
+#### Scenario: Comparação por identidade
+- **WHEN** inserção muda índices da lista e um déficit posterior é agravado
+- **THEN** rejeita pelo evento correspondente, não por comparação de índices
+
+#### Scenario: Prolongamento indevido
+- **WHEN** alteração mantém o pior saldo mas um ponto antes regularizado permanece negativo
+- **THEN** retorna 409 CONFLITO_HISTORICO_QUANTITATIVO
+
 ### Requirement: Atomicidade e consistência concorrente
-COMPRA e VENDA MUST NOT realizar consulta externa no POST. Dentro da transação, lock pessimista da Carteira, confirmação das referências, geração de ordem, cálculo do total, leitura do histórico, replay integral e persistência SHALL formar uma escrita atômica. O lock SHALL serializar Operações concorrentes da mesma Carteira antes de `MAX(ordemNoDia)+1`. Requisições concorrentes MUST preservar ordens únicas e impedir qualquer prefixo do replay com posição negativa; a constraint única SHALL permanecer somente como última defesa.
+COMPRA e VENDA MUST NOT consultar providers no POST. Lock pessimista por carteira SHALL preceder confirmação de referências, geração de ordem, leitura financeira/custódia/estornos, replay antes/depois e persistência com flush. SHALL compartilhar proteção com registro/estorno de custódia, mantendo ordem consistente de locks e sem bloqueio global de carteiras. Escrita SHALL ser atômica, garantir ordem única e validar saldo consolidado, saldo local da nova venda, comparação diferencial e custódias ativas. MUST NOT validar candidatas por consulta pública em transação independente. Constraint cronológica SHALL ser última defesa; conflitos transitórios SHALL ser seguros, sem retry automático de escrita.
 
 #### Scenario: Operações concorrentes financeiramente válidas
 - **WHEN** duas Operações financeiramente válidas concorrem para a mesma Carteira, Ação e data sem consulta externa no cadastro
@@ -244,6 +280,10 @@ COMPRA e VENDA MUST NOT realizar consulta externa no POST. Dentro da transação
 #### Scenario: Falha durante a criação
 - **WHEN** geração de ordem, replay, integridade ou persistência falha
 - **THEN** nenhuma Operação parcial é persistida e registros relacionados permanecem inalterados
+
+#### Scenario: Venda e transferência concorrentes
+- **WHEN** requisições disputam saldo da mesma carteira
+- **THEN** a segunda valida histórico após a primeira confirmada, sem consumir saldo duplicado
 
 ### Requirement: Persistência relacional sem cascade delete
 A Operação SHALL possuir identificador próprio, referências obrigatórias a Carteira e Ação, referência anulável a Corretora e os demais campos do contrato. As referências MUST preservar integridade no banco e MUST NOT usar cascade delete. A capability MUST NOT criar coleção bidirecional obrigatória nos agregados existentes, tabela de posição, histórico de cotação, snapshot ou campos financeiros consolidados.
@@ -276,7 +316,7 @@ O sistema SHALL manter cotacao corrente, historico de cotacoes e preco da Operac
 - **THEN** o cadastro preserva as cotacoes e usa somente o preco manual na operacao
 
 ### Requirement: Compatibilidade das funcionalidades existentes
-A evolução SHALL preservar entidade, colunas NOT NULL, precisão, constraint cronológica, replay, posição atual, resultado realizado, consultas, snapshots e patrimônio existentes. SHALL aplicar a nova regra apenas a novos `POST /operacoes`, sem migration e sem modificar o changeSet histórico `004`. Operações existentes MUST NOT ter preços recalculados, ordens renumeradas nem consultas históricas retroativas.
+A evolução SHALL preservar entidade financeira, colunas NOT NULL, precisão, constraint cronológica, fórmulas, posição, realizado, consultas financeiras, snapshots e patrimônio. Novos POSTs SHALL receber a validação quantitativa ampliada, sem alterar dados legados, recalcular preços, renumerar ordens ou preencher corretoras. Custódia SHALL possuir schema aditivo separado; changeSet 004 MUST NOT ser editado. Enum financeiro SHALL permanecer COMPRA/VENDA. Diagnósticos da distribuição evoluem coordenadamente nesta change, sem contaminar schemas de OperacaoResponse/PosicaoResponse.
 
 #### Scenario: Regressão das APIs existentes
 - **WHEN** APIs de consulta, posição, resultado, patrimônio e snapshot são executadas após a evolução
@@ -284,11 +324,15 @@ A evolução SHALL preservar entidade, colunas NOT NULL, precisão, constraint c
 
 #### Scenario: Inicialização com Liquibase e Hibernate
 - **WHEN** Liquibase executa e Hibernate valida o schema
-- **THEN** a aplicação inicia sem novo changeSet para esta evolução
+- **THEN** a aplicação inicia com o changeSet aditivo de custódia e mapeamentos financeiros inalterados
 
 #### Scenario: Dados anteriores
 - **WHEN** existem Operações persistidas antes da evolução
 - **THEN** elas permanecem válidas e inalteradas
+
+#### Scenario: Enum financeiro preservado
+- **WHEN** request financeiro informa TRANSFERENCIA, ATRIBUICAO ou ESTORNO
+- **THEN** continua retornando 400 REQUEST_INVALIDO
 
 ### Requirement: Preço unitário conforme o tipo da Operação
 COMPRA e VENDA SHALL exigir precoUnitario informado pelo usuario, positivo e exatamente representavel em NUMERIC(19,6). POST MUST NOT consultar ou substituir preco por fechamento historico/cotacao atual. Total e replay SHALL permanecer conforme regras existentes. Endpoints historicos SHALL permanecer independentes.
