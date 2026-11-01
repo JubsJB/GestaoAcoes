@@ -1,3 +1,4 @@
+import { authenticatedModule } from '../../../../../test-support/authenticated-module';
 import { TestBed } from '@angular/core/testing';
 import { of, Subject, throwError } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -31,7 +32,7 @@ describe('PortfolioEvolutionComponent', () => {
   async function create(data: EvolucaoPatrimonialResponse = EMPTY) {
     if (!service.consultar.getMockImplementation()) service.consultar.mockReturnValue(of(data));
     else if (service.consultar.mock.results.length === 0) service.consultar.mockReturnValue(of(data));
-    await TestBed.configureTestingModule({ imports: [PortfolioEvolutionComponent], providers: [
+    await authenticatedModule({ imports: [PortfolioEvolutionComponent], providers: [
       { provide: EvolutionService, useValue: service }, { provide: SuccessToastService, useValue: toast }
     ] }).compileComponents();
     const fixture = TestBed.createComponent(PortfolioEvolutionComponent);

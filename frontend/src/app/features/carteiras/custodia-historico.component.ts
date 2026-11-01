@@ -1,3 +1,4 @@
+import { AdminOnlyDirective } from '../../core/auth/admin-only.directive';
 import { afterNextRender, ChangeDetectionStrategy, Component, DestroyRef, effect, ElementRef, inject, Injector, input, output, signal, untracked, viewChild } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
@@ -19,7 +20,7 @@ import { CustodiaEstornoDialogComponent } from './custodia-estorno-dialog.compon
 import { vinculoCustodia } from './custodia.contract';
 
 @Component({ selector: 'app-custodia-historico',
-  imports: [ReactiveFormsModule, MatButtonModule, MatFormFieldModule, MatSelectModule, FeedbackAlertComponent],
+  imports: [AdminOnlyDirective,ReactiveFormsModule, MatButtonModule, MatFormFieldModule, MatSelectModule, FeedbackAlertComponent],
   templateUrl: './custodia-historico.component.html',
   styleUrls: ['../../shared/collection/collection.scss', '../../shared/form/simple-form.scss'],
   styles: ['.filtros{display:flex;flex-wrap:wrap;gap:1rem;align-items:center}mat-form-field{flex:1 1 12rem}.posicao{overflow-wrap:anywhere}'],

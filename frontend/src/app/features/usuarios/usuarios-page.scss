@@ -1,0 +1,14 @@
+:host { display: block; }
+.table-scroll { overflow: auto; }
+.user-form { display: grid; gap: 1rem; max-width: 38rem; }
+section { display: grid; gap: var(--app-space-4); }
+form { display: grid; gap: var(--app-space-4); max-width: 38rem; }
+.actions { display: flex; flex-wrap: wrap; gap: var(--app-space-3); }
+dl { display: grid; grid-template-columns: minmax(5rem, auto) 1fr; gap: var(--app-space-2) var(--app-space-4); }
+dt { font-weight: 600; } dd { margin: 0; overflow-wrap: anywhere; }
+.user-data { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; margin-block: 1.5rem; }
+.user-data dt { font-weight: 600; }
+.user-data dd { margin: .25rem 0; overflow-wrap: anywhere; }
+.user-actions { display: flex; flex-wrap: wrap; gap: .75rem; margin-block: 1rem; }
+.admin-panel { padding: 1.5rem; margin-block: 1rem; }
+@media (max-width: 36rem) { .user-data { grid-template-columns: 1fr; } .admin-panel { padding: 1rem; } }

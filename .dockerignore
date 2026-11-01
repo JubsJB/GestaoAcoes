@@ -22,3 +22,15 @@ README.md
 **/.DS_Store
 **/*.tmp
 **/*.temp
+**/*.key
+**/*.pem
+**/*.p12
+**/*.pfx
+**/*.enc
+**/*.dump
+**/secrets
+**/backups
+frontend/node_modules
+frontend/dist
+frontend/coverage
+graphify-out

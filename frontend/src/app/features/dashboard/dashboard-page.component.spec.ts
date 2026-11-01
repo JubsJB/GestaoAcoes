@@ -1,3 +1,4 @@
+import { authenticatedModule } from '../../../../test-support/authenticated-module';
 import { convertToParamMap } from '@angular/router';
 import { TestBed } from '@angular/core/testing';
 import { ActivatedRoute, provideRouter, Router } from '@angular/router';
@@ -49,7 +50,7 @@ describe('DashboardPageComponent', () => {
       consultar: vi.fn().mockImplementation((id: number) => of({ carteiraId: id, pontos: [] })),
       registrarSnapshot: vi.fn()
     };
-    await TestBed.configureTestingModule({
+    await authenticatedModule({
       imports: [DashboardPageComponent],
       providers: [{ provide: CARTEIRA_STORAGE, useValue: null }, provideRouter([]), { provide: ActivatedRoute, useValue: { queryParamMap: query } }, { provide: CarteirasService, useValue: carteiras }, { provide: DashboardService, useValue: dashboard }, { provide: EvolutionService, useValue: evolution }, { provide: MatDialog, useValue: dialog }, { provide: SuccessToastService, useValue: { show: vi.fn() } }]
     }).compileComponents();
@@ -326,7 +327,7 @@ describe('DashboardPageComponent', () => {
 
   it('preserva quatro GETs por carga/reload e evolução independente sem POST automático', async () => {
     query.next(convertToParamMap({ carteiraId: '1' }));
-    await TestBed.configureTestingModule({
+    await authenticatedModule({
       imports: [DashboardPageComponent],
       providers: [{ provide: CARTEIRA_STORAGE, useValue: null }, provideRouter([]), provideApiConfig(), provideHttpClient(withInterceptors([httpErrorInterceptor])), provideHttpClientTesting(),
         { provide: ActivatedRoute, useValue: { queryParamMap: query } },
@@ -379,7 +380,7 @@ describe('DashboardPageComponent', () => {
 
   async function quotePage(id = '1') {
     query.next(convertToParamMap({ carteiraId: id }));
-    await TestBed.configureTestingModule({
+    await authenticatedModule({
       imports: [DashboardPageComponent],
       providers: [{ provide: CARTEIRA_STORAGE, useValue: null }, provideRouter([]), provideApiConfig(),
         provideHttpClient(withInterceptors([httpErrorInterceptor])), provideHttpClientTesting(),
@@ -799,7 +800,7 @@ describe('DashboardPageComponent', () => {
   it('integra HttpErrorResponse, interceptor, service e mensagem da UI', async () => {
     query.next(convertToParamMap({ carteiraId: '1' }));
     TestBed.resetTestingModule();
-    await TestBed.configureTestingModule({
+    await authenticatedModule({
       imports: [DashboardPageComponent],
       providers: [{ provide: CARTEIRA_STORAGE, useValue: null }, provideRouter([]), provideApiConfig(), provideHttpClient(withInterceptors([httpErrorInterceptor])), provideHttpClientTesting(),
         { provide: ActivatedRoute, useValue: { queryParamMap: query } },

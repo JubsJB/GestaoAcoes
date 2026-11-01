@@ -60,7 +60,8 @@ describe('CarteiraNavigationService', () => {
     expect(storage.setItem).not.toHaveBeenCalled();
     navigation.select(2); await harness.fixture.whenStable();
     expect(TestBed.inject(Router).url).toBe('/operacoes?extra=kept&carteiraId=2');
-    expect(storage.setItem).toHaveBeenLastCalledWith('gestaoacoes.carteira-ativa.v1', '2');
+    expect(storage.setItem).not.toHaveBeenCalled();
+    expect(TestBed.inject(CarteiraContextService).activeId()).toBe(2);
     navigation.select(2); await harness.fixture.whenStable();
     expect(TestBed.inject(Router).url).toBe('/operacoes?extra=kept&carteiraId=2');
     await harness.navigateByUrl('/operacoes?carteiraId=1');

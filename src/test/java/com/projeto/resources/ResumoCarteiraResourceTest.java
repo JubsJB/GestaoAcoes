@@ -13,8 +13,6 @@ import com.projeto.repositories.CorretoraRepository;
 import com.projeto.repositories.OperacaoRepository;
 import jakarta.persistence.EntityManagerFactory;
 import org.hamcrest.Matchers;
-import org.hibernate.SessionFactory;
-import org.hibernate.stat.Statistics;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -36,9 +34,11 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @SpringBootTest(classes = GestaoacoesApplication.class)
+@org.springframework.context.annotation.Import(com.projeto.autenticacao.FinanceiroAutenticadoFixture.class)
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
 class ResumoCarteiraResourceTest {
+    @Autowired com.projeto.autenticacao.FinanceiroAutenticadoFixture.SqlFinanceiro sqlFinanceiro;
 
     @Autowired
     private MockMvc mockMvc;
@@ -104,9 +104,8 @@ class ResumoCarteiraResourceTest {
         save(carteira, vale3, TipoOperacao.COMPRA, "10", "60", "2026-08-01", 1);
         save(carteira, aapl, TipoOperacao.COMPRA, "0.500000", "200", "2026-08-01", 1);
         long operations = operacaoRepository.count();
-        Statistics statistics = entityManagerFactory.unwrap(SessionFactory.class).getStatistics();
-        statistics.setStatisticsEnabled(true);
-        statistics.clear();
+        // Orçamento original do SQL financeiro; autenticação mantém sua consulta real no filtro.
+        sqlFinanceiro.limpar();
 
         mockMvc.perform(get("/carteiras/{id}/resumo", carteira.getId()))
                 .andExpect(status().isOk())
@@ -141,7 +140,7 @@ class ResumoCarteiraResourceTest {
                 )))
                 .andExpect(jsonPath("$.resumos[0].resultadoRealizado").doesNotExist());
 
-        assertEquals(2, statistics.getPrepareStatementCount());
+        assertEquals(2, sqlFinanceiro.quantidade());
         assertEquals(operations, operacaoRepository.count());
         assertEquals(new BigDecimal("35.500000"),
                 acaoRepository.findById(petr4.getId()).orElseThrow().getCotacaoAtual());

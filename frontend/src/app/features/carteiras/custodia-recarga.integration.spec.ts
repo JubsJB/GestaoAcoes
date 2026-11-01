@@ -1,3 +1,4 @@
+import { authenticatedModule } from '../../../../test-support/authenticated-module';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideHttpClient, withInterceptors } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
@@ -31,7 +32,7 @@ describe('custódia: POST confirmado e recargas independentes com dialogs reais'
   async function criar() {
     const params = new BehaviorSubject(convertToParamMap({ id: '1' }));
     const operacoes = { listarPorCarteira: vi.fn().mockReturnValue(of([])) };
-    await TestBed.configureTestingModule({ imports: [CarteiraDetailPageComponent], providers: [
+    await authenticatedModule({ imports: [CarteiraDetailPageComponent], providers: [
       provideHttpClient(withInterceptors([httpErrorInterceptor])), provideHttpClientTesting(), provideApiConfig('/test-api'), provideRouter([]),
       { provide: CARTEIRA_STORAGE, useValue: null }, { provide: ActivatedRoute, useValue: { paramMap: params } },
       { provide: CarteirasService, useValue: { buscarPorId: (id: number) => of({ ...carteira, id }), listar: () => of([carteira]) } },

@@ -1,3 +1,4 @@
+import { AdminOnlyDirective } from '../../../core/auth/admin-only.directive';
 import { ChangeDetectionStrategy, Component, DestroyRef, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
@@ -24,11 +25,11 @@ import { AcaoCreatePageComponent } from './acao-create-page.component';
 
 @Component({
   selector: 'app-acoes-list-page',
-  imports: [AppIconComponent, FeedbackAlertComponent, MatButtonModule, MatFormFieldModule, MatInputModule, MatProgressSpinnerModule, MatSelectModule, PageHeaderComponent, ReactiveFormsModule, RouterLink],
+  imports: [AdminOnlyDirective,AppIconComponent, FeedbackAlertComponent, MatButtonModule, MatFormFieldModule, MatInputModule, MatProgressSpinnerModule, MatSelectModule, PageHeaderComponent, ReactiveFormsModule, RouterLink],
   template: `
     <section class="app-page collection-page" aria-labelledby="acoes-title">
       <app-page-header headingId="acoes-title" eyebrow="Ativos" icon="stock" title="Ações" description="Consulte as ações e suas últimas cotações registradas.">
-        <button page-header-action mat-flat-button type="button" (click)="openCreateDialog()">Cadastrar nova ação</button>
+        <button *appAdmin page-header-action mat-flat-button type="button" (click)="openCreateDialog()">Cadastrar nova ação</button>
       </app-page-header>
       @if (loadError()) { <app-feedback-alert variant="error" [message]="loadError()!.message" [details]="loadError()!.details" /> }
       @else if (searchError()) { <app-feedback-alert variant="error" [message]="searchError()!.message" [details]="searchError()!.details" /> }
@@ -44,7 +45,7 @@ import { AcaoCreatePageComponent } from './acao-create-page.component';
       <div class="collection-region" data-scroll-region="records">
         @if(loading()){<div class="app-state" role="status" aria-live="polite"><mat-spinner diameter="36"/><span>Carregando ações…</span></div>}
         @else if(loadError()){<div class="app-state"><button mat-stroked-button type="button" (click)="load()">Tentar carregar ações novamente</button></div>}
-        @else if(acoes().length===0){<div class="app-state app-surface"><span class="app-state__icon" aria-hidden="true"><app-icon name="empty" /></span><h2>Você ainda não possui ações cadastradas.</h2><p>Adicione seu primeiro ativo para acompanhar seus dados de mercado.</p><button mat-stroked-button type="button" (click)="openCreateDialog()">Cadastrar a primeira ação</button></div>}
+        @else if(acoes().length===0){<div class="app-state app-surface"><span class="app-state__icon" aria-hidden="true"><app-icon name="empty" /></span><h2>Você ainda não possui ações cadastradas.</h2><p>Adicione seu primeiro ativo para acompanhar seus dados de mercado.</p><button *appAdmin mat-stroked-button type="button" (click)="openCreateDialog()">Cadastrar a primeira ação</button></div>}
         @else{
           <table class="collection-table" role="table"><caption>Ações cadastradas</caption><thead role="rowgroup"><tr role="row"><th scope="col" role="columnheader">Ativo</th><th scope="col" role="columnheader">Mercado · moeda</th><th scope="col" role="columnheader" class="numeric quote-column">Última cotação registrada</th><th scope="col" role="columnheader">Referência da cotação</th><th scope="col" role="columnheader">Ações</th></tr></thead><tbody role="rowgroup">@for(acao of acoes();track acao.id){<tr role="row"><th scope="row" role="rowheader"><span class="cell-label" aria-hidden="true">Ativo</span><strong class="asset-name">{{acao.ticker}}</strong><small>{{acao.nomeEmpresa}}</small></th><td role="cell"><span class="cell-label" aria-hidden="true">Mercado · moeda</span><span class="status-badge market-badge">{{market(acao.mercado)}} · {{acao.moeda}}</span></td><td role="cell" class="numeric"><span class="cell-label" aria-hidden="true">Última cotação registrada</span><strong class="primary-value">{{quote(acao.cotacaoAtual,acao.moeda)}}</strong></td><td role="cell"><span class="cell-label" aria-hidden="true">Referência da cotação</span>{{reference(acao.referenciaMercadoCotacao)}}</td><td role="cell" class="actions-cell"><span class="cell-label" aria-hidden="true">Ações</span><a class="details-link" [routerLink]="[acao.id]" [attr.aria-label]="'Ver detalhes de '+acao.ticker">Ver detalhes</a></td></tr>}</tbody></table>
         }

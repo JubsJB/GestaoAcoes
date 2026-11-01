@@ -22,6 +22,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @SpringBootTest(classes = GestaoacoesApplication.class)
+@org.springframework.context.annotation.Import(com.projeto.autenticacao.FinanceiroAutenticadoFixture.class)
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
 class OpenApiDocumentationTest {
@@ -55,7 +56,18 @@ class OpenApiDocumentationTest {
             Map.entry("/carteiras/{carteiraId}/evolucao-patrimonial", Set.of("get")),
             Map.entry("/operacoes", Set.of("get", "post")),
             Map.entry("/operacoes/previa-compra", Set.of("get")),
-            Map.entry("/operacoes/{id}", Set.of("get"))
+            Map.entry("/operacoes/{id}", Set.of("get")),
+            Map.entry("/auth/csrf", Set.of("get")),
+            Map.entry("/auth/login", Set.of("post")),
+            Map.entry("/auth/me", Set.of("get")),
+            Map.entry("/auth/logout", Set.of("post")),
+            Map.entry("/auth/atividade", Set.of("post")),
+            Map.entry("/usuarios", Set.of("get", "post")),
+            Map.entry("/usuarios/{id}/redefinicoes", Set.of("post")),
+            Map.entry("/auth/redefinicoes/confirmar", Set.of("post")),
+            Map.entry("/usuarios/{id}", Set.of("get")),
+            Map.entry("/usuarios/{id}/perfil", Set.of("patch")),
+            Map.entry("/usuarios/{id}/situacao", Set.of("patch"))
     );
 
     @Autowired
@@ -68,7 +80,7 @@ class OpenApiDocumentationTest {
                 .path("/carteiras/{carteiraId}/posicoes/distribuicao-corretoras").path("get");
         assertThat(operation.has("requestBody")).isFalse();
         assertThat(operation.path("responses").fieldNames()).toIterable()
-                .containsExactlyInAnyOrder("200", "400", "404", "409", "500");
+                .containsExactlyInAnyOrder("200", "400", "401", "403", "404", "409", "500", "503");
         assertThat(operation.at("/responses/200/content/application~1json/examples").size()).isEqualTo(5);
         JsonNode schemas = document.at("/components/schemas");
         for (String name : List.of("DistribuicaoCarteiraResponse", "PosicaoDistribuicaoResponse",
@@ -375,11 +387,149 @@ class OpenApiDocumentationTest {
     }
 
     @Test
-    void doesNotDeclareFictitiousSecurityVersioningOrSecrets() throws Exception {
+    void jwtCookieIsOnlyASecuritySchemeNotAManualParameter() throws Exception {
+        JsonNode document = openApiDocument();
+        for (String path : List.of("/auth/logout", "/auth/atividade")) {
+            JsonNode operation = document.path("paths").path(path).path("post");
+            java.util.List<String> names = new java.util.ArrayList<>();
+            operation.path("parameters").forEach(parameter -> names.add(parameter.path("name").asText()));
+            assertThat(names).containsExactly("X-XSRF-TOKEN");
+            assertThat(operation.at("/security/0/cookieAuth").isArray()).isTrue();
+        }
+    }
+
+    @Test
+    void securityErrorExamplesMatchHttpStatusAndPublicFlowsDoNotInventErrors() throws Exception {
+        JsonNode document = openApiDocument();
+        JsonNode financial = document.path("paths").path("/carteiras").path("get").path("responses");
+        for (String status : List.of("401", "403", "503")) {
+            JsonNode example = financial.path(status).at("/content/application~1json/example");
+            assertThat(example.path("status").asInt()).isEqualTo(Integer.parseInt(status));
+            assertThat(example.path("path").asText()).isEqualTo("/carteiras");
+        }
+        JsonNode login = document.at("/paths/~1auth~1login/post/responses");
+        assertThat(login.fieldNames()).toIterable().containsExactlyInAnyOrder("200", "400", "401", "403", "429", "503");
+        JsonNode reset = document.at("/paths/~1auth~1redefinicoes~1confirmar/post/responses");
+        assertThat(reset.fieldNames()).toIterable().containsExactlyInAnyOrder("204", "400", "403", "429", "503");
+        assertThat(reset.at("/429/content/application~1json/example/status").asInt()).isEqualTo(429);
+        assertThat(reset.at("/400/content/application~1json/example/code").asText()).isEqualTo("REDEFINICAO_INVALIDA");
+    }
+
+    @Test
+    void csrfHandshakeDoesNotInventClientSuppliedQueryToken() throws Exception {
+        JsonNode operation = openApiDocument().path("paths").path("/auth/csrf").path("get");
+        assertThat(operation.path("parameters")).isEmpty();
+        mockMvc.perform(get("/auth/csrf")).andExpect(status().isNoContent());
+    }
+
+    @Test
+    void describesCredentialTransportWithoutExposingSecretsInResponseDtos() throws Exception {
+        JsonNode document = openApiDocument();
+        for (String schema : List.of("LoginRequest", "ConfirmacaoRequest")) {
+            JsonNode password = document.path("components").path("schemas").path(schema).path("properties").path("senha");
+            assertThat(password.path("writeOnly").asBoolean()).isTrue();
+            assertThat(password.path("format").asText()).isEqualTo("password");
+            assertThat(password.path("description").asText()).contains("72 bytes UTF-8", "sem trim");
+        }
+        JsonNode confirmation = document.at("/components/schemas/ConfirmacaoRequest/properties");
+        assertThat(confirmation.path("codigo").path("writeOnly").asBoolean()).isTrue();
+        assertThat(confirmation.path("confirmacao").path("writeOnly").asBoolean()).isTrue();
+        assertThat(document.at("/components/schemas/Autorizacao/properties/codigo/readOnly").asBoolean()).isTrue();
+        assertThat(document.at("/components/schemas/Autorizacao/properties/codigo").has("example")).isFalse();
+        assertThat(document.at("/components/schemas/UsuarioResponse/properties").fieldNames()).toIterable()
+                .containsExactlyInAnyOrder("id", "username", "papel", "ativo", "credencialDefinida", "criadaEm", "atualizadaEm", "versao");
+        assertThat(document.at("/paths/~1auth~1login/post/responses/200/headers/Set-Cookie/description").asText())
+                .contains("GESTAOACOES_AUTH", "HttpOnly", "SameSite=Lax", "Path=/", "Secure");
+    }
+
+    @Test
+    void servesEquivalentSecurityContractsInRealJsonAndYaml() throws Exception {
+        JsonNode json = openApiDocument();
+        String yaml = mockMvc.perform(get("/v3/api-docs.yaml")).andExpect(status().isOk()).andReturn().getResponse().getContentAsString(java.nio.charset.StandardCharsets.UTF_8);
+        java.nio.file.Files.writeString(java.nio.file.Path.of("target/openapi-seguranca.yaml"), yaml);
+        JsonNode parsed = new ObjectMapper(new com.fasterxml.jackson.dataformat.yaml.YAMLFactory()).readTree(yaml);
+        assertThat(parsed.path("components").path("securitySchemes")).isEqualTo(json.path("components").path("securitySchemes"));
+        assertThat(parsed.path("paths")).isEqualTo(json.path("paths"));
+        assertThat(parsed.path("components").path("schemas")).isEqualTo(json.path("components").path("schemas"));
+    }
+
+    @Test
+    void documentsSecurityResponsesAndActualSuccessStatusesWithoutReplacingFinancialErrors() throws Exception {
+        JsonNode document = openApiDocument();
+        for (var path : EXPECTED_OPERATIONS.entrySet()) for (String method : path.getValue()) {
+            JsonNode operation = document.path("paths").path(path.getKey()).path(method);
+            if (!path.getKey().equals("/auth/csrf") && !path.getKey().equals("/auth/login") && !path.getKey().equals("/auth/redefinicoes/confirmar")) {
+                for (String status : List.of("401", "403", "503")) assertThat(operation.path("responses").has(status)).as(status + " " + method + " " + path.getKey()).isTrue();
+            }
+        }
+        for (String path : List.of("/auth/csrf", "/auth/logout", "/auth/redefinicoes/confirmar")) {
+            JsonNode responses = document.path("paths").path(path).path(path.endsWith("csrf") ? "get" : "post").path("responses");
+            assertThat(responses.has("204")).isTrue(); assertThat(responses.has("200")).isFalse();
+            assertThat(responses.path("204").has("content")).isFalse();
+        }
+        JsonNode creation = document.path("paths").path("/usuarios").path("post").path("responses");
+        assertThat(creation.has("201")).isTrue(); assertThat(creation.has("200")).isFalse();
+        assertThat(creation.at("/201/headers/Location/schema/type").asText()).isEqualTo("string");
+        for (String path : List.of("/auth/login", "/auth/redefinicoes/confirmar")) {
+            JsonNode responses = document.path("paths").path(path).path("post").path("responses");
+            for (String status : List.of("400", "403", "429", "503")) assertThat(responses.has(status)).isTrue();
+            assertThat(responses.at("/429/headers/Retry-After/schema/type").asText()).isEqualTo("integer");
+        }
+        assertThat(document.at("/paths/~1usuarios~1{id}~1perfil/patch/responses/409/description").asText()).contains("ULTIMO_ADMIN_ATIVO", "VERSAO_USUARIO_OBSOLETA");
+    }
+
+    @Test
+    void requiresCsrfHeaderOnAllMutationsIncludingPublicLoginAndReset() throws Exception {
+        JsonNode document = openApiDocument();
+        for (var path : EXPECTED_OPERATIONS.entrySet()) {
+            for (String method : path.getValue()) {
+                JsonNode operation = document.path("paths").path(path.getKey()).path(method);
+                java.util.List<JsonNode> headers = new java.util.ArrayList<>();
+                operation.path("parameters").forEach(parameter -> { if (parameter.path("name").asText().equals("X-XSRF-TOKEN")) headers.add(parameter); });
+                if (method.equals("get")) assertThat(headers).isEmpty();
+                else {
+                    assertThat(headers).as(method + " " + path.getKey()).hasSize(1);
+                    assertThat(headers.get(0).path("in").asText()).isEqualTo("header");
+                    assertThat(headers.get(0).path("required").asBoolean()).isTrue();
+                    assertThat(headers.get(0).path("description").asText()).contains("/auth/csrf", "XSRF-TOKEN", "403");
+                }
+            }
+        }
+    }
+
+    @Test
+    void documentsAuthenticationAndRolesForEveryRealOperation() throws Exception {
+        JsonNode document = openApiDocument();
+        for (var path : EXPECTED_OPERATIONS.entrySet()) {
+            for (String method : path.getValue()) {
+                JsonNode operation = document.path("paths").path(path.getKey()).path(method);
+                boolean publicOperation = path.getKey().equals("/auth/csrf")
+                        || path.getKey().equals("/auth/login") || path.getKey().equals("/auth/redefinicoes/confirmar");
+                assertThat(operation.path("security").isArray()).as(method + " " + path.getKey()).isTrue();
+                if (publicOperation) {
+                    assertThat(operation.path("security")).isEmpty();
+                } else {
+                    assertThat(operation.path("security").size()).isEqualTo(1);
+                    assertThat(operation.at("/security/0/cookieAuth").isArray()).isTrue();
+                    boolean adminOnly = path.getKey().startsWith("/usuarios") || (!method.equals("get") && !path.getKey().startsWith("/auth/"));
+                    java.util.List<String> roles = new java.util.ArrayList<>();
+                    operation.path("x-roles").forEach(role -> roles.add(role.asText()));
+                    assertThat(roles).containsExactlyElementsOf(adminOnly ? List.of("ADMIN") : List.of("ADMIN", "USER"));
+                }
+            }
+        }
+    }
+
+    @Test
+    void declaresOnlyImplementedCookieSecurityWithoutVersioningOrSecrets() throws Exception {
         JsonNode document = openApiDocument();
         String serialized = objectMapper.writeValueAsString(document).toLowerCase();
 
-        assertThat(document.at("/components/securitySchemes").isMissingNode()).isTrue();
+        JsonNode schemes = document.at("/components/securitySchemes");
+        assertThat(schemes.fieldNames()).toIterable().containsExactly("cookieAuth");
+        assertThat(schemes.at("/cookieAuth/type").asText()).isEqualTo("apiKey");
+        assertThat(schemes.at("/cookieAuth/in").asText()).isEqualTo("cookie");
+        assertThat(schemes.at("/cookieAuth/name").asText()).isEqualTo("GESTAOACOES_AUTH");
         assertThat(document.path("security").isMissingNode()).isTrue();
         assertThat(document.path("paths").fieldNames()).toIterable().noneMatch(path -> path.startsWith("/v1"));
         assertThat(serialized)
@@ -396,6 +546,19 @@ class OpenApiDocumentationTest {
         mockMvc.perform(get("/v3/api-docs.yaml"))
                 .andExpect(status().isOk())
                 .andExpect(content().string(org.hamcrest.Matchers.containsString("openapi:")));
+    }
+
+    @Test
+    void swaggerInitializerUsesRealCsrfCookieWithoutCredentialStorage() throws Exception {
+        String json = mockMvc.perform(get("/v3/api-docs/swagger-config")).andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        java.nio.file.Files.writeString(java.nio.file.Path.of("target/swagger-config-fechamento.json"), json);
+        String initializer = mockMvc.perform(get("/swagger-ui/swagger-initializer.js")).andExpect(status().isOk()).andReturn().getResponse().getContentAsString(java.nio.charset.StandardCharsets.UTF_8);
+        java.nio.file.Files.writeString(java.nio.file.Path.of("target/swagger-initializer-fechamento.js"), initializer);
+        JsonNode config = objectMapper.readTree(json);
+        // springdoc 3.1.0 aplica CSRF no JS servido; não publica um objeto csrf no swagger-config.
+        assertThat(initializer).contains("requestInterceptor", "XSRF-TOKEN", "X-XSRF-TOKEN", "document.cookie", "isSameOrigin");
+        assertThat(initializer).doesNotContain("localStorage.getItem", "sessionStorage.getItem", "GESTAOACOES_AUTH");
+        assertThat(config.path("persistAuthorization").asBoolean()).isFalse();
     }
 
     @Test
@@ -423,7 +586,7 @@ class OpenApiDocumentationTest {
         JsonNode document = openApiDocument();
         JsonNode operation = document.path("paths").path("/carteiras/{carteiraId}/atualizacoes-cotacoes").path("post");
         assertThat(operation.has("requestBody")).isFalse();
-        assertThat(operation.path("parameters").size()).isEqualTo(1);
+        assertThat(operation.path("parameters").size()).isEqualTo(2);
         JsonNode parameter = operation.path("parameters").get(0);
         assertThat(parameter.path("name").asText()).isEqualTo("carteiraId");
         assertThat(parameter.path("in").asText()).isEqualTo("path");
@@ -432,7 +595,7 @@ class OpenApiDocumentationTest {
         assertThat(parameter.at("/schema/format").asText()).isEqualTo("int64");
         assertThat(operation.path("description").asText()).contains("{}", "400 REQUEST_INVALIDO", "sucesso parcial", "COOLDOWN_SUCESSO", "outra instância");
         assertThat(operation.path("responses").fieldNames()).toIterable()
-                .containsExactlyInAnyOrder("200", "400", "404", "409", "422", "500");
+                .containsExactlyInAnyOrder("200", "400", "401", "403", "404", "409", "422", "500", "503");
         assertThat(operation.at("/responses/200/content/application~1json/schema/$ref").asText())
                 .isEqualTo("#/components/schemas/AtualizacaoCotacoesCarteiraResponse");
         for (String code : List.of("400", "404", "409", "422", "500")) {

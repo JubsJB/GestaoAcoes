@@ -26,12 +26,14 @@ describe('CarteiraContextService', () => {
     expect(context.active()).toEqual(A); expect(storage.setItem).not.toHaveBeenCalled();
     context.initialize().subscribe(); expect(service.listar).toHaveBeenCalledTimes(1);
   });
-  it('restores valid preference, then memory wins, while explicit URL wins over both', () => {
+  it('ignores legacy preference, keeps session memory and honors explicit URL', () => {
     storage.getItem.mockReturnValue('2'); context.initialize().subscribe();
-    expect(context.activeId()).toBe(2);
+    expect(context.activeId()).toBe(1);
     context.select(1); context.resolveUrl(null); expect(context.activeId()).toBe(1);
     context.resolveUrl('2'); expect(context.activeId()).toBe(2);
-    expect(storage.setItem).toHaveBeenLastCalledWith(CARTEIRA_STORAGE_KEY, '2');
+    expect(storage.getItem).not.toHaveBeenCalled();
+    expect(storage.setItem).not.toHaveBeenCalled();
+    expect(storage.removeItem).toHaveBeenCalledWith(CARTEIRA_STORAGE_KEY);
   });
   it.each(['99', '{broken', '', '0', '-1', '9007199254740992'])('ignores invalid preference %s', value => {
     storage.getItem.mockReturnValue(value); context.initialize().subscribe();

@@ -1,3 +1,4 @@
+import { AdminOnlyDirective } from '../../core/auth/admin-only.directive';
 import { ChangeDetectionStrategy, Component, computed, DestroyRef, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { MatButtonModule } from '@angular/material/button';
@@ -30,7 +31,7 @@ type TentativaAtualizacaoCotacoes =
 
 @Component({
   selector: 'app-dashboard-page',
-  imports: [PositionAnalysisComponent, AppIconComponent, FeedbackAlertComponent, MatButtonModule, MatCardModule, MatProgressSpinnerModule, PageHeaderComponent, PortfolioEvolutionComponent, RouterLink],
+  imports: [AdminOnlyDirective,PositionAnalysisComponent, AppIconComponent, FeedbackAlertComponent, MatButtonModule, MatCardModule, MatProgressSpinnerModule, PageHeaderComponent, PortfolioEvolutionComponent, RouterLink],
   templateUrl: './dashboard-page.component.html',
   styleUrl: './dashboard-page.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush

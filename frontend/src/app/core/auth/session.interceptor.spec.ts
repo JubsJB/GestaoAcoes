@@ -1,0 +1,108 @@
+import { HttpClient, provideHttpClient, withInterceptors } from '@angular/common/http';
+import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
+import { TestBed } from '@angular/core/testing';
+import { firstValueFrom, toArray } from 'rxjs';
+import { provideApiConfig } from '../config/api.config';
+import { SessionService } from './session.service';
+import { sessionInterceptor } from './session.interceptor';
+
+describe('HTTP e geração de sessão', () => {
+  it('503 de segurança bloqueia a sessão sem interpretar como credencial incorreta', async () => {
+    TestBed.configureTestingModule({ providers: [provideHttpClient(withInterceptors([sessionInterceptor])), provideHttpClientTesting(), provideApiConfig()] });
+    const http = TestBed.inject(HttpTestingController);
+    const session = TestBed.inject(SessionService);
+    const restored = firstValueFrom(session.restore());
+    http.expectOne('/api/auth/me').flush({ id: 7, username: 'a', papel: 'ADMIN' }); http.expectOne('/api/auth/csrf').flush(null); await restored;
+    const response = firstValueFrom(TestBed.inject(HttpClient).get('/api/carteiras'));
+    const rejection = expect(response).rejects.toMatchObject({ status: 503 });
+    http.expectOne('/api/carteiras').flush({ code: 'SEGURANCA_INDISPONIVEL' }, { status: 503, statusText: 'Unavailable' });
+    await rejection;
+    expect(session.status()).toBe('unavailable');
+    expect(session.authenticated()).toBe(false);
+    http.verify();
+  });
+  it('cancela GET financeiro em voo ao encerrar a geração', () => {
+    TestBed.configureTestingModule({ providers: [provideHttpClient(withInterceptors([sessionInterceptor])), provideHttpClientTesting(), provideApiConfig()] });
+    const http = TestBed.inject(HttpTestingController);
+    let completed = false;
+    TestBed.inject(HttpClient).get('/api/carteiras').subscribe({ complete: () => { completed = true; } });
+    const request = http.expectOne('/api/carteiras');
+    TestBed.inject(SessionService).end();
+    expect(request.cancelled).toBe(true);
+    expect(completed).toBe(true);
+    http.verify();
+  });
+  it('mudança de identidade detectada por /me invalida respostas da identidade anterior', async () => {
+    TestBed.configureTestingModule({ providers: [provideHttpClient(withInterceptors([sessionInterceptor])), provideHttpClientTesting(), provideApiConfig()] });
+    const http = TestBed.inject(HttpTestingController);
+    const session = TestBed.inject(SessionService);
+    const a = firstValueFrom(session.restore());
+    http.expectOne('/api/auth/me').flush({ id: 7, username: 'a', papel: 'ADMIN' }); http.expectOne('/api/auth/csrf').flush(null); await a;
+    const old = firstValueFrom(TestBed.inject(HttpClient).post('/api/carteiras', { nome: 'Anterior' }).pipe(toArray()));
+    const request = http.expectOne('/api/carteiras');
+    const b = firstValueFrom(session.restore());
+    http.expectOne('/api/auth/me').flush({ id: 9, username: 'b', papel: 'USER' }); http.expectOne('/api/auth/csrf').flush(null);
+    expect(await b).toBe(true);
+    request.flush([{ id: 1, nome: 'Anterior' }]);
+    expect(await old).toEqual([]);
+    expect(session.identity()?.id).toBe(9);
+    http.verify();
+  });
+  it('CSRF inválido obtém novo token sem repetir escrita nem encerrar a identidade', async () => {
+    TestBed.configureTestingModule({ providers: [provideHttpClient(withInterceptors([sessionInterceptor])), provideHttpClientTesting(), provideApiConfig()] });
+    const http = TestBed.inject(HttpTestingController);
+    const session = TestBed.inject(SessionService);
+    const restore = firstValueFrom(session.restore());
+    http.expectOne('/api/auth/me').flush({ id: 7, username: 'atual', papel: 'ADMIN' }); http.expectOne('/api/auth/csrf').flush(null);
+    await restore;
+    const result = firstValueFrom(TestBed.inject(HttpClient).post('/api/carteiras', { nome: 'A' }));
+    const rejection = expect(result).rejects.toMatchObject({ status: 403 });
+    http.expectOne('/api/carteiras').flush({ code: 'CSRF_INVALIDO' }, { status: 403, statusText: 'Forbidden' });
+    await rejection;
+    http.expectOne('/api/auth/csrf').flush(null);
+    expect(session.authenticated()).toBe(true);
+    http.verify();
+  });
+  it('401 corrente encerra a sessão sem repetir o comando financeiro', async () => {
+    TestBed.configureTestingModule({ providers: [provideHttpClient(withInterceptors([sessionInterceptor])), provideHttpClientTesting(), provideApiConfig()] });
+    const http = TestBed.inject(HttpTestingController);
+    const session = TestBed.inject(SessionService);
+    const restore = firstValueFrom(session.restore());
+    http.expectOne('/api/auth/me').flush({ id: 7, username: 'atual', papel: 'ADMIN' }); http.expectOne('/api/auth/csrf').flush(null);
+    await restore;
+    const result = firstValueFrom(TestBed.inject(HttpClient).post('/api/carteiras', { nome: 'A' }));
+    const rejection = expect(result).rejects.toMatchObject({ status: 401 });
+    http.expectOne('/api/carteiras').flush({}, { status: 401, statusText: 'Unauthorized' });
+    await rejection;
+    expect(session.status()).toBe('anonymous');
+    expect(session.identity()).toBeNull();
+    http.verify();
+  });
+  it('descarta 401 antigo e preserva o estado de uma nova geração', async () => {
+    TestBed.configureTestingModule({ providers: [provideHttpClient(withInterceptors([sessionInterceptor])), provideHttpClientTesting(), provideApiConfig()] });
+    const http = TestBed.inject(HttpTestingController);
+    const result = firstValueFrom(TestBed.inject(HttpClient).post('/api/carteiras', { nome: 'Anterior' }).pipe(toArray()));
+    const request = http.expectOne('/api/carteiras');
+    const session = TestBed.inject(SessionService);
+    session.end();
+    const restored = firstValueFrom(session.restore());
+    http.expectOne('/api/auth/me').flush({ id: 9, username: 'nova', papel: 'ADMIN' }); http.expectOne('/api/auth/csrf').flush(null);
+    await restored;
+    request.flush({}, { status: 401, statusText: 'Unauthorized' });
+    expect(await result).toEqual([]);
+    expect(session.identity()?.id).toBe(9);
+    expect(session.authenticated()).toBe(true);
+    http.verify();
+  });
+  it('não entrega resposta financeira da geração encerrada e não altera parser textual', async () => {
+    TestBed.configureTestingModule({ providers: [provideHttpClient(withInterceptors([sessionInterceptor])), provideHttpClientTesting(), provideApiConfig()] });
+    const http = TestBed.inject(HttpTestingController);
+    const client = TestBed.inject(HttpClient);
+    const result = firstValueFrom(client.post('/api/carteiras/1/snapshots', null, { responseType: 'text' }).pipe(toArray()));
+    const request = http.expectOne('/api/carteiras/1/snapshots');
+    TestBed.inject(SessionService).end();
+    request.flush('[{"quantidade":9007199254740993.000001}]');
+    expect(await result).toEqual([]);
+    http.verify();
+  });
+});

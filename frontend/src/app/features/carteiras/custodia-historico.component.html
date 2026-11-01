@@ -28,7 +28,7 @@
           <td role="cell"><span class="cell-label">Datas</span>Efetiva: <time [attr.datetime]="r.dataEfetiva">{{dataCivil(r.dataEfetiva)}}</time><small>Registro: {{instante(r.dataRegistro)}}</small><time [attr.datetime]="r.dataRegistro">{{r.dataRegistro}}</time></td>
           <td role="cell" class="posicao"><span class="cell-label">Posição cronológica</span>Âncora {{r.posicaoCronologica.ordemFinanceiraAncora}} · {{r.posicaoCronologica.numerador}}/{{r.posicaoCronologica.denominador}}</td>
           <td role="cell"><span class="cell-label">Auditoria / vínculo</span>Movimentação #{{originalId(r)}}@if(r.estornoId !== null){<small>Estorno #{{r.estornoId}}</small>}@if(r.tipoRegistro === 'ESTORNO'){<small>{{r.motivo === null ? 'Sem motivo informado' : r.motivo}}</small>}</td>
-          <td role="cell">@if(podeEstornar(r)){<button mat-stroked-button type="button" [attr.data-estornar]="r.id" [attr.aria-label]="'Estornar movimentação de custódia '+r.id+' '+r.ticker" (click)="confirmarEstorno(r)">Estornar</button>}</td>
+          <td role="cell">@if(podeEstornar(r)){<button *appAdmin mat-stroked-button type="button" [attr.data-estornar]="r.id" [attr.aria-label]="'Estornar movimentação de custódia '+r.id+' '+r.ticker" (click)="confirmarEstorno(r)">Estornar</button>}</td>
         </tr>
       }</tbody>
     </table>

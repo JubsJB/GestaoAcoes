@@ -140,15 +140,14 @@ Deverá contemplar:
 - integração com serviços externos;
 - interface Angular responsiva.
 
+Extensão explicitamente autorizada pela change adicionar-autenticacao-e-gestao-de-usuarios: autenticação, administração de usuários e autorização ADMIN/USER foram implementadas e aprovadas tecnicamente em ambiente local em 31/10/2026. Carteiras e dados financeiros são compartilhados, sem proprietário. USER consulta; ADMIN consulta e executa comandos existentes. As regras financeiras deste PRD permanecem preservadas. Integração HTTPS/runtime homologada localmente em 01/11/2026, exclusivamente em recursos descartáveis, aguardando revisão conforme operacional-https.md. A homologação PostgreSQL 10.4 foi aprovada tecnicamente. Não declarar produção pronta. Detalhes no [guia operacional de autenticação](AUTENTICACAO.md) e nos relatórios da change.
+
 ---
 
 ## 7. Fora do Escopo Inicial
 
 Não fazem parte obrigatoriamente do MVP:
 
-- autenticação;
-- gerenciamento de usuários;
-- autorização por perfil;
 - fundos imobiliários;
 - ETFs;
 - renda fixa;
@@ -1349,15 +1348,11 @@ Poderão ser implementados:
 
 ### 27.1 Usuários e autenticação
 
-Em uma versão posterior:
+A change adicionar-autenticacao-e-gestao-de-usuarios estendeu o escopo original com Spring Security, login por username/senha BCrypt, JWT somente em cookie HttpOnly, CSRF, sessões persistidas/revogáveis, administração e definição/redefinição de senha por código. Backend e Angular foram aprovados localmente; o guia [AUTENTICACAO.md](AUTENTICACAO.md) consolida contratos, matriz de permissões, bootstrap seguro e limites. HTTPS/runtime foi homologado localmente em recursos descartáveis, aguardando revisão conforme operacional-https.md; PostgreSQL 10.4 foi aprovado tecnicamente. Não há declaração de prontidão de produção. Consulte [OPERACIONAL-HTTPS.md](OPERACIONAL-HTTPS.md).
 
-- cadastro de usuários;
-- login;
-- Spring Security;
-- autenticação;
-- autorização;
-- associação das carteiras ao usuário;
-- múltiplas carteiras por usuário.
+ADMIN pode cadastrar sem escolher a senha do titular, consultar, alterar perfil, bloquear/habilitar e emitir código. USER só consulta dados financeiros compartilhados. Último ADMIN operacional é preservado sob concorrência. Código é de uso único, expira em quinze minutos e só é exibido na emissão; consumo exige senha/confirmacao, invalida sessões antigas e não autentica automaticamente. Sessões expiram na igualdade de dez minutos sem atividade real ou quatro horas absolutas; leituras/polling não renovam. Revogação vale para novas decisões após commit, sem cancelar automaticamente operações já autorizadas.
+
+Associação de carteiras a proprietários e isolamento por usuário continuam **evoluções futuras**, dependentes de nova especificação/aprovação. Não interpretar o login atual como isolamento patrimonial nem modificar regras financeiras para antecipá-lo.
 
 ### 27.2 Outros investimentos
 

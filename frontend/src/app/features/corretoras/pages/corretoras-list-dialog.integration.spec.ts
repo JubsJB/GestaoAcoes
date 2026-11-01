@@ -1,3 +1,4 @@
+import { authenticatedModule } from '../../../../../test-support/authenticated-module';
 import { OverlayContainer } from '@angular/cdk/overlay';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { MatDialog } from '@angular/material/dialog';
@@ -19,7 +20,7 @@ describe('CorretorasListPageComponent com MatDialog real', () => {
       cadastrar: vi.fn(),
       buscarPorCnpj: vi.fn().mockReturnValue(throwError(() => ({ status: 404, code: null, message: 'Ausente', details: {} } as unknown as NormalizedHttpError)))
     };
-    await TestBed.configureTestingModule({ imports: [CorretorasListPageComponent], providers: [provideRouter([]), { provide: CorretorasService, useValue: service }] }).compileComponents();
+    await authenticatedModule({ imports: [CorretorasListPageComponent], providers: [provideRouter([]), { provide: CorretorasService, useValue: service }] }).compileComponents();
     overlay = TestBed.inject(OverlayContainer);
     vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
     fixture = TestBed.createComponent(CorretorasListPageComponent);

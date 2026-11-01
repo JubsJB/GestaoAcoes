@@ -48,6 +48,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @SpringBootTest(classes = GestaoacoesApplication.class)
+@org.springframework.context.annotation.Import(com.projeto.autenticacao.FinanceiroAutenticadoFixture.class)
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
 class OperacaoResourceTest {
@@ -450,7 +451,7 @@ class OperacaoResourceTest {
     @Test
     void doesNotExposeOperationDeletion() throws Exception {
         mockMvc.perform(delete("/operacoes/{id}", 1L))
-                .andExpect(status().isMethodNotAllowed());
+                .andExpect(status().isForbidden());
     }
 
     private void assertInvalidContract(String content) throws Exception {

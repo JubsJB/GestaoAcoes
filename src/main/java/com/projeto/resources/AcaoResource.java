@@ -44,6 +44,8 @@ public class AcaoResource {
         this.service = service;
     }
 
+    // D6: escrita financeira somente ADMIN, antes do serviço/transação de negócio.
+    @org.springframework.security.access.prepost.PreAuthorize("hasRole('ADMIN')")
     @PostMapping
     @Operation(summary = "Cadastrar ação", description = "Consulta o provider correspondente ao mercado e persiste a ação e sua cotação inicial.")
     @ApiResponses({
@@ -98,6 +100,8 @@ public class AcaoResource {
         return ResponseEntity.ok(service.buscarPorTickerEMercado(ticker, mercado));
     }
 
+    // D6: escrita financeira somente ADMIN, antes do serviço/transação de negócio.
+    @org.springframework.security.access.prepost.PreAuthorize("hasRole('ADMIN')")
     @PatchMapping("/{id}/cotacao")
     @Operation(summary = "Atualizar cotação da ação", description = "Processa atualização manual sem corpo, retornando AcaoResponse com referência de mercado e obtenção separadas. Estabelece baseline confiável sobre DESCONHECIDA ou aceita referência posterior do mesmo tipo, inclusive com preço igual. DATA e INSTANTE são incomparáveis. Referência anterior preserva a observação; mesma referência/preço pode avançar somente a obtenção em nova consulta válida. Sucesso HTTP não garante nova cotação nem nova consulta externa. O snapshot retornado pode representar uma tentativa concluída anterior, sem garantir o estado persistido mais recente.")
     @ApiResponses({

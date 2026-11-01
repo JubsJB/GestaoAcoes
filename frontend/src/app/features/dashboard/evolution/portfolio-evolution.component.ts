@@ -1,3 +1,4 @@
+import { AdminOnlyDirective } from '../../../core/auth/admin-only.directive';
 import { ChangeDetectionStrategy, Component, DestroyRef, computed, effect, inject, input, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { MatButtonModule } from '@angular/material/button';
@@ -17,7 +18,7 @@ interface PointSelection { currency: Currency; point: EvolutionGeometryPoint }
 
 @Component({
   selector: 'app-portfolio-evolution',
-  imports: [AxisLabelsDirective, FeedbackAlertComponent, MatButtonModule, MatProgressSpinnerModule],
+  imports: [AdminOnlyDirective,AxisLabelsDirective, FeedbackAlertComponent, MatButtonModule, MatProgressSpinnerModule],
   templateUrl: './portfolio-evolution.component.html',
   styleUrl: './portfolio-evolution.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush

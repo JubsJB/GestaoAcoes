@@ -1,3 +1,7 @@
+@if (session.authenticated() && !boundary.changing()) {
+@if (coordinator.masked()) { <p class="main-content" role="status">Verificando a sessão antes de liberar o conteúdo…</p> }
+@for (generation of [session.generationState()]; track generation) {
+<div class="session-content" [hidden]="coordinator.masked()" [inert]="coordinator.masked()">
 <a class="skip-link" href="#main-content" (click)="focusMainContent()">Pular para o conteúdo</a>
 
 <mat-toolbar class="app-toolbar">
@@ -21,6 +25,10 @@
       <span class="app-brand__copy"><strong>Gestão de Ações</strong><small>Investimentos com clareza</small></span>
     </span>
     <app-carteira-selector />
+    @if (session.identity(); as identity) {
+      <span aria-label="Usuário autenticado">{{ identity.username }} · {{ identity.papel }}</span>
+      <button mat-button type="button" data-testid="logout" [disabled]="signingOut()" (click)="logout()">Sair</button>
+    }
   </div>
 </mat-toolbar>
 
@@ -53,7 +61,7 @@
     }
     <nav aria-label="Navegação principal">
       <mat-nav-list>
-        @for (item of navigationItems; track item.route) {
+        @for (item of navigationItems(); track item.route) {
           <a
             mat-list-item
             [routerLink]="item.route"
@@ -74,8 +82,15 @@
   <mat-sidenav-content class="workspace">
     <main #mainContent id="main-content" class="main-content" tabindex="-1">
       <div class="main-content__container">
+        @if (returns.notice()) { <p role="status">{{ returns.notice() }}</p> }
         <router-outlet />
       </div>
     </main>
   </mat-sidenav-content>
 </mat-sidenav-container>
+</div>
+
+}
+} @else {
+<section class="main-content" aria-labelledby="session-check-title"><h1 id="session-check-title">Verificação de sessão</h1><p role="status">Não foi possível confirmar sua sessão. O conteúdo está bloqueado.</p><button mat-stroked-button type="button" (click)="retrySession()">Verificar sessão</button><a mat-button routerLink="/login">Entrar</a></section>
+}

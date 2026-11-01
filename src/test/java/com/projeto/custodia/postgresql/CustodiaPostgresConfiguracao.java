@@ -25,6 +25,9 @@ public final class CustodiaPostgresConfiguracao {
             var vendor = new HibernateJpaVendorAdapter(); vendor.setDatabase(Database.POSTGRESQL); vendor.setGenerateDdl(false);
             var factory = new LocalContainerEntityManagerFactoryBean(); factory.setDataSource(ds);
             factory.setPackagesToScan("com.projeto.entities"); factory.setJpaVendorAdapter(vendor);
+            // Validador histórico utilizado pela homologação de 001–008.
+            factory.setPersistenceUnitPostProcessors(unit -> unit.getManagedClassNames()
+                    .removeIf(name -> name.startsWith("com.projeto.entities.autenticacao.")));
             factory.setJpaPropertyMap(Map.of("hibernate.hbm2ddl.auto", "validate"));
             return factory;
         }

@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "Gestão de Ações — MVP",
-    "description": "Coleção documental do MVP: 30 operações de negócio distintas, organizadas por domínio, mais exemplos alternativos/negativos e documentação técnica. Importe no Postman e execute manualmente em banco de testes com dados descartáveis. Não é uma sequência idempotente: POSTs criam dados e DELETE exclui a carteira descartável. Defina cnpj real e dataOperacao apropriada; execute criação de carteira/ação antes das operações. IDs são capturados somente após sucesso, ou podem ser preenchidos com registros existentes. Não há autenticação da aplicação; chaves de providers ficam exclusivamente no backend. Exemplos de preços/quantidades são ilustrativos, não cotações. Cada request testa o status esperado; erros de provider fazem o teste de sucesso falhar. Ver README raiz para configuração e limitações. Custódia acrescenta quatro operações distintas em sete exemplos de request, com variantes de natureza/corpo; IDs de original e estorno são separados. Os exemplos de custódia devem usar massa descartável, conforme README; não são uma sequência automática nem uma autorização de uso do banco de desenvolvimento.",
+    "description": "API com JWT exclusivamente em cookie HttpOnly e proteção CSRF. Execute somente a pasta Autenticação e usuários em ambiente descartável com cookie jar novo, ambienteDescartavel=CONFIRMO e credenciais temporárias fornecidas em memória. Não executar a coleção inteira como sequência: exemplos financeiros/provedores permanecem independentes e exigem novo login ADMIN após o fluxo, que termina em logout. Não salvar/exportar respostas, ambientes com valores ou cookie jar. HTTPS/produção e PostgreSQL 009 continuam pendentes. Coleção documental do MVP: 30 operações de negócio distintas, organizadas por domínio, mais exemplos alternativos/negativos e documentação técnica. Importe no Postman e execute manualmente em banco de testes com dados descartáveis. Não é uma sequência idempotente: POSTs criam dados e DELETE exclui a carteira descartável. Defina cnpj real e dataOperacao apropriada; execute criação de carteira/ação antes das operações. IDs são capturados somente após sucesso, ou podem ser preenchidos com registros existentes. chaves de providers ficam exclusivamente no backend. Exemplos de preços/quantidades são ilustrativos, não cotações. Cada request testa o status esperado; erros de provider fazem o teste de sucesso falhar. Ver README raiz para configuração e limitações. Custódia acrescenta quatro operações distintas em sete exemplos de request, com variantes de natureza/corpo; IDs de original e estorno são separados. Os exemplos de custódia devem usar massa descartável, conforme README; não são uma sequência automática nem uma autorização de uso do banco de desenvolvimento.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "auth": {
@@ -132,9 +132,900 @@
       "key": "motivoEstorno",
       "value": "Correção de custódia",
       "type": "string"
+    },
+    {
+      "key": "ambienteDescartavel",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "usernameAdmin",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "senhaAdmin",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "usernameNovo",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "senhaInicial",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "senhaNova",
+      "value": "",
+      "type": "string"
     }
   ],
   "item": [
+    {
+      "name": "Autenticação e usuários — ambiente isolado",
+      "description": "Executar esta pasta inteira, em sequência, com jar novo. usernameAdmin/senhaAdmin, senhaInicial/senhaNova e ambienteDescartavel fornecidos somente localmente/runtime; valores exportados vazios. Código trafega apenas em pm.variables temporário durante a execução e é descartado após confirmação. Não usar collectionVariables/environment/globals para persistir código. Não seguir redirects. Não usar em banco real.",
+      "item": [
+        {
+          "name": "401 — sessão anônima com jar novo",
+          "protocolProfileBehavior": {
+            "followRedirects": false
+          },
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/auth/me",
+            "description": "Somente ambiente descartável. Cookie jar automático; nenhum Bearer ou Cookie manual. Sem retry de escrita."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status esperado: 401', function () { pm.response.to.have.status(401); });"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Handshake CSRF inicial",
+          "protocolProfileBehavior": {
+            "followRedirects": false
+          },
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/auth/csrf",
+            "description": "Somente ambiente descartável. Cookie jar automático; nenhum Bearer ou Cookie manual. Sem retry de escrita."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status esperado: 204', function () { pm.response.to.have.status(204); });"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Login ADMIN",
+          "protocolProfileBehavior": {
+            "followRedirects": false
+          },
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/auth/login",
+            "description": "Somente ambiente descartável. Cookie jar automático; nenhum Bearer ou Cookie manual. Sem retry de escrita.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"username\":{{usernameAdminJson}},\"senha\":{{senhaAdminJson}}}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status esperado: 200', function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Handshake após login ADMIN",
+          "protocolProfileBehavior": {
+            "followRedirects": false
+          },
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/auth/csrf",
+            "description": "Somente ambiente descartável. Cookie jar automático; nenhum Bearer ou Cookie manual. Sem retry de escrita."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status esperado: 204', function () { pm.response.to.have.status(204); });"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "200 — identidade ADMIN",
+          "protocolProfileBehavior": {
+            "followRedirects": false
+          },
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/auth/me",
+            "description": "Somente ambiente descartável. Cookie jar automático; nenhum Bearer ou Cookie manual. Sem retry de escrita."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status esperado: 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('Identidade sem JWT ou senha', function () { const body=pm.response.json(); pm.expect(body.papel).to.eql('ADMIN'); pm.expect(['token','jwt','senha','senhaHash','versaoSeguranca'].some(key => key in body)).to.be.false; });"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "200 — listar usuários",
+          "protocolProfileBehavior": {
+            "followRedirects": false
+          },
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/usuarios",
+            "description": "Somente ambiente descartável. Cookie jar automático; nenhum Bearer ou Cookie manual. Sem retry de escrita."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status esperado: 200', function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Cadastrar usuário e código INICIAL",
+          "protocolProfileBehavior": {
+            "followRedirects": false
+          },
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/usuarios",
+            "description": "Somente ambiente descartável. Cookie jar automático; nenhum Bearer ou Cookie manual. Sem retry de escrita.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"username\":{{usernameNovoJson}},\"papel\":\"USER\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status esperado: 201', function () { pm.response.to.have.status(201); });",
+                  "const envelope = pm.response.json(); const user = envelope.usuario; pm.test('Emissão única e no-store', function () { pm.expect(pm.response.headers.get('Cache-Control')).to.include('no-store'); pm.expect(/^[A-Z2-7]{26}$/.test(envelope.autorizacao.codigo)).to.be.true; pm.expect(Object.keys(user).sort()).to.eql(['id','username','papel','ativo','credencialDefinida','criadaEm','atualizadaEm','versao'].sort()); }); pm.variables.set('usuarioId', String(user.id)); pm.variables.set('versaoEsperada', String(user.versao)); pm.variables.set('codigoUsoUnico', envelope.autorizacao.codigo); pm.test('Cadastro com Location e autorização inicial', function () { pm.expect(pm.response.headers.has('Location')).to.be.true; pm.expect(envelope.autorizacao.motivo).to.eql('INICIAL'); });"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Consultar usuário antes da definição",
+          "protocolProfileBehavior": {
+            "followRedirects": false
+          },
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/usuarios/{{usuarioId}}",
+            "description": "Somente ambiente descartável. Cookie jar automático; nenhum Bearer ou Cookie manual. Sem retry de escrita."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status esperado: 200', function () { pm.response.to.have.status(200); });",
+                  "const user = pm.response.json(); pm.test('DTO público e versão segura', function () { pm.expect(Object.keys(user).sort()).to.eql(['id','username','papel','ativo','credencialDefinida','criadaEm','atualizadaEm','versao'].sort()); pm.expect(Number.isSafeInteger(user.versao) && user.versao >= 0).to.be.true; }); if (Number.isSafeInteger(user.versao)) pm.variables.set('versaoEsperada', String(user.versao));"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Definir senha inicial — confirmação pública",
+          "protocolProfileBehavior": {
+            "followRedirects": false
+          },
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/auth/redefinicoes/confirmar",
+            "description": "Somente ambiente descartável. Cookie jar automático; nenhum Bearer ou Cookie manual. Sem retry de escrita.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"username\":{{usernameNovoJson}},\"codigo\":{{codigoUsoUnicoJson}},\"senha\":{{senhaInicialJson}},\"confirmacao\":{{senhaInicialJson}}}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status esperado: 204', function () { pm.response.to.have.status(204); });",
+                  "pm.variables.unset('codigoUsoUnico'); pm.test('Sem autenticação automática', function () { pm.expect(String(pm.response.headers.get('Set-Cookie') || '').includes('GESTAOACOES_AUTH=')).to.be.false; pm.expect(pm.response.text()).to.eql(''); });"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Consultar versão após definição inicial",
+          "protocolProfileBehavior": {
+            "followRedirects": false
+          },
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/usuarios/{{usuarioId}}",
+            "description": "Somente ambiente descartável. Cookie jar automático; nenhum Bearer ou Cookie manual. Sem retry de escrita."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status esperado: 200', function () { pm.response.to.have.status(200); });",
+                  "const user = pm.response.json(); pm.test('DTO público e versão segura', function () { pm.expect(Object.keys(user).sort()).to.eql(['id','username','papel','ativo','credencialDefinida','criadaEm','atualizadaEm','versao'].sort()); pm.expect(Number.isSafeInteger(user.versao) && user.versao >= 0).to.be.true; }); if (Number.isSafeInteger(user.versao)) pm.variables.set('versaoEsperada', String(user.versao));"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Alterar perfil para ADMIN",
+          "protocolProfileBehavior": {
+            "followRedirects": false
+          },
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/usuarios/{{usuarioId}}/perfil",
+            "description": "Somente ambiente descartável. Cookie jar automático; nenhum Bearer ou Cookie manual. Sem retry de escrita.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"papel\":\"ADMIN\",\"versaoEsperada\":{{versaoEsperada}}}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status esperado: 200', function () { pm.response.to.have.status(200); });",
+                  "const user = pm.response.json(); pm.test('DTO público e versão segura', function () { pm.expect(Object.keys(user).sort()).to.eql(['id','username','papel','ativo','credencialDefinida','criadaEm','atualizadaEm','versao'].sort()); pm.expect(Number.isSafeInteger(user.versao) && user.versao >= 0).to.be.true; }); if (Number.isSafeInteger(user.versao)) pm.variables.set('versaoEsperada', String(user.versao));"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Alterar perfil para USER",
+          "protocolProfileBehavior": {
+            "followRedirects": false
+          },
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/usuarios/{{usuarioId}}/perfil",
+            "description": "Somente ambiente descartável. Cookie jar automático; nenhum Bearer ou Cookie manual. Sem retry de escrita.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"papel\":\"USER\",\"versaoEsperada\":{{versaoEsperada}}}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status esperado: 200', function () { pm.response.to.have.status(200); });",
+                  "const user = pm.response.json(); pm.test('DTO público e versão segura', function () { pm.expect(Object.keys(user).sort()).to.eql(['id','username','papel','ativo','credencialDefinida','criadaEm','atualizadaEm','versao'].sort()); pm.expect(Number.isSafeInteger(user.versao) && user.versao >= 0).to.be.true; }); if (Number.isSafeInteger(user.versao)) pm.variables.set('versaoEsperada', String(user.versao));"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Bloquear usuário",
+          "protocolProfileBehavior": {
+            "followRedirects": false
+          },
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/usuarios/{{usuarioId}}/situacao",
+            "description": "Somente ambiente descartável. Cookie jar automático; nenhum Bearer ou Cookie manual. Sem retry de escrita.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"ativo\":false,\"versaoEsperada\":{{versaoEsperada}}}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status esperado: 200', function () { pm.response.to.have.status(200); });",
+                  "const user = pm.response.json(); pm.test('DTO público e versão segura', function () { pm.expect(Object.keys(user).sort()).to.eql(['id','username','papel','ativo','credencialDefinida','criadaEm','atualizadaEm','versao'].sort()); pm.expect(Number.isSafeInteger(user.versao) && user.versao >= 0).to.be.true; }); if (Number.isSafeInteger(user.versao)) pm.variables.set('versaoEsperada', String(user.versao));"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Habilitar usuário",
+          "protocolProfileBehavior": {
+            "followRedirects": false
+          },
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/usuarios/{{usuarioId}}/situacao",
+            "description": "Somente ambiente descartável. Cookie jar automático; nenhum Bearer ou Cookie manual. Sem retry de escrita.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"ativo\":true,\"versaoEsperada\":{{versaoEsperada}}}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status esperado: 200', function () { pm.response.to.have.status(200); });",
+                  "const user = pm.response.json(); pm.test('DTO público e versão segura', function () { pm.expect(Object.keys(user).sort()).to.eql(['id','username','papel','ativo','credencialDefinida','criadaEm','atualizadaEm','versao'].sort()); pm.expect(Number.isSafeInteger(user.versao) && user.versao >= 0).to.be.true; }); if (Number.isSafeInteger(user.versao)) pm.variables.set('versaoEsperada', String(user.versao));"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Emitir código REDEFINICAO",
+          "protocolProfileBehavior": {
+            "followRedirects": false
+          },
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/usuarios/{{usuarioId}}/redefinicoes",
+            "description": "Somente ambiente descartável. Cookie jar automático; nenhum Bearer ou Cookie manual. Sem retry de escrita.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"versaoEsperada\":{{versaoEsperada}}}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status esperado: 200', function () { pm.response.to.have.status(200); });",
+                  "const envelope = pm.response.json(); const user = envelope.usuario; pm.test('Emissão única e no-store', function () { pm.expect(pm.response.headers.get('Cache-Control')).to.include('no-store'); pm.expect(/^[A-Z2-7]{26}$/.test(envelope.autorizacao.codigo)).to.be.true; pm.expect(Object.keys(user).sort()).to.eql(['id','username','papel','ativo','credencialDefinida','criadaEm','atualizadaEm','versao'].sort()); }); pm.variables.set('usuarioId', String(user.id)); pm.variables.set('versaoEsperada', String(user.versao)); pm.variables.set('codigoUsoUnico', envelope.autorizacao.codigo); pm.test('Motivo de redefinição', function () { pm.expect(envelope.autorizacao.motivo).to.eql('REDEFINICAO'); });"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Redefinir senha — confirmação pública",
+          "protocolProfileBehavior": {
+            "followRedirects": false
+          },
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/auth/redefinicoes/confirmar",
+            "description": "Somente ambiente descartável. Cookie jar automático; nenhum Bearer ou Cookie manual. Sem retry de escrita.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"username\":{{usernameNovoJson}},\"codigo\":{{codigoUsoUnicoJson}},\"senha\":{{senhaNovaJson}},\"confirmacao\":{{senhaNovaJson}}}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status esperado: 204', function () { pm.response.to.have.status(204); });",
+                  "pm.variables.unset('codigoUsoUnico'); pm.test('Sem autenticação automática', function () { pm.expect(String(pm.response.headers.get('Set-Cookie') || '').includes('GESTAOACOES_AUTH=')).to.be.false; pm.expect(pm.response.text()).to.eql(''); });"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "403 — CSRF ausente em mutação ADMIN",
+          "protocolProfileBehavior": {
+            "followRedirects": false
+          },
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/carteiras",
+            "description": "Somente ambiente descartável. Cookie jar automático; nenhum Bearer ou Cookie manual. Sem retry de escrita.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"nome\":\"Não criar sem CSRF\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status esperado: 403', function () { pm.response.to.have.status(403); });",
+                  "pm.test('CSRF obrigatório', function () { pm.expect(pm.response.json().code).to.eql('CSRF_INVALIDO'); });"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Logout ADMIN",
+          "protocolProfileBehavior": {
+            "followRedirects": false
+          },
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/auth/logout",
+            "description": "Somente ambiente descartável. Cookie jar automático; nenhum Bearer ou Cookie manual. Sem retry de escrita."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status esperado: 204', function () { pm.response.to.have.status(204); });"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Handshake após logout ADMIN",
+          "protocolProfileBehavior": {
+            "followRedirects": false
+          },
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/auth/csrf",
+            "description": "Somente ambiente descartável. Cookie jar automático; nenhum Bearer ou Cookie manual. Sem retry de escrita."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status esperado: 204', function () { pm.response.to.have.status(204); });"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "401 — sessão após logout",
+          "protocolProfileBehavior": {
+            "followRedirects": false
+          },
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/auth/me",
+            "description": "Somente ambiente descartável. Cookie jar automático; nenhum Bearer ou Cookie manual. Sem retry de escrita."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status esperado: 401', function () { pm.response.to.have.status(401); });"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Login USER após redefinição",
+          "protocolProfileBehavior": {
+            "followRedirects": false
+          },
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/auth/login",
+            "description": "Somente ambiente descartável. Cookie jar automático; nenhum Bearer ou Cookie manual. Sem retry de escrita.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"username\":{{usernameNovoJson}},\"senha\":{{senhaNovaJson}}}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status esperado: 200', function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Handshake após login USER",
+          "protocolProfileBehavior": {
+            "followRedirects": false
+          },
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/auth/csrf",
+            "description": "Somente ambiente descartável. Cookie jar automático; nenhum Bearer ou Cookie manual. Sem retry de escrita."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status esperado: 204', function () { pm.response.to.have.status(204); });"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "200 — consulta financeira USER",
+          "protocolProfileBehavior": {
+            "followRedirects": false
+          },
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/carteiras",
+            "description": "Somente ambiente descartável. Cookie jar automático; nenhum Bearer ou Cookie manual. Sem retry de escrita."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status esperado: 200', function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "403 — administração negada para USER",
+          "protocolProfileBehavior": {
+            "followRedirects": false
+          },
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/usuarios",
+            "description": "Somente ambiente descartável. Cookie jar automático; nenhum Bearer ou Cookie manual. Sem retry de escrita."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status esperado: 403', function () { pm.response.to.have.status(403); });",
+                  "pm.test('Perfil insuficiente', function () { pm.expect(pm.response.json().code).to.eql('ACESSO_NEGADO'); });"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "403 — escrita financeira USER com CSRF válido",
+          "protocolProfileBehavior": {
+            "followRedirects": false
+          },
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/carteiras",
+            "description": "Somente ambiente descartável. Cookie jar automático; nenhum Bearer ou Cookie manual. Sem retry de escrita.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"nome\":\"Não criar como USER\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status esperado: 403', function () { pm.response.to.have.status(403); });",
+                  "pm.test('Perfil insuficiente com CSRF válido', function () { pm.expect(pm.response.json().code).to.eql('ACESSO_NEGADO'); });"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Logout USER",
+          "protocolProfileBehavior": {
+            "followRedirects": false
+          },
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/auth/logout",
+            "description": "Somente ambiente descartável. Cookie jar automático; nenhum Bearer ou Cookie manual. Sem retry de escrita."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status esperado: 204', function () { pm.response.to.have.status(204); });"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Handshake após logout USER",
+          "protocolProfileBehavior": {
+            "followRedirects": false
+          },
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/auth/csrf",
+            "description": "Somente ambiente descartável. Cookie jar automático; nenhum Bearer ou Cookie manual. Sem retry de escrita."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status esperado: 204', function () { pm.response.to.have.status(204); });"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "401 — encerramento final",
+          "protocolProfileBehavior": {
+            "followRedirects": false
+          },
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/auth/me",
+            "description": "Somente ambiente descartável. Cookie jar automático; nenhum Bearer ou Cookie manual. Sem retry de escrita."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status esperado: 401', function () { pm.response.to.have.status(401); });",
+                  "for (const key of ['codigoUsoUnico','usuarioId','versaoEsperada','usernameNovo']) pm.variables.unset(key);"
+                ]
+              }
+            }
+          ],
+          "response": []
+        }
+      ]
+    },
     {
       "name": "Carteiras",
       "item": [
@@ -3047,6 +3938,55 @@
           "response": []
         }
       ]
+    }
+  ],
+  "protocolProfileBehavior": {
+    "followRedirects": false
+  },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "function stop(message) { pm.test(\"Pré-condição de segurança\", function () { pm.expect(false, message).to.be.true; }); pm.execution.skipRequest(); throw new Error(message); }",
+          "const base = String(pm.variables.get('baseUrl') || '').replace(/\\/$/, '');",
+          "const destination = pm.variables.replaceIn(pm.request.url.toString());",
+          "const match = /^(https?):\\/\\/(localhost|127\\.0\\.0\\.1|\\[::1\\]|[a-z0-9.-]+)(?::([0-9]{1,5}))?(\\/api)?$/i.exec(base);",
+          "if (!match || (match[1].toLowerCase() !== 'https' && !['localhost','127.0.0.1','[::1]'].includes(match[2].toLowerCase()))) stop('Use HTTPS ou HTTP exclusivamente loopback de teste.');",
+          "if (pm.variables.get('ambienteDescartavel') !== 'CONFIRMO') stop('Confirme ambiente descartável e cookie jar isolado.');",
+          "if (!destination.startsWith(base + '/') || destination.includes('#')) stop('Destino fora da API configurada.');",
+          "pm.request.headers.remove('Authorization'); pm.request.headers.remove('Cookie'); pm.request.headers.remove('X-XSRF-TOKEN');",
+          "if (!pm.variables.get('usernameNovo')) pm.variables.set('usernameNovo', pm.variables.replaceIn('fixture.{{$guid}}').toLowerCase());",
+          "for (const name of ['usernameAdmin','senhaAdmin','usernameNovo','senhaInicial','senhaNova','codigoUsoUnico']) {",
+          "  const value = pm.variables.get(name); pm.variables.set(name + 'Json', JSON.stringify(value === undefined ? '' : value));",
+          "}",
+          "if (pm.request.body && pm.request.body.mode === 'raw') {",
+          "  const payload = pm.variables.replaceIn(pm.request.body.raw);",
+          "  if (/\\{\\{/.test(payload)) stop('Variável de comando ausente: consulte o usuário/versão antes de enviar.');",
+          "  try { JSON.parse(payload); } catch (_) { stop('Corpo JSON inválido; nenhum comando enviado.'); }",
+          "  pm.request.body.update(payload);",
+          "}",
+          "if (['GET','HEAD','OPTIONS'].includes(pm.request.method)) return;",
+          "if (pm.info.requestName.startsWith('403 — CSRF ausente')) return;",
+          "pm.sendRequest({ url: base + '/auth/csrf', method: 'GET' }, function (error, response) {",
+          "  if (error || response.code !== 204) return stop('Handshake CSRF falhou; comando não enviado.');",
+          "  pm.cookies.jar().get(base, 'XSRF-TOKEN', function (cookieError, token) {",
+          "    if (cookieError || !token) return stop('Cookie CSRF indisponível; permita somente o domínio de teste no cookie jar.');",
+          "    pm.request.headers.upsert({ key: 'X-XSRF-TOKEN', value: decodeURIComponent(token) });",
+          "  });",
+          "});"
+        ]
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "for (const name of ['usernameAdmin','senhaAdmin','usernameNovo','senhaInicial','senhaNova','codigoUsoUnico']) pm.variables.unset(name + 'Json');"
+        ]
+      }
     }
   ]
 }

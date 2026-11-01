@@ -4,6 +4,8 @@ Aplicação web para gerenciamento e acompanhamento de carteiras de investimento
 
 **BRL e USD são tratados separadamente, sem conversão cambial automática.**
 
+**Autenticação e usuários:** as 56 tarefas da change `adicionar-autenticacao-e-gestao-de-usuarios` foram concluídas e aprovadas tecnicamente, incluindo backend, Angular e homologação operacional HTTPS/runtime local em recursos descartáveis. ADMIN/USER, cookie JWT HttpOnly, CSRF, gestão administrativa e definição/redefinição por código estão integrados. Carteiras e dados financeiros permanecem compartilhados; USER somente consulta e ADMIN pode modificar conforme as regras existentes. A homologação PostgreSQL 17.11 da migration 009/autenticação também foi aprovada tecnicamente. **O sistema não está declarado pronto para produção.** Consulte o [guia de autenticação, configuração e ferramentas](docs/AUTENTICACAO.md).
+
 ## Sobre o projeto
 
 O Gestão de Ações centraliza informações que normalmente ficam distribuídas entre planilhas e consultas de mercado. O histórico de operações é a base dos cálculos financeiros; os provedores externos complementam o acompanhamento com dados cadastrais e cotações.
@@ -174,6 +176,8 @@ Detalhes adicionais: [frontend](frontend/README.md), [PRD](docs/PRD.md), [specs 
 
 ### Com Docker Compose
 
+**Pendência operacional:** a composição abaixo antecede o aceite de segurança e ainda publica HTTP, sem injetar as chaves AUTH_JWT_SECRET e AUTH_RESET_SECRET. Estes passos não representam implantação autenticada homologada. A alternativa operacional homologada localmente está em compose.operacional.yaml e [OPERACIONAL-HTTPS.md](docs/OPERACIONAL-HTTPS.md); não combinar com este Compose. Para qualquer execução, não remover Secure/CSRF, ampliar CORS ou confiar em headers arbitrários para fazê-la funcionar. O volume PostgreSQL é persistente e não deve ser usado como banco de testes da change.
+
 Requer Docker Engine/Desktop com Compose e containers Linux; no ambiente Windows homologado, utiliza WSL2. A primeira construção requer acesso aos repositórios de imagens e dependências. Não exige Java ou Node instalados no host.
 
 Na raiz, em PowerShell:
@@ -237,9 +241,11 @@ $env:SPRING_PROFILES_ACTIVE = "dev"
 $env:SPRING_DATASOURCE_URL = "jdbc:postgresql://localhost:5432/gestaoacoesdb"
 $env:SPRING_DATASOURCE_USERNAME = "<usuario-local>"
 $env:SPRING_DATASOURCE_PASSWORD = "<senha-local>"
+$env:AUTH_JWT_SECRET = "<chave-Base64-aleatoria-de-pelo-menos-32-bytes>"
+$env:AUTH_RESET_SECRET = "<outra-chave-Base64-independente-de-pelo-menos-32-bytes>"
 $env:BRAPI_API_KEY = "<chave-brapi>"
 $env:ALPHA_VANTAGE_API_KEY = "<chave-alpha-vantage>"
-.\mvnw.cmd spring-boot:run
+.\mvnw.cmd spring-boot:run "-Dspring-boot.run.arguments=--server.address=127.0.0.1 --auth.allow-local-http=true"
 ```
 
 Em outro terminal:
@@ -252,9 +258,11 @@ npm start
 
 Em Linux/macOS, use `./mvnw` e exporte as variáveis com a sintaxe do shell. Maven e frontend têm builds independentes. O [proxy de desenvolvimento](frontend/proxy.conf.json) remove `/api` e encaminha ao backend em `localhost:8080`. O build frontend gera `frontend/dist/frontend/browser/`; fora do Docker, a hospedagem precisa fornecer proxy e fallback de rotas equivalentes.
 
-O [changelog Liquibase](src/main/resources/db/changelog/db.changelog-master.yaml) inclui **oito arquivos de migration (001–008), com nove changeSets**. Além dos cadastros, operações, histórico de cotações e snapshots, inclui referências temporais de cotação (007) e custódia/estornos (008, dois changeSets). Hibernate valida o schema (`ddl-auto=validate` no profile `dev`). H2 não é fallback da aplicação normal. Bancos legados criados fora do changelog precisam de reconciliação; não há baseline automático documentado.
+O [changelog Liquibase](src/main/resources/db/changelog/db.changelog-master.yaml) inclui **nove arquivos de migration (001–009), com dez changeSets**. Além das estruturas financeiras existentes, a 009 acrescenta usuários, sessões, autorizações, contadores, singleton e auditoria de segurança. Foi validada em H2 e PostgreSQL 17.11 exclusivamente descartáveis, incluindo instalação/upgrade e concorrência de autenticação em 10.4; evidências em openspec/changes/adicionar-autenticacao-e-gestao-de-usuarios/homologacao-postgresql.md. Isso não autoriza migrations em outro banco. Hibernate valida o schema (`ddl-auto=validate` no profile `dev`). H2 não é fallback da aplicação normal. Não usar banco persistente para teste de migration nem executar rollback destrutivo da 009. Bancos legados criados fora do changelog precisam de reconciliação; não há baseline automático documentado.
 
 ### Primeiro uso e API
+
+Os marcadores do exemplo não são segredos utilizáveis: substituí-los somente no ambiente do processo, sem salvar/exportar valores. A exceção HTTP acima é exclusivamente dev/loopback e não configura produção ou acesso entre containers. Use datasource explicitamente autorizado e isolado para validação. Antes do primeiro acesso, um operador autorizado inicializa o ADMIN pelo comando one-shot descrito no [guia](docs/AUTENTICACAO.md); o modo normal não cria usuário automático. Efetue login; somente ADMIN pode executar os cadastros abaixo. Contas novas definem a própria senha pelo código inicial recebido do administrador.
 
 Crie e selecione uma carteira, cadastre ações, opcionalmente cadastre uma corretora e registre uma COMPRA. Depois consulte posições, registre vendas compatíveis com o saldo e gere snapshots no dashboard para formar o histórico patrimonial.
 
@@ -363,9 +371,9 @@ Liquibase mantém a evolução do schema; OpenSpec registra os requisitos e suas
 
 ### Usuários e segurança
 
-- Criar usuários, login e autenticação.
-- Associar dados ao usuário autenticado, permitindo que cada pessoa visualize e manipule somente seus próprios dados.
-- Isolar carteiras e operações e definir o isolamento de ações/corretoras conforme o modelo de negócio futuro.
+- As 56 tarefas da change de autenticação e gestão de usuários foram concluídas e aprovadas tecnicamente, incluindo documentação/ferramentas, Angular e homologação operacional HTTPS local. Isso não constitui implantação nem declaração de prontidão de produção.
+- Associação de dados a proprietários e isolamento de carteiras/operações são evolução futura que exigiria nova decisão de negócio/change. **Não existem nesta entrega:** os dados são compartilhados entre identidades autorizadas.
+- Preservar a separação entre homologação local HTTPS/PostgreSQL descartável e implantação de produção; consultar docs/OPERACIONAL-HTTPS.md.
 
 ### Interface e experiência do usuário
 
@@ -374,9 +382,9 @@ Liquibase mantém a evolução do schema; OpenSpec registra os requisitos e suas
 
 ## Status do projeto
 
-O projeto possui um núcleo funcional para gestão de carteiras de ações brasileiras e americanas. As próximas etapas concentram-se em interface, filtros e visualizações, novos indicadores, autenticação e isolamento por usuário, além da expansão futura para outras categorias de investimentos.
+O projeto possui um núcleo funcional para gestão de carteiras de ações brasileiras e americanas e autenticação/administração integradas ao Angular. As 56 tarefas da change de autenticação e gestão de usuários foram concluídas e aprovadas tecnicamente, incluindo HTTPS/runtime local em recursos descartáveis e homologação PostgreSQL 17.11. O sistema não está declarado pronto para produção. Consulte [a operação HTTPS local](docs/OPERACIONAL-HTTPS.md). Interface, novos indicadores, isolamento por proprietário e expansão para outras categorias continuam evoluções separadas.
 
-**Limitações atuais:** não há autenticação, envio de ordens, importação automática de negociações, impostos, taxas, dividendos ou eventos corporativos. Não há edição/exclusão de operações nem exclusão de ações/corretoras na API. Listagens e evolução não possuem paginação; snapshots são manuais. O cadastro de corretora valida dados cadastrais e endereço, sem comprovar autorização regulatória para atuação financeira.
+**Limitações atuais:** não há envio de ordens, importação automática de negociações, impostos, taxas, dividendos ou eventos corporativos. Não há edição/exclusão de operações nem exclusão de ações/corretoras na API. Listagens e evolução não possuem paginação; snapshots são manuais. Carteiras não são isoladas por proprietário; não há cadastro público, refresh token, recuperação por e-mail ou senha escolhida por ADMIN. O cadastro de corretora valida dados cadastrais e endereço, sem comprovar autorização regulatória para atuação financeira.
 
 **Pendência de segurança já registrada:** uma credencial PostgreSQL anteriormente exposta em arquivo versionado deve ser revogada/rotacionada antes de voltar a ser utilizada. A remoção do valor atual não revoga a credencial nem elimina o histórico Git; este README não confirma rotação externa ou reescrita do histórico.
 

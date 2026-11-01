@@ -1,3 +1,4 @@
+import { authenticatedModule } from '../../../../../test-support/authenticated-module';
 import { temporalPresentationCases } from '../../../shared/formatters/cotacao-temporal.fixtures';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { MatDialog } from '@angular/material/dialog';
@@ -16,7 +17,7 @@ const US:AcaoResponse={id:2,ticker:'AAPL',nomeEmpresa:'Apple',mercado:'EUA',moed
 const failure=(status:number,code:string|null,message='Falha',details={})=>({status,code,message,details}) as NormalizedHttpError;
 
 describe('AcoesListPageComponent',()=>{let fixture:ComponentFixture<AcoesListPageComponent>;let service:{listar:ReturnType<typeof vi.fn>;buscarPorTickerEMercado:ReturnType<typeof vi.fn>};let dialog:{open:ReturnType<typeof vi.fn>};let dialogClosed:Subject<boolean|AcaoResponse|undefined>;let toast:{show:ReturnType<typeof vi.fn>};
- beforeEach(async()=>{service={listar:vi.fn().mockReturnValue(of([US,BR])),buscarPorTickerEMercado:vi.fn().mockReturnValue(of(BR))};dialogClosed=new Subject<boolean|AcaoResponse|undefined>();dialog={open:vi.fn().mockReturnValue({afterClosed:()=>dialogClosed.asObservable()})};toast={show:vi.fn()};await TestBed.configureTestingModule({imports:[AcoesListPageComponent],providers:[provideRouter([]),{provide:AcoesService,useValue:service},{provide:MatDialog,useValue:dialog},{provide:SuccessToastService,useValue:toast}]}).compileComponents();vi.spyOn(TestBed.inject(Router),'navigate').mockResolvedValue(true);fixture=TestBed.createComponent(AcoesListPageComponent);fixture.detectChanges();});
+ beforeEach(async()=>{service={listar:vi.fn().mockReturnValue(of([US,BR])),buscarPorTickerEMercado:vi.fn().mockReturnValue(of(BR))};dialogClosed=new Subject<boolean|AcaoResponse|undefined>();dialog={open:vi.fn().mockReturnValue({afterClosed:()=>dialogClosed.asObservable()})};toast={show:vi.fn()};await authenticatedModule({imports:[AcoesListPageComponent],providers:[provideRouter([]),{provide:AcoesService,useValue:service},{provide:MatDialog,useValue:dialog},{provide:SuccessToastService,useValue:toast}]}).compileComponents();vi.spyOn(TestBed.inject(Router),'navigate').mockResolvedValue(true);fixture=TestBed.createComponent(AcoesListPageComponent);fixture.detectChanges();});
  const component=()=>fixture.componentInstance as unknown as {searchForm:{controls:{ticker:{setValue(v:string):void};mercado:{setValue(v:'BRASIL'|'EUA'|null):void}}};search():void;clearSearch():void;load():void};
  it.each(temporalPresentationCases())('listagem apresenta referência $tipo sem reutilizar legado nem obtenção', (reference, expected) => {
    const stock = Object.freeze({ ...US, referenciaMercadoCotacao: Object.freeze(reference),

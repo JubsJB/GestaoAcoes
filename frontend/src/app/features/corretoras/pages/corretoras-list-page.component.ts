@@ -1,3 +1,4 @@
+import { AdminOnlyDirective } from '../../../core/auth/admin-only.directive';
 import { ChangeDetectionStrategy, Component, DestroyRef, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
@@ -23,11 +24,11 @@ import { CorretoraCreatePageComponent } from './corretora-create-page.component'
 
 @Component({
   selector: 'app-corretoras-list-page',
-  imports: [AppIconComponent, FeedbackAlertComponent, MatButtonModule, MatFormFieldModule, MatInputModule, MatProgressSpinnerModule, PageHeaderComponent, ReactiveFormsModule, RouterLink],
+  imports: [AdminOnlyDirective,AppIconComponent, FeedbackAlertComponent, MatButtonModule, MatFormFieldModule, MatInputModule, MatProgressSpinnerModule, PageHeaderComponent, ReactiveFormsModule, RouterLink],
   template: `
     <section class="app-page collection-page" aria-labelledby="corretoras-title">
       <app-page-header headingId="corretoras-title" eyebrow="Instituições financeiras" icon="broker" title="Corretoras" description="Consulte e cadastre instituições por CNPJ.">
-        <button page-header-action mat-flat-button type="button" (click)="openCreateDialog()">Cadastrar corretora</button>
+        <button *appAdmin page-header-action mat-flat-button type="button" (click)="openCreateDialog()">Cadastrar corretora</button>
       </app-page-header>
 
       @if (loadError()) {
@@ -57,7 +58,7 @@ import { CorretoraCreatePageComponent } from './corretora-create-page.component'
         } @else if (loadError()) {
           <div class="app-state"><button mat-stroked-button type="button" (click)="load()">Tentar novamente</button></div>
         } @else if (corretoras().length === 0) {
-          <div class="app-state app-surface"><span class="app-state__icon" aria-hidden="true"><app-icon name="empty" /></span><h2>Você ainda não possui corretoras cadastradas.</h2><p>Cadastre sua primeira instituição para começar a organizar seus investimentos.</p><button mat-stroked-button type="button" (click)="openCreateDialog()">Cadastrar a primeira</button></div>
+          <div class="app-state app-surface"><span class="app-state__icon" aria-hidden="true"><app-icon name="empty" /></span><h2>Você ainda não possui corretoras cadastradas.</h2><p>Cadastre sua primeira instituição para começar a organizar seus investimentos.</p><button *appAdmin mat-stroked-button type="button" (click)="openCreateDialog()">Cadastrar a primeira</button></div>
         } @else {
           <table class="collection-table" role="table">
             <caption>Corretoras cadastradas</caption>

@@ -5,7 +5,7 @@
       <p>Seu patrimônio nos momentos em que você registrou. Registros manuais, separados por moeda.</p>
       <p class="evolution__timezone">Datas e horários são apresentados no horário local.</p>
     </div>
-    <button mat-stroked-button type="button" (click)="registerSnapshot()" [disabled]="creating()">
+    <button *appAdmin mat-stroked-button type="button" (click)="registerSnapshot()" [disabled]="creating()">
       {{ creating() ? 'Registrando patrimônio…' : 'Registrar patrimônio atual' }}
     </button>
   </header>

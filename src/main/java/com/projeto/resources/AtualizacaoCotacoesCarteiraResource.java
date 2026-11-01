@@ -37,6 +37,8 @@ public class AtualizacaoCotacoesCarteiraResource {
         this.mapper = mapper;
     }
 
+    // D6: escrita financeira somente ADMIN, antes do serviço/transação de negócio.
+    @org.springframework.security.access.prepost.PreAuthorize("hasRole('ADMIN')")
     @PostMapping("/{carteiraId}/atualizacoes-cotacoes")
     @Operation(summary = "Atualizar cotações das posições abertas da Carteira", description = "Não aceita request body: inclusive {} e listas de IDs são rejeitados com 400 REQUEST_INVALIDO antes do processamento. A seleção pertence exclusivamente ao backend pelo replay oficial das posições abertas, sem duplicidade e em ordem de acaoId. Processamento síncrono sequencial, sem transação global ou retry automático. Retorna 200 inclusive vazio, SEM_NOVA_COTACAO, sucesso parcial e todas as falhas isoladas; erros individuais permanecem nos itens. Não altera preços de operações nem promete cotação em tempo real. Os snapshots são por item, sem garantia de estado global simultâneo; COOLDOWN_SUCESSO apresenta o snapshot da tentativa concluída, sem releitura para atualizar a apresentação, podendo diferir do estado mais recente após atualização por outra instância.")
     @ApiResponses({

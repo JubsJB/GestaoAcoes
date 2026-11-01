@@ -1,7 +1,7 @@
 import { DestroyRef, inject, Injectable } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, NavigationEnd, Router } from '@angular/router';
-import { filter } from 'rxjs';
+import { filter, Subscription } from 'rxjs';
 import { CarteiraContextService } from './carteira-context.service';
 
 @Injectable({ providedIn: 'root' })
@@ -10,6 +10,9 @@ export class CarteiraNavigationService {
   private readonly context = inject(CarteiraContextService);
   private readonly destroyRef = inject(DestroyRef);
   private started = false;
+  private subscription?: Subscription;
+
+  stop(): void { this.subscription?.unsubscribe(); this.subscription = undefined; this.started = false; }
 
   start(): void {
     if (this.started) return;
@@ -23,7 +26,7 @@ export class CarteiraNavigationService {
         this.context.resolveUrl(null);
       }
     };
-    this.router.events.pipe(filter(event => event instanceof NavigationEnd), takeUntilDestroyed(this.destroyRef)).subscribe(synchronize);
+    this.subscription = this.router.events.pipe(filter(event => event instanceof NavigationEnd), takeUntilDestroyed(this.destroyRef)).subscribe(synchronize);
     synchronize();
     this.context.initialize().subscribe();
   }
