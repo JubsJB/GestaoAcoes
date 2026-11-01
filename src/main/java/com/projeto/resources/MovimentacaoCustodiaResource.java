@@ -31,6 +31,8 @@ public class MovimentacaoCustodiaResource {
     public MovimentacaoCustodiaResource(ConsultaMovimentacaoCustodiaService service,CadastroCustodiaService cadastro){
         this.service=service;this.cadastro=cadastro;
     }
+    // D6: escrita financeira somente ADMIN, antes do serviço/transação de negócio.
+    @org.springframework.security.access.prepost.PreAuthorize("hasRole('ADMIN')")
     @PostMapping(consumes="application/json",produces="application/json")
     @Operation(tags="Carteiras",summary="Registrar transferência ou atribuição interna de custódia",
             description="Cadastro discriminado TRANSFERENCIA/ATRIBUICAO. Referências existentes, sem consulta externa. "
@@ -64,6 +66,8 @@ public class MovimentacaoCustodiaResource {
         var location=ServletUriComponentsBuilder.fromCurrentRequestUri().path("/{id}").buildAndExpand(resposta.id()).toUri();
         return ResponseEntity.created(location).body(resposta);
     }
+    // D6: escrita financeira somente ADMIN, antes do serviço/transação de negócio.
+    @org.springframework.security.access.prepost.PreAuthorize("hasRole('ADMIN')")
     @PostMapping(value="/{movimentacaoId}/estornos",produces="application/json")
     @Operation(tags="Carteiras",summary="Estornar uma movimentação interna de custódia",
             description="Neutraliza a original na posição efetiva, sem transferência inversa ou exclusão. "

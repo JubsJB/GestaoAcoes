@@ -43,6 +43,8 @@ public class OperacaoResource {
         this.precoService = precoService;
     }
 
+    // D6: escrita financeira somente ADMIN, antes do serviço/transação de negócio.
+    @org.springframework.security.access.prepost.PreAuthorize("hasRole('ADMIN')")
     @PostMapping
     @Operation(summary = "Registrar operação", description = "COMPRA e VENDA usam o preco unitario informado pelo usuario. A ordem no dia é gerada pelo backend. "
             +"Nova VENDA exige saldo consolidado e saldo da corretora informada, inclusive grupo sem corretora. Compras/vendas retroativas não podem invalidar custódia ativa ou criar/agravar déficit histórico. "

@@ -33,6 +33,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @SpringBootTest(classes = GestaoacoesApplication.class)
+@org.springframework.context.annotation.Import(com.projeto.autenticacao.FinanceiroAutenticadoFixture.class)
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
 class PosicaoResourceTest {
@@ -207,7 +208,7 @@ class PosicaoResourceTest {
 
         Carteira carteira = carteiraRepository.saveAndFlush(portfolio("Carteira"));
         mockMvc.perform(get("/carteiras/{id}/posicoes/{acaoId}", carteira.getId(), 1L))
-                .andExpect(status().isNotFound());
+                .andExpect(status().isForbidden());
     }
 
     @Test

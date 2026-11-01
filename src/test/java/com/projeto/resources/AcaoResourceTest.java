@@ -37,6 +37,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @SpringBootTest(classes = GestaoacoesApplication.class)
+@org.springframework.context.annotation.Import(com.projeto.autenticacao.FinanceiroAutenticadoFixture.class)
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
 class AcaoResourceTest {
@@ -338,9 +339,9 @@ class AcaoResourceTest {
         when(service.listar()).thenReturn(List.of());
 
         mockMvc.perform(get("/acoes/ticker/{ticker}", "ABC"))
-                .andExpect(status().isNotFound());
+                .andExpect(status().isForbidden());
         mockMvc.perform(get("/acoes/por-ticker/{ticker}/mercados/{mercado}", "ABC", "BRASIL"))
-                .andExpect(status().isNotFound());
+                .andExpect(status().isForbidden());
         mockMvc.perform(get("/acoes").param("ticker", "ABC").param("mercado", "BRASIL"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$").isArray());

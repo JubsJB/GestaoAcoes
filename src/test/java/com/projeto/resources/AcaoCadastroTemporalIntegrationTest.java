@@ -28,6 +28,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @SpringBootTest(classes = GestaoacoesApplication.class)
+@org.springframework.context.annotation.Import(com.projeto.autenticacao.FinanceiroAutenticadoFixture.class)
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
 class AcaoCadastroTemporalIntegrationTest {
@@ -45,12 +46,14 @@ class AcaoCadastroTemporalIntegrationTest {
     @MockitoSpyBean(name = "brapiAdapter") CotacaoProvider brapi;
     @MockitoSpyBean(name = "alphaVantageAdapter") CotacaoProvider alpha;
     @MockitoBean(name = "applicationClock") Clock clock;
+    // A autenticação também lê o relógio global. O contrato financeiro mede a aquisição.
+    @MockitoSpyBean(name = "cotacaoAcquisitionClock") Clock clockDeAquisicao;
 
     @BeforeEach void preparar() {
         when(clock.instant()).thenReturn(OBTENCAO.toInstant());
         when(clock.getZone()).thenReturn(ZoneOffset.UTC);
         assertFalse(mockingDetails(service).isMock());
-        clearInvocations(clock, brapi, alpha, historico);
+        clearInvocations(clock, clockDeAquisicao, brapi, alpha, historico);
     }
 
     @AfterEach void limpar() { reset(brapi, alpha, historico); }
@@ -120,7 +123,7 @@ class AcaoCadastroTemporalIntegrationTest {
         if (tipo != ReferenciaTipoCotacao.INSTANTE) assertTrue(json.contains("\"instante\":null"));
         verify(mercado == Mercado.BRASIL ? brapi : alpha).consultar(ticker);
         verifyNoInteractions(mercado == Mercado.BRASIL ? alpha : brapi);
-        verify(clock, times(1)).instant();
+        verify(clockDeAquisicao, times(1)).instant();
     }
 
     @Test void cadastroAmericanoSemReferenciaMantemDesconhecidaComObtencao() throws Exception {
@@ -162,7 +165,7 @@ class AcaoCadastroTemporalIntegrationTest {
         assertFalse(acoes.existsByTickerAndMercado(ticker, mercado));
         assertEquals(total, historico.count());
         verify(historico, never()).saveAndFlush(any());
-        verify(clock, never()).instant();
+        verify(clockDeAquisicao, never()).instant();
     }
 
     @ParameterizedTest
@@ -204,7 +207,7 @@ class AcaoCadastroTemporalIntegrationTest {
                 .andExpect(jsonPath("$.referenciaMercadoCotacao.instante").value(value))
                 .andExpect(jsonPath("$.cotacaoObtidaEm").value(OBTENCAO.toString()));
         verifyNoInteractions(brapi, alpha);
-        verify(clock, never()).instant();
+        verify(clockDeAquisicao, never()).instant();
     }
 
     @Test void falhaDepoisDoInsertHistoricoDesfazAcaoEHistorico() {
