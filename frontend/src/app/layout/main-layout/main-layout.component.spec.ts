@@ -1,3 +1,4 @@
+import { authenticatedModule } from '../../../../test-support/authenticated-module';
 import { BreakpointObserver, BreakpointState } from '@angular/cdk/layout';
 import { Component } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
@@ -40,7 +41,7 @@ describe('MainLayoutComponent', () => {
   beforeEach(() => {
     breakpointObserver = new BreakpointObserverStub();
 
-    TestBed.configureTestingModule({
+    authenticatedModule({
       imports: [MainLayoutComponent],
       providers: [
         { provide: CARTEIRA_STORAGE, useValue: null },
@@ -60,7 +61,7 @@ describe('MainLayoutComponent', () => {
     });
   });
 
-  it('creates a cohesive shell with five ordered destinations and local decorative icons', async () => {
+  it('preserves the five financial destinations and adds administration for ADMIN', async () => {
     await createLayout();
     const navigationLinks = fixture.nativeElement.querySelectorAll('nav a');
 
@@ -71,16 +72,18 @@ describe('MainLayoutComponent', () => {
       'Carteiras',
       'Operações',
       'Ativos',
-      'Corretoras'
+      'Corretoras',
+      'Usuários'
     ]);
     expect(Array.from(navigationLinks).map((link) => (link as HTMLAnchorElement).getAttribute('href'))).toEqual([
       '/dashboard',
       '/carteiras',
       '/operacoes',
       '/acoes',
-      '/corretoras'
+      '/corretoras',
+      '/usuarios'
     ]);
-    expect(fixture.nativeElement.querySelectorAll('nav a app-icon')).toHaveLength(5);
+    expect(fixture.nativeElement.querySelectorAll('nav a app-icon')).toHaveLength(6);
     expect(Array.from(fixture.nativeElement.querySelectorAll('nav a app-icon svg')).every((icon) => (icon as SVGElement).getAttribute('aria-hidden') === 'true')).toBe(true);
     expect(Array.from(navigationLinks).every((link) => {
       const icon = (link as HTMLElement).querySelector('app-icon');
@@ -221,7 +224,7 @@ describe('MainLayoutComponent', () => {
     expect(fixture.nativeElement.querySelectorAll('app-carteira-selector')).toHaveLength(1);
     expect(select.value).toBe(value);
     expect(Array.from(fixture.nativeElement.querySelectorAll('nav [matListItemTitle]')).map(e => (e as HTMLElement).textContent))
-      .toEqual(['Dashboard', 'Carteiras', 'Operações', 'Ativos', 'Corretoras']);
+      .toEqual(['Dashboard', 'Carteiras', 'Operações', 'Ativos', 'Corretoras', 'Usuários']);
   });
 
   it('collapses and expands desktop without removing destinations or losing control focus', async () => {
@@ -242,9 +245,9 @@ describe('MainLayoutComponent', () => {
     expect(sidenav.opened).toBe(true);
     expect(sidenav.mode).toBe('side');
     expect(fixture.nativeElement.querySelector('.app-sidenav--collapsed')).toBeTruthy();
-    expect(fixture.nativeElement.querySelectorAll('.navigation-label--hidden')).toHaveLength(5);
+    expect(fixture.nativeElement.querySelectorAll('.navigation-label--hidden')).toHaveLength(6);
     const links = Array.from(fixture.nativeElement.querySelectorAll('nav a')) as HTMLAnchorElement[];
-    expect(links.map(link => link.getAttribute('aria-label'))).toEqual(['Dashboard', 'Carteiras', 'Operações', 'Ativos', 'Corretoras']);
+    expect(links.map(link => link.getAttribute('aria-label'))).toEqual(['Dashboard', 'Carteiras', 'Operações', 'Ativos', 'Corretoras', 'Usuários']);
     for (const link of links) {
       expect(link.tabIndex).toBe(0);
       link.focus();

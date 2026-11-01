@@ -1,3 +1,4 @@
+import { AdminOnlyDirective } from '../../core/auth/admin-only.directive';
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { CarteiraContextService } from '../../core/carteira/carteira-context.service';
@@ -5,7 +6,7 @@ import { CarteiraNavigationService } from '../../core/carteira/carteira-navigati
 
 @Component({
   selector: 'app-carteira-selector',
-  imports: [RouterLink],
+  imports: [AdminOnlyDirective,RouterLink],
   template: `
     <label for="global-carteira">Carteira</label>
     <select id="global-carteira" [value]="context.activeId() ?? ''" [disabled]="context.loading() || !!context.error() || context.carteiras().length === 0" (change)="select($event)" aria-describedby="global-carteira-status">
@@ -16,7 +17,7 @@ import { CarteiraNavigationService } from '../../core/carteira/carteira-navigati
       @if (context.loading()) { Carregando carteiras… }
       @else if (context.error()) { {{ context.error()!.message }} <button type="button" (click)="retry()">Tentar novamente</button> }
       @else if (context.invalidSelection()) { Carteira indicada indisponível. Escolha outra carteira. }
-      @else if (context.carteiras().length === 0) { <a routerLink="/carteiras/nova">Criar carteira</a> }
+      @else if (context.carteiras().length === 0) { <a *appAdmin routerLink="/carteiras/nova">Criar carteira</a> }
     </span>
   `,
   styles: [`

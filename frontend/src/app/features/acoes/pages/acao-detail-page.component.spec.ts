@@ -1,3 +1,4 @@
+import { authenticatedModule } from '../../../../../test-support/authenticated-module';
 import { temporalPresentationCases, localMinuteExpectation } from '../../../shared/formatters/cotacao-temporal.fixtures';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ActivatedRoute, Router, provideRouter } from '@angular/router';
@@ -13,7 +14,7 @@ const OLD:AcaoResponse={id:3,ticker:'AAPL',nomeEmpresa:'Apple Inc.',mercado:'EUA
 const UPDATED:AcaoResponse={...OLD,cotacaoAtual:200,dataHoraCotacao:'2026-08-29T12:00:00Z', referenciaMercadoCotacao: { tipo: 'DESCONHECIDA', data: null, instante: null }, cotacaoObtidaEm: null};
 const failure=(status:number,code:string|null,message='Falha',details={})=>({status,code,message,details}) as NormalizedHttpError;
 describe('AcaoDetailPageComponent',()=>{
- async function create(info?:AcaoResponse,error?:NormalizedHttpError,routeId=3){const service={buscarPorId:vi.fn().mockReturnValue(error?throwError(()=>error):of(OLD)),atualizarCotacao:vi.fn().mockReturnValue(of(UPDATED))};const toast={show:vi.fn()};await TestBed.configureTestingModule({imports:[AcaoDetailPageComponent],providers:[provideRouter([]),{provide:ActivatedRoute,useValue:{snapshot:{paramMap:{get:()=>String(routeId)}}}},{provide:AcoesService,useValue:service},{provide:SuccessToastService,useValue:toast}]}).compileComponents();const router=TestBed.inject(Router);vi.spyOn(router,'currentNavigation').mockReturnValue(info?({extras:{info:{acao:info}}} as never):null);const fixture=TestBed.createComponent(AcaoDetailPageComponent);fixture.detectChanges();return{fixture,service,toast};}
+ async function create(info?:AcaoResponse,error?:NormalizedHttpError,routeId=3){const service={buscarPorId:vi.fn().mockReturnValue(error?throwError(()=>error):of(OLD)),atualizarCotacao:vi.fn().mockReturnValue(of(UPDATED))};const toast={show:vi.fn()};await authenticatedModule({imports:[AcaoDetailPageComponent],providers:[provideRouter([]),{provide:ActivatedRoute,useValue:{snapshot:{paramMap:{get:()=>String(routeId)}}}},{provide:AcoesService,useValue:service},{provide:SuccessToastService,useValue:toast}]}).compileComponents();const router=TestBed.inject(Router);vi.spyOn(router,'currentNavigation').mockReturnValue(info?({extras:{info:{acao:info}}} as never):null);const fixture=TestBed.createComponent(AcaoDetailPageComponent);fixture.detectChanges();return{fixture,service,toast};}
  afterEach(()=>TestBed.resetTestingModule());
  it('does not promise a new quote or provider call for an unchanged returned state', async () => {
    const {fixture, service, toast} = await create(OLD);

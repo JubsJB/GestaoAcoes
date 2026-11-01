@@ -1,3 +1,4 @@
+import { AdminOnlyDirective } from '../../../core/auth/admin-only.directive';
 import { ChangeDetectionStrategy, Component, computed, DestroyRef, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { MatButtonModule } from '@angular/material/button';
@@ -19,13 +20,13 @@ import { AcaoResponse } from '../models/acao';
 
 @Component({
   selector: 'app-acao-detail-page',
-  imports: [AppIconComponent, FeedbackAlertComponent, MatButtonModule, MatCardModule, MatProgressSpinnerModule, PageHeaderComponent, RouterLink, StickyBackComponent],
+  imports: [AdminOnlyDirective,AppIconComponent, FeedbackAlertComponent, MatButtonModule, MatCardModule, MatProgressSpinnerModule, PageHeaderComponent, RouterLink, StickyBackComponent],
   template: `
     <section class="app-page" aria-labelledby="detail-title">
       <app-sticky-back route="/acoes" label="Voltar para ações" />
       @if (acao(); as item) {
         <app-page-header headingId="detail-title" eyebrow="Detalhe da ação" icon="stock" [title]="item.ticker" [description]="item.nomeEmpresa">
-          <button page-header-action mat-stroked-button type="button" (click)="updateQuote()" [disabled]="updating()" [attr.aria-busy]="updating()">Atualizar cotação</button>
+          <button *appAdmin page-header-action mat-stroked-button type="button" (click)="updateQuote()" [disabled]="updating()" [attr.aria-busy]="updating()">Atualizar cotação</button>
         </app-page-header>
       } @else {
         <app-page-header headingId="detail-title" eyebrow="Ações" icon="stock" [title]="notFound() ? 'Ação não encontrada' : loadError() ? 'Não foi possível carregar a ação' : 'Detalhe da ação'" description="Consulte a identificação e a última cotação registrada." />

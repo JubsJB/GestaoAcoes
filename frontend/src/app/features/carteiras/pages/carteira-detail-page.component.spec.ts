@@ -1,3 +1,4 @@
+import { authenticatedModule } from '../../../../../test-support/authenticated-module';
 import { CorretorasService } from '../../corretoras/corretoras.service';
 import { CARTEIRA_STORAGE } from '../../../core/carteira/carteira-context.service';
 import { DashboardService } from '../../dashboard/dashboard.service';
@@ -41,7 +42,7 @@ describe('CarteiraDetailPageComponent', () => {
     const operations = { listarPorCarteira: vi.fn().mockReturnValue(of([])), cadastrar: vi.fn() };
     const custodia = { historico: vi.fn().mockReturnValue(of([])) };
     const closed = new Subject<CarteiraResponse | OperacaoResponse | MovimentacaoCustodia | boolean | undefined>(); const dialog = { open: vi.fn().mockReturnValue({ afterClosed: () => closed, close: vi.fn() }) }; const toast = { show: vi.fn() };
-    await TestBed.configureTestingModule({ imports: [CarteiraDetailPageComponent], providers: [{provide:CustodiaService,useValue:custodia},{provide:DistribuicaoCorretorasService,useValue:distribution},{provide:CorretorasService,useValue:{listar:vi.fn().mockReturnValue(of([]))}},{ provide: CARTEIRA_STORAGE, useValue: null }, { provide: DashboardService, useValue: dashboard }, provideRouter([]), { provide: ActivatedRoute, useValue: { paramMap: params } }, { provide: CarteirasService, useValue: service }, { provide: OperacoesService, useValue: operations }, { provide: MatDialog, useValue: dialog }, { provide: SuccessToastService, useValue: toast }] }).compileComponents();
+    await authenticatedModule({ imports: [CarteiraDetailPageComponent], providers: [{provide:CustodiaService,useValue:custodia},{provide:DistribuicaoCorretorasService,useValue:distribution},{provide:CorretorasService,useValue:{listar:vi.fn().mockReturnValue(of([]))}},{ provide: CARTEIRA_STORAGE, useValue: null }, { provide: DashboardService, useValue: dashboard }, provideRouter([]), { provide: ActivatedRoute, useValue: { paramMap: params } }, { provide: CarteirasService, useValue: service }, { provide: OperacoesService, useValue: operations }, { provide: MatDialog, useValue: dialog }, { provide: SuccessToastService, useValue: toast }] }).compileComponents();
     const router = TestBed.inject(Router); vi.spyOn(router, 'currentNavigation').mockReturnValue(info ? ({ extras: { info: { carteira: info } } } as never) : null); vi.spyOn(router, 'navigate').mockResolvedValue(true);
     const fixture = TestBed.createComponent(CarteiraDetailPageComponent); fixture.detectChanges(); return { fixture, service, closed, dialog, toast, router, params, dashboard, operations, distribution, custodia };
   }

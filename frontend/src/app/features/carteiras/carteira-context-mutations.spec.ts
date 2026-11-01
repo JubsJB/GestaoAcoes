@@ -21,6 +21,8 @@ describe('Confirmed HTTP mutations and carteira context', () => {
     ] });
     http = TestBed.inject(HttpTestingController); context = TestBed.inject(CarteiraContextService);
     context.initialize().subscribe(); http.expectOne('/api/carteiras').flush([A, B]);
+    context.select(1); // Preferência explícita da sessão, sem recuperar o localStorage legado.
+    storage.removeItem.mockClear(); // A remoção legada ocorreu na inicialização, antes do comando.
   }
   afterEach(() => http.verify());
   it('incorporates only the confirmed POST response and preserves active selection', () => {

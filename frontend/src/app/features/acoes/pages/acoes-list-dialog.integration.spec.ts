@@ -1,3 +1,4 @@
+import { authenticatedModule } from '../../../../../test-support/authenticated-module';
 import { OverlayContainer } from '@angular/cdk/overlay';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { MatDialog } from '@angular/material/dialog';
@@ -25,7 +26,7 @@ describe('AcoesListPageComponent com MatDialog real', () => {
         details: {}
       } as NormalizedHttpError)))
     };
-    await TestBed.configureTestingModule({
+    await authenticatedModule({
       imports: [AcoesListPageComponent],
       providers: [provideRouter([]), { provide: AcoesService, useValue: service }]
     }).compileComponents();

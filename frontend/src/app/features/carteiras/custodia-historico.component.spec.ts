@@ -1,3 +1,4 @@
+import { authenticatedModule } from '../../../../test-support/authenticated-module';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { MatDialog } from '@angular/material/dialog';
 import { Observable, of, Subject, throwError } from 'rxjs';
@@ -42,7 +43,7 @@ describe('CustodiaHistoricoComponent', () => {
     const ref = { afterClosed: () => closed, close: vi.fn() };
     const dialog = { open: vi.fn().mockReturnValue(ref) };
     const names = { loadFor: vi.fn(), name: vi.fn((id: number) => `Corretora #${id}`) };
-    await TestBed.configureTestingModule({ imports: [CustodiaHistoricoComponent], providers: [
+    await authenticatedModule({ imports: [CustodiaHistoricoComponent], providers: [
       { provide: CustodiaService, useValue: service }, { provide: MatDialog, useValue: dialog },
       { provide: CorretoraNamesService, useValue: names }
     ] }).compileComponents();

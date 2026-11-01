@@ -1,3 +1,4 @@
+import { authenticatedModule } from '../../../../../test-support/authenticated-module';
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
@@ -38,7 +39,7 @@ describe('OperacoesListPageComponent', () => {
     };
     const service = { listarPorCarteira: vi.fn().mockImplementation(response), listar: vi.fn() };
     const navigation = { bindOperations: vi.fn() };
-    await TestBed.configureTestingModule({
+    await authenticatedModule({
       imports: [OperacoesListPageComponent],
       providers: [
         provideRouter([]),

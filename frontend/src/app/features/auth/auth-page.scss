@@ -1,0 +1,9 @@
+:host { display: grid; min-height: 100dvh; place-items: center; padding: 1.5rem; background: #f3f6f4; }
+section { width: min(100%, 28rem); background: var(--app-surface-card, white); border: 1px solid var(--app-border-subtle, #d8e4dc); border-radius: 1rem; padding: 2rem; }
+h1 { color: var(--app-brand-primary, #24634b); }
+form { display: grid; gap: .75rem; }
+mat-form-field { width: 100%; }
+[role=alert] { color: #8c2424; }
+nav { display: flex; flex-wrap: wrap; gap: 1rem; margin-top: 1.5rem; }
+p { line-height: 1.5; }
+@media (max-width: 36rem) { section { padding: 1.25rem; } }
