@@ -37,7 +37,7 @@ import static org.junit.jupiter.api.Assertions.*;
 /** Fase 5.1: um cenário sequencial; a primeira falha inesperada impede as etapas seguintes. */
 @CustodiaH2UpgradeTest
 class CustodiaUpgradeRollbackH2Test {
-    private static final String MASTER = "db/changelog/db.changelog-master.yaml";
+    private static final String MASTER = "db/changelog/custodia-ate-008.yaml";
     private static final String ARQUIVO_008 = "db/changelog/changes/008-create-movimentacoes-custodia.yaml";
     private static final List<String> LEGADO = List.of("CORRETORA", "ACAO", "CARTEIRA", "OPERACAO",
             "HISTORICO_COTACAO", "SNAPSHOT_CARTEIRA", "SNAPSHOT_CARTEIRA_MOEDA");

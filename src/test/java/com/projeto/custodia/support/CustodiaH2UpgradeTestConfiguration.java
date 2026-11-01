@@ -26,6 +26,10 @@ public class CustodiaH2UpgradeTestConfiguration {
      * antes do descarte do contexto/datasource. Reutiliza os mesmos mapeamentos e validate.
      */
     public LocalContainerEntityManagerFactoryBean prepararValidacaoHibernate() {
-        return new CustodiaH2TestConfiguration().entityManagerFactory(dataSource);
+        var factory = new CustodiaH2TestConfiguration().entityManagerFactory(dataSource);
+        // Este cenário histórico para em 008; não exige entidades da autenticação de 009.
+        factory.setPersistenceUnitPostProcessors(unit -> unit.getManagedClassNames()
+                .removeIf(name -> name.startsWith("com.projeto.entities.autenticacao.")));
+        return factory;
     }
 }

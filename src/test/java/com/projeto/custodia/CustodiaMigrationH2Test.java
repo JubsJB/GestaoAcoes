@@ -60,12 +60,12 @@ class CustodiaMigrationH2Test {
         List<String> ids = List.of("001-create-corretora", "002-create-acao", "003-create-carteira",
                 "004-create-operacao", "005-create-historico-cotacao", "006-create-snapshot-carteira",
                 "007-add-referencia-temporal-cotacao", "008-create-movimentacoes-custodia",
-                "008-add-integridade-movimentacoes-custodia");
+                "008-add-integridade-movimentacoes-custodia", "009-create-autenticacao");
         assertEquals(ids, jdbc.queryForList("SELECT ID FROM DATABASECHANGELOG ORDER BY ORDEREXECUTED", String.class));
-        assertEquals(9, jdbc.queryForObject("SELECT COUNT(*) FROM DATABASECHANGELOG WHERE EXECTYPE = 'EXECUTED' "
+        assertEquals(10, jdbc.queryForObject("SELECT COUNT(*) FROM DATABASECHANGELOG WHERE EXECTYPE = 'EXECUTED' "
                 + "AND AUTHOR = 'codex' AND MD5SUM IS NOT NULL", Integer.class));
         assertEquals(1, jdbc.queryForObject("SELECT COUNT(DISTINCT DEPLOYMENT_ID) FROM DATABASECHANGELOG", Integer.class));
-        assertEquals(List.of(1, 2, 3, 4, 5, 6, 7, 8, 9), jdbc.queryForList(
+        assertEquals(List.of(1, 2, 3, 4, 5, 6, 7, 8, 9, 10), jdbc.queryForList(
                 "SELECT ORDEREXECUTED FROM DATABASECHANGELOG ORDER BY ORDEREXECUTED", Integer.class));
         assertEquals(2, jdbc.queryForObject("SELECT COUNT(*) FROM DATABASECHANGELOG WHERE "
                 + "FILENAME = 'db/changelog/changes/008-create-movimentacoes-custodia.yaml'", Integer.class));

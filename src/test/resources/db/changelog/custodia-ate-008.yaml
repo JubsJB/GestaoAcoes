@@ -1,0 +1,19 @@
+# Recorte histórico dos testes de upgrade/rollback de custódia.
+# Reutiliza os arquivos reais sem copiar ou alterar os changesets já aplicados.
+databaseChangeLog:
+  - include:
+      file: db/changelog/changes/001-create-corretora.yaml
+  - include:
+      file: db/changelog/changes/002-create-acao.yaml
+  - include:
+      file: db/changelog/changes/003-create-carteira.yaml
+  - include:
+      file: db/changelog/changes/004-create-operacao.yaml
+  - include:
+      file: db/changelog/changes/005-create-historico-cotacao.yaml
+  - include:
+      file: db/changelog/changes/006-create-snapshot-carteira.yaml
+  - include:
+      file: db/changelog/changes/007-add-referencia-temporal-cotacao.yaml
+  - include:
+      file: db/changelog/changes/008-create-movimentacoes-custodia.yaml

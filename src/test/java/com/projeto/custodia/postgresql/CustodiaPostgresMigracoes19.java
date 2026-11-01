@@ -13,7 +13,7 @@ import static com.projeto.custodia.postgresql.CustodiaPostgresHomologacao19.*;
 
 /** Cenários programáticos de Liquibase; nenhum acesso ao banco ao carregar a classe. */
 final class CustodiaPostgresMigracoes19 {
-    static final String MASTER = "db/changelog/db.changelog-master.yaml";
+    static final String MASTER = "db/changelog/custodia-ate-008.yaml";
     static final String ARQUIVO_008 = "db/changelog/changes/008-create-movimentacoes-custodia.yaml";
     static final List<String> IDS = List.of("001-create-corretora","002-create-acao","003-create-carteira",
             "004-create-operacao","005-create-historico-cotacao","006-create-snapshot-carteira",
