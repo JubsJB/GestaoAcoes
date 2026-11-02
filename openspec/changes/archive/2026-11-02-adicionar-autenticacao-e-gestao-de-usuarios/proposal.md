@@ -38,6 +38,7 @@ A próxima entrega planejada reúne 2.1–2.8, 3.1–3.5 e as partes indispensá
 - `api-error-handling`: erros de autenticação e autorização também na cadeia de filtros.
 - `frontend-application-shell`: contexto autenticado, preferência limitada à sessão e vazio conforme perfil, substituindo persistência global entre sessões.
 - `frontend-portfolio-management`: seleção do detalhe preservada somente na sessão autenticada.
+- `portfolio-creation`: Carteiras compartilhadas sem proprietário individual; criação restrita a ADMIN autenticado com CSRF, vedada a USER.
 
 As especificações financeiras permanecem vigentes; a nova política transversal de acesso é definida em `role-access-control`, sem alterar cálculos ou criar operações financeiras novas.
 

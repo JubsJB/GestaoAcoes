@@ -229,7 +229,7 @@ O detalhe SHALL consumir `GET /carteiras/{id}/posicoes` pelo serviço e modelo e
 - **THEN** o histórico incorpora o DTO conforme contrato vigente e as posições são consultadas novamente no backend, sem cálculo local nem criação de snapshot
 
 ### Requirement: Detalhe reativo e seleção global
-O detalhe SHALL reagir a mudanças do identificador na mesma rota, validar a Carteira, selecionar e persistir a abertura válida, e invalidar imediatamente dados e requests do contexto anterior. Estado transitório SHALL ser aceito somente quando compatível com o ID atual. Trocar a Carteira no shell estando no detalhe SHALL navegar ao novo detalhe.
+Após autenticação e autorização, o detalhe SHALL reagir a mudanças do identificador na mesma rota, validar a Carteira, selecionar a abertura válida em memória da sessão autenticada, sem preferência global persistida entre identidades, e invalidar imediatamente dados e requests do contexto anterior. Estado transitório SHALL ser aceito somente quando compatível com o ID atual. Trocar a Carteira no shell estando no detalhe SHALL navegar ao novo detalhe.
 
 #### Scenario: Troca sem recriar componente
 - **WHEN** `/carteiras/{id}` muda para outro ID na mesma instância de página
@@ -238,6 +238,10 @@ O detalhe SHALL reagir a mudanças do identificador na mesma rota, validar a Car
 #### Scenario: Detalhe indisponível
 - **WHEN** o ID é malformado ou a Carteira não existe
 - **THEN** o detalhe mostra erro ou não encontrado, não ativa silenciosamente outra Carteira e oferece retorno à listagem
+
+#### Scenario: Reload do detalhe com cookie válido
+- **WHEN** detalhe é recarregado com sessão válida e ID na URL
+- **THEN** /me restaura identidade sem registrar atividade e o detalhe carrega carteira validada sem novo login ou restauração de dados financeiros não salvos
 
 ### Requirement: Sincronização de mutações de Carteira
 Criação e edição confirmadas SHALL incorporar o CarteiraResponse à coleção compartilhada; exclusão confirmada com 204 SHALL remover a Carteira. Cancelamento, erro e conflito MUST NOT alterar o contexto como se houvesse sucesso. A criação em dialog SHALL preservar seleção válida anterior; na ausência dela SHALL resolver o fallback. A criação direta SHALL selecionar a Carteira ao abrir seu detalhe. Edição SHALL atualizar o nome exibido sem trocar o ID ativo. Exclusão da ativa SHALL limpar sua preferência, resolver a primeira restante por id ASC ou estado vazio e preservar retorno a `/carteiras`.

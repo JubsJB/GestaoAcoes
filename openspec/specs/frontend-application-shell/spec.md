@@ -172,7 +172,7 @@ O shell SHALL permitir navegação por teclado, expor foco visível e contraste 
 - **THEN** seu conteúdo possui um título principal coerente e os controles interativos possuem alvos adequados
 
 ### Requirement: Contexto global leve de Carteira
-O shell SHALL disponibilizar um único seletor de Carteira próximo à identificação da aplicação, com coleção validada, identificação da Carteira ativa e estados de inicialização, vazio e erro recuperável. O contexto compartilhado MUST NOT armazenar posições, operações, resumos, resultados, cotações, evolução ou snapshots. O seletor SHALL ter label acessível, foco visível e operação por teclado em desktop e mobile.
+O shell autenticado SHALL disponibilizar um único seletor de Carteira próximo à identificação da aplicação, com coleção validada, identificação da Carteira ativa e estados de inicialização, vazio e erro recuperável. O contexto compartilhado MUST NOT armazenar posições, operações, resumos, resultados, cotações, evolução ou snapshots. O seletor SHALL ter label acessível, foco visível e operação por teclado em desktop e mobile.
 
 #### Scenario: Inicialização compartilhada
 - **WHEN** shell, Dashboard e histórico de Operações precisam da coleção durante a mesma inicialização
@@ -180,13 +180,13 @@ O shell SHALL disponibilizar um único seletor de Carteira próximo à identific
 
 #### Scenario: Vazio ou falha
 - **WHEN** a carga retorna vazia ou falha
-- **THEN** o contexto distingue vazio com caminho para cadastro de erro com tentativa manual, sem inventar Carteira ativa nem interpretar erro como vazio
+- **THEN** o contexto distingue vazio com caminho para cadastro somente para ADMIN e orientação de consulta para USER de erro com tentativa manual, sem inventar Carteira ativa nem interpretar erro como vazio
 
 ### Requirement: Precedência e preferência local de Carteira
-Uma URL explícita válida SHALL prevalecer sobre seleção em memória e preferência local. Sem URL explícita, a aplicação SHALL usar seleção em memória válida, depois preferência local validada e, na ausência destas, a primeira Carteira por id ASC. Somente a última seleção explícita SHALL ser persistida em chave isolada e versionada de localStorage; abrir detalhe válido SHALL selecionar e persistir sua Carteira. Fallback automático MUST NOT sobrescrever preferência explícita. Falha do armazenamento SHALL permitir continuidade em memória. A aplicação MUST NOT sincronizar seleção ao vivo entre abas.
+Uma URL explícita válida SHALL prevalecer sobre seleção em memória e preferência da sessão. Sem URL explícita, a aplicação SHALL usar seleção em memória válida, depois preferência da sessão validada e, na ausência destas, a primeira Carteira por id ASC. Somente a última seleção explícita SHALL ser mantida em memória da sessão autenticada; abrir detalhe válido SHALL selecionar sua Carteira nessa sessão. A chave global legada de localStorage SHALL ser removida e MUST NOT ser usada como fallback. Encerramento e troca de identidade SHALL limpar a seleção; retorno após login SHALL seguir frontend-authentication. Fallback automático MUST NOT sobrescrever preferência explícita. Falha do armazenamento SHALL permitir continuidade em memória. A aplicação MUST NOT sincronizar seleção ao vivo entre abas.
 
 #### Scenario: URL vence preferência
-- **WHEN** a URL indica Carteira válida diferente da preferência local
+- **WHEN** a URL indica Carteira válida diferente da preferência da sessão
 - **THEN** a Carteira da URL determina o contexto e os dados da página
 
 #### Scenario: Fallback determinístico
@@ -198,7 +198,7 @@ Uma URL explícita válida SHALL prevalecer sobre seleção em memória e prefer
 - **THEN** a página informa seleção inválida ou indisponível, não consulta finanças com esse valor nem apresenta outra Carteira como se fosse a solicitada, e permite recuperação explícita
 
 #### Scenario: Preferência inválida ou armazenamento indisponível
-- **WHEN** a preferência aponta para Carteira ausente, está corrompida ou localStorage falha
+- **WHEN** a preferência aponta para Carteira ausente, está corrompida ou o armazenamento legado falha
 - **THEN** a aplicação ignora a preferência inválida, continua com a resolução válida em memória e mantém navegação utilizável
 
 #### Scenario: Troca e navegação do histórico
@@ -211,7 +211,7 @@ Uma URL explícita válida SHALL prevalecer sobre seleção em memória e prefer
 
 #### Scenario: Acesso direto e reload contextual
 - **WHEN** `/operacoes?carteiraId=A` é aberta diretamente ou recarregada
-- **THEN** A é validada na coleção compartilhada, prevalece sobre memória/preferência e determina header e histórico, sem consulta de operações antes da validação
+- **THEN** Após restauração por /me ou novo login e autorização, A é validada na coleção compartilhada, prevalece sobre memória/preferência e determina header e histórico, sem consulta de operações antes da validação
 
 #### Scenario: Troca de Carteira e histórico do navegador
 - **WHEN** o usuário troca de A para B na listagem e depois usa voltar ou avançar
@@ -245,7 +245,7 @@ O shell SHALL oferecer controle desktop por teclado com nome acessível correspo
 - **THEN** a transição respeita o tratamento atual de movimento reduzido e os controles e estados permanecem utilizáveis
 
 ### Requirement: Compatibilidade da evolução do shell
-A evolução SHALL preservar header, marca, seletor global de Carteira, seus estados, precedência e persistência, skip link, região principal e renderização dos destinos no shell único. URLs, rotas filhas, limites lazy, parâmetros `carteiraId` e `origem`, captura de Carteira pelo formulário e retornos SHALL manter os contratos existentes. A mudança MUST NOT alterar conteúdo do Dashboard, funcionalidades das páginas, contratos de API ou regras financeiras; MUST NOT apresentar funcionalidades futuras como implementadas.
+A evolução SHALL preservar header, marca, seletor global de Carteira, seus estados e precedência, com seleção em memória limitada à sessão autenticada conforme frontend-authentication, skip link, região principal e renderização dos destinos no shell único. URLs, rotas filhas, limites lazy, parâmetros `carteiraId` e `origem`, captura de Carteira pelo formulário e retornos SHALL manter os contratos existentes. A mudança SHALL adaptar acesso às páginas e ações conforme role-access-control e frontend-authentication, preservando conteúdo financeiro do Dashboard e regras financeiras; MUST NOT apresentar funcionalidades futuras como implementadas.
 
 #### Scenario: Seletor e skip link preservados
 - **WHEN** o usuário opera o seletor por teclado e aciona o skip link em desktop expandido, recolhido ou mobile
@@ -253,12 +253,16 @@ A evolução SHALL preservar header, marca, seletor global de Carteira, seus est
 
 #### Scenario: URLs existentes preservadas
 - **WHEN** o usuário abre diretamente, recarrega ou usa voltar e avançar em uma URL existente, incluindo rotas filhas e parâmetros contextuais
-- **THEN** o mesmo destino e contrato de origem/retorno permanecem disponíveis no shell, com redirect exato de `/` para `/dashboard` e tratamento existente de URL desconhecida
+- **THEN** após autenticação e verificação de perfil, o destino autorizado e contrato de origem/retorno permanecem disponíveis no shell, com redirect exato de `/` para `/dashboard` e tratamento existente de URL desconhecida; destino proibido segue o fallback de frontend-authentication
 
 #### Scenario: Formulário conserva Carteira capturada
 - **WHEN** o cadastro abriu para Carteira A e o seletor global muda para B
-- **THEN** o formulário conserva A até conclusão ou cancelamento, inclusive após reload com URL de captura, e mantém retorno definido por `origem` sem alteração de payload ou regra financeira
+- **THEN** enquanto a sessão ADMIN permanecer válida, o formulário conserva A até conclusão ou cancelamento; após reload, /me restaura sessão válida (ou exige login se inválida) e autorização revalida a URL de captura sem restaurar campos financeiros, mantendo retorno definido por `origem` sem alteração de payload ou regra financeira
 
 #### Scenario: Ativos e Carteiras mantêm o escopo
 - **WHEN** o usuário aciona Ativos ou Carteiras
 - **THEN** acessa respectivamente `/acoes` com somente ações suportadas ou `/carteiras` para gerenciar carteiras cadastradas, sem outras classes de investimentos ou nova visão conceitual Carteira
+
+#### Scenario: Sessão comum sem sincronizar seleção
+- **WHEN** duas abas compartilham autenticação e consultam carteiras distintas
+- **THEN** atividade em uma mantém sessão comum, sem sincronizar automaticamente seleção; logout compartilhado limpa ambas e reload restaura contexto somente por URL validada
