@@ -43,6 +43,26 @@ class OperationalRuntimeConfigTest {
             });
         }
     }
+    @Test void httpDeApresentacaoExigePerfisExatosEOrigemCanonica() {
+        var http = valido().withPropertyValues("spring.profiles.active=operacional,apresentacao-http",
+                "app.public-origin=http://localhost:8081");
+        http.run(context -> assertNull(context.getStartupFailure()));
+        for (String property : new String[]{"spring.profiles.active=apresentacao-http",
+                "spring.profiles.active=operacional,apresentacao-http,bootstrap-admin",
+                "spring.profiles.active=operacional,apresentacao-http,dev",
+                "app.public-origin=http://127.0.0.1:8081", "auth.allow-local-http=true"})
+            http.withPropertyValues(property).run(context -> assertNotNull(context.getStartupFailure(), property));
+    }
+
+    @Test void dadosDemonstracaoNaoAtivamForaDaApresentacaoLocal() {
+        for (String profiles : new String[]{"dados-demonstracao", "operacional,dados-demonstracao",
+                "operacional,apresentacao-http,dados-demonstracao,prod",
+                "operacional,apresentacao-http,dados-demonstracao"}) {
+            valido().withPropertyValues("spring.profiles.active="+profiles)
+                    .run(context -> assertNotNull(context.getStartupFailure()));
+        }
+    }
+
     @Test void recusaProxyGenericoAntesDeInicializarInfraestrutura() {
         new ApplicationContextRunner().withUserConfiguration(OperationalRuntimeConfig.class)
                 .withPropertyValues("spring.profiles.active=operacional",

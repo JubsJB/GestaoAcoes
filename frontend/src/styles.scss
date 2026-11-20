@@ -1,5 +1,6 @@
 @use 'styles/theme' as app-theme;
 @use 'styles/tokens';
+@use 'styles/visual-foundation' as visual;
 @use 'styles/patterns';
 @use 'app/shared/dialog/dialog-overlay' as app-dialog;
 
@@ -39,3 +40,6 @@ a {
 :where(button, a, input, select, textarea, [tabindex]) { scroll-margin-block: 3.5rem; }
 
 .auth-session-masked .cdk-overlay-container { visibility: hidden; pointer-events: none; }
+
+// Explicit opt-in for sample B surfaces; financial workspace stays on its existing tokens.
+.app-blue-scope { @include visual.blue-scope; }

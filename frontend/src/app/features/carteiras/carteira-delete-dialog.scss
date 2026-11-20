@@ -1,0 +1,28 @@
+@use '../../../styles/visual-foundation' as visual;
+:host { @include visual.blue-scope; display: block; min-width: 0; padding: 1.5rem; }
+.delete-heading { display: flex; align-items: center; gap: .75rem; }
+.delete-heading > div { min-width: 0; }
+:host .delete-heading h2[mat-dialog-title] { margin: 0; padding: 0; color: var(--app-brand-primary); font-size: 1.375rem; line-height: 1.3; font-weight: 650; overflow-wrap: anywhere; }
+.delete-subtitle { margin: .25rem 0 0; color: var(--app-text-secondary); font-size: .875rem; line-height: 1.5; }
+.delete-icon { display: grid; place-items: center; flex: 0 0 2.5rem; width: 2.5rem; height: 2.5rem; border-radius: .625rem; background: var(--app-surface-error); color: var(--app-error); }
+.delete-icon svg { width: 1.5rem; height: 1.5rem; }
+.delete-icon--warning { color: var(--app-warning); background: var(--app-surface-warning); }
+.delete-icon--info { color: var(--app-info); background: var(--app-surface-selected); }
+:host mat-dialog-content.delete-content { margin: 1.25rem 0 0; padding: 0; color: var(--app-text-primary); }
+.delete-content p.delete-question { margin: 0 0 1rem; font-size: .9375rem; line-height: 1.5; }
+.delete-target { margin: 0; padding: .875rem 1rem; border: 1px solid var(--app-border-subtle); border-radius: .625rem; background: var(--app-surface-muted); }
+.delete-target dt { color: var(--app-text-secondary); font-size: .8125rem; }
+.delete-target dd { margin: .375rem 0 0; color: var(--app-brand-primary); font-size: .875rem; font-weight: 600; line-height: 1.5; overflow-wrap: anywhere; word-break: normal; }
+.delete-content app-feedback-alert { display: block; margin-top: 1rem; }
+.app-dialog-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: .625rem; min-height: 0; margin-top: 1.25rem; padding: 0; }
+.app-dialog-actions > button { min-height: 2.75rem; max-width: 100%; margin: 0; }
+.delete-cancel:not(:disabled) { color: var(--app-brand-primary); border-color: var(--app-border-control); }
+.app-destructive { --mat-button-filled-container-color: var(--app-error); --mat-button-filled-label-text-color: #fff; }
+.app-destructive:not(:disabled):hover { --mat-button-filled-container-color: #8f1d16; }
+.app-dialog-actions > button:focus-visible { outline: 2px solid var(--app-focus); outline-offset: 3px; }
+@media (max-width: 36rem) {
+  :host { padding: 1.25rem; }
+  :host .delete-heading h2[mat-dialog-title] { font-size: 1.25rem; }
+  .app-dialog-actions { flex-direction: column; align-items: stretch; }
+  .app-dialog-actions > button { width: 100%; }
+}

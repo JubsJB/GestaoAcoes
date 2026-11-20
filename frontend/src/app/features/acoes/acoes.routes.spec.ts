@@ -13,6 +13,6 @@ describe('Ações routes',()=>{
   beforeEach(()=>authenticatedModule({providers:[provideRouter(ACOES_ROUTES),{provide:AcoesService,useValue:service}]}));
   it('lazy-loads the list at the feature root',async()=>{const harness=await RouterTestingHarness.create('/');expect(harness.routeNativeElement?.querySelector('h1')?.textContent).toBe('Ações');});
   it('resolves nova before the id parameter',async()=>{const harness=await RouterTestingHarness.create('/nova');expect(harness.routeNativeElement?.querySelector('h1')?.textContent).toBe('Cadastrar ação');expect(TestBed.inject(Router).url).toBe('/nova');});
-  it('lazy-loads the detail route',async()=>{const harness=await RouterTestingHarness.create('/7');expect(harness.routeNativeElement?.querySelector('h1')?.textContent).toBe('PETR4');});
+  it('lazy-loads the detail route',async()=>{const harness=await RouterTestingHarness.create('/7');expect(harness.routeNativeElement?.querySelector('h1')?.textContent).toBe('Detalhe da ação');});
   it('contains no placeholder component import',()=>{expect(JSON.stringify(ACOES_ROUTES)).not.toContain('Placeholder');expect(ACOES_ROUTES.map(route=>route.path)).toEqual(['','nova',':id']);});
 });

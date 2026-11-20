@@ -13,12 +13,13 @@ import { buildEvolutionGeometry, EvolutionGeometry, EvolutionGeometryPoint, segm
 import { EvolucaoPatrimonialResponse } from './evolution.models';
 import { EvolutionService } from './evolution.service';
 import { AxisLabelsDirective } from './axis-labels.directive';
+import { EvolutionValueLabelsDirective } from './evolution-value-labels.directive';
 
 interface PointSelection { currency: Currency; point: EvolutionGeometryPoint }
 
 @Component({
   selector: 'app-portfolio-evolution',
-  imports: [AdminOnlyDirective,AxisLabelsDirective, FeedbackAlertComponent, MatButtonModule, MatProgressSpinnerModule],
+  imports: [AdminOnlyDirective,AxisLabelsDirective, EvolutionValueLabelsDirective, FeedbackAlertComponent, MatButtonModule, MatProgressSpinnerModule],
   templateUrl: './portfolio-evolution.component.html',
   styleUrl: './portfolio-evolution.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush

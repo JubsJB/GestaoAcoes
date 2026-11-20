@@ -1,6 +1,7 @@
-import { ChangeDetectionStrategy, Component, DestroyRef, inject, signal } from '@angular/core';
+import { AuthLayoutComponent } from '../../shared/auth-layout/auth-layout.component';
+import { ChangeDetectionStrategy, Component, DestroyRef, inject, signal, viewChild } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { FormBuilder, FormGroupDirective, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
@@ -14,10 +15,10 @@ import { AUTH_BROWSER } from '../../core/auth/auth-browser';
 @Component({
   selector: 'app-login-page',
   providers: [RetryAfterState],
-  imports: [ReactiveFormsModule, MatButtonModule, MatFormFieldModule, MatInputModule, RouterLink],
+  imports: [AuthLayoutComponent, ReactiveFormsModule, MatButtonModule, MatFormFieldModule, MatInputModule, RouterLink],
   changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrl: './auth-page.scss',
-  template: `<section aria-labelledby="login-title">
+  template: `<app-auth-layout><section aria-labelledby="login-title">
     <p>Gestão de Ações</p><h1 id="login-title">Entrar</h1>
     <p>Acesse suas carteiras com segurança.</p>
     @if (error()) { <p role="alert">{{ error() }}</p> }
@@ -27,18 +28,18 @@ import { AUTH_BROWSER } from '../../core/auth/auth-browser';
       <button mat-stroked-button type="button" data-testid="continue-session" [disabled]="busy()" (click)="continueSession($event)">Continuar</button>
     }
     <form [formGroup]="form" (ngSubmit)="submit()" [attr.aria-busy]="busy()">
-      <mat-form-field><mat-label>Nome de usuário</mat-label>
+      <mat-form-field appearance="outline" subscriptSizing="dynamic"><mat-label>Nome de usuário</mat-label>
         <input matInput name="username" formControlName="username" autocomplete="username" maxlength="100" required>
         @if (form.controls.username.touched && form.controls.username.invalid) { <mat-error>Informe o nome de usuário.</mat-error> }
       </mat-form-field>
-      <mat-form-field><mat-label>Senha</mat-label>
+      <mat-form-field appearance="outline" subscriptSizing="dynamic"><mat-label>Senha</mat-label>
         <input matInput name="senha" type="password" formControlName="senha" autocomplete="current-password" required>
         @if (form.controls.senha.touched && form.controls.senha.invalid) { <mat-error>Informe sua senha.</mat-error> }
       </mat-form-field>
       <button mat-flat-button type="submit" [disabled]="busy() || retry.remaining() > 0">{{ busy() ? 'Entrando…' : 'Entrar' }}</button>
     </form>
     <nav aria-label="Ajuda de acesso"><a routerLink="/definir-senha">Primeiro acesso</a><a routerLink="/redefinir-senha">Redefinir senha</a></nav>
-  </section>`
+  </section></app-auth-layout>`
 })
 export class LoginPageComponent {
   protected readonly session = inject(SessionService);
@@ -50,10 +51,11 @@ export class LoginPageComponent {
   protected readonly form = inject(FormBuilder).nonNullable.group({ username: ['', Validators.required], senha: ['', Validators.required] });
   protected readonly busy = signal(false);
   protected readonly error = signal('');
+  private readonly formDirective = viewChild(FormGroupDirective);
 
   constructor() {
     this.session.changes$.pipe(takeUntilDestroyed(this.destroy)).subscribe(() => {
-      this.form.reset();
+      this.resetForm();
       this.error.set('');
     });
     if (this.router.currentNavigation()?.extras.state?.['logoutUnconfirmed']) {
@@ -72,10 +74,16 @@ export class LoginPageComponent {
 
   protected continueSession(event?: Event): void {
     if (this.busy() || !this.session.authenticated()) return;
-    this.form.reset(); this.busy.set(true); this.error.set('');
+    this.resetForm(); this.busy.set(true); this.error.set('');
     const generation = this.session.generation;
     const trusted = event?.isTrusted === true && this.browser.visible();
     this.complete(this.session.restore().pipe(switchMap(valid => valid && trusted && generation === this.session.generation ? this.session.activity() : of(valid))));
+  }
+
+  private resetForm(): void {
+    const directive = this.formDirective();
+    if (directive) directive.resetForm();
+    else this.form.reset();
   }
 
   private complete(authentication: Observable<boolean>, credentialAttempt = false): void {
@@ -87,8 +95,19 @@ export class LoginPageComponent {
       takeUntilDestroyed(this.destroy), finalize(() => this.busy.set(false))
     ).subscribe({
       next: destination => {
-        if (destination) void this.router.navigateByUrl(destination);
-        else this.error.set('Não foi possível validar a sessão. Tente novamente.');
+        if (!destination) {
+          this.error.set('Não foi possível validar a sessão. Tente novamente.');
+          return;
+        }
+        const generation = this.session.generation;
+        const navigationFailed = () => {
+          if (!this.destroy.destroyed && generation === this.session.generation) {
+            this.error.set('Não foi possível abrir a página. Sua sessão permanece validada. Use Continuar para tentar novamente.');
+          }
+        };
+        void this.router.navigateByUrl(destination).then(navigated => {
+          if (!navigated) navigationFailed();
+        }, navigationFailed);
       },
       error: (error: { status?: number }) => {
         this.retry.apply(error);

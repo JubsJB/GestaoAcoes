@@ -1,0 +1,25 @@
+@use '../../../styles/visual-foundation' as visual;
+@use '../../shared/form/simple-form';
+@use 'carteiras-typography' as typography;
+
+:host { @include visual.blue-scope; @include typography.page-scale; display: block; min-width: 0; }
+.app-page { max-width: 42rem; margin-inline: 0; gap: 1.25rem; }
+.app-form-surface { padding: 1.5rem; border-radius: .75rem; box-shadow: none; }
+.surface-heading { border: 0; padding: 0; }
+.surface-heading > app-icon { display: none; }
+.surface-heading h2 { color: var(--app-brand-primary); font-size: 1.125rem; line-height: 1.4; }
+.surface-heading p { color: var(--app-text-secondary); font-size: .875rem; }
+form { gap: 1.25rem; }
+.app-actions { gap: .625rem; }
+.app-actions > * { min-height: 2.75rem; }
+button[mat-flat-button]:not(:disabled) { --mat-button-filled-container-color: var(--app-action-primary); --mat-button-filled-label-text-color: #fff; }
+.wallet-dialog-page { display: grid; gap: 1.25rem; padding: 1.5rem; max-height: calc(100dvh - 2rem); overflow: auto; }
+.wallet-dialog-heading h2 { margin: 0 0 .5rem; color: var(--app-brand-primary); font-size: 1.375rem; font-weight: 650; line-height: 1.3; overflow-wrap: anywhere; }
+.wallet-dialog-heading p { margin: 0; color: var(--app-text-secondary); font-size: .875rem; line-height: 1.5; }
+.wallet-dialog-page .app-form-surface { width: 100%; max-width: none; padding: 0; border: 0; box-shadow: none; gap: 1.125rem; }
+.wallet-dialog-page .app-actions { justify-content: flex-end; margin-top: .125rem; padding: 0; }
+@media (max-width: 36rem) {
+  .app-form-surface { padding: 1.25rem 1rem; }
+  .wallet-dialog-page { padding: 1.25rem; gap: 1.125rem; }
+  .wallet-dialog-heading h2 { font-size: 1.25rem; }
+}

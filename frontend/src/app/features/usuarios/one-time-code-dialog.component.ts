@@ -6,13 +6,13 @@ import { MatInputModule } from '@angular/material/input';
 import { formatOffsetDateTime } from '../../shared/formatters/offset-date-time.formatter';
 import { EmissaoAutorizacao } from './usuario.model';
 
-@Component({
+@Component({ host: { class: 'app-blue-scope' },
   selector: 'app-one-time-code-dialog', imports: [MatDialogModule, MatButtonModule, MatFormFieldModule, MatInputModule],
-  styleUrl: '../../shared/dialog/dialog.scss',
+  styleUrl: './usuarios-dialog.scss',
   template: `<h2 mat-dialog-title>Código de {{ data.motivo === 'INICIAL' ? 'definição inicial' : 'redefinição' }}</h2>
     <mat-dialog-content><p>Usuário: <strong>{{ data.username }}</strong></p><p>Este código é exibido somente agora. Entregue-o ao usuário por um canal seguro. A aplicação não poderá recuperá-lo.</p>
     <p>Válido até {{ expiry }}. Um novo código invalida o anterior.</p>
-    <mat-form-field style="width:100%"><mat-label>Código de uso único</mat-label><input matInput readonly data-testid="one-time-code" [value]="data.codigo" (focus)="select($event)"></mat-form-field>
+    <mat-form-field appearance="outline" subscriptSizing="dynamic"><mat-label>Código de uso único</mat-label><input matInput readonly data-testid="one-time-code" [value]="data.codigo" (focus)="select($event)"></mat-form-field>
     @if (message()) { <p role="status">{{ message() }}</p> }</mat-dialog-content>
     <mat-dialog-actions><button mat-button (click)="copy()">Copiar código</button><button mat-flat-button data-testid="close-code" mat-dialog-close>Concluir</button></mat-dialog-actions>`
 })

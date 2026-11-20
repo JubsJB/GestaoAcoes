@@ -144,7 +144,9 @@ describe('DashboardPageComponent', () => {
     expect(styles).toMatch(/\.currency-group--single[^\{]*\{[^}]*grid-column:\s*1\s*\/\s*-1[^}]*justify-self:\s*stretch[^}]*width:\s*100%/);
     expect(styles).toMatch(/\.currency-group--single[^\{]*\.summary-grid[^\{]*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1\.4fr\)\s*repeat\(3,\s*minmax\(0,\s*1fr\)\)/);
     expect(styles).toMatch(/@container\s*\(max-width:\s*70rem\)[^{]*\{[^}]*\.summary-grid[^\{]*\{[^}]*grid-template-columns:\s*repeat\(2/);
-    expect(styles).toMatch(/@container\s*\(max-width:\s*42rem\)[^{]*\{[^}]*\.summary-grid[^\{]*\{[^}]*grid-template-columns:\s*1fr/);
+    // Approved mobile composition: primary metrics span both columns; supporting metrics share a row.
+    expect(styles).toMatch(/@container\s*\(max-width:\s*42rem\)[^{]*\{[^}]*\.summary-grid[^\{]*\{[^}]*grid-template-columns:\s*repeat\(2/);
+    expect(styles).toMatch(/\.summary-primary[^}]*\.summary-result[^\{]*\{[^}]*grid-column:\s*1\s*\/\s*-1/);
   });
 
   it('exibe análise resumida, contagem estrutural e resultados individuais sem tabela de posições', async () => {

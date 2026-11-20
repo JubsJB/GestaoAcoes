@@ -23,7 +23,7 @@ import { CarteiraFormPageComponent } from './carteira-form-page.component';
   imports: [AdminOnlyDirective,AppIconComponent, FeedbackAlertComponent, MatButtonModule, MatProgressSpinnerModule, PageHeaderComponent, RouterLink],
   template: `
     <section class="app-page collection-page" aria-labelledby="carteiras-title">
-      <app-page-header headingId="carteiras-title" eyebrow="Organização" icon="portfolio" title="Carteiras" description="Gerencie as carteiras que organizam seus investimentos.">
+      <app-page-header headingId="carteiras-title" eyebrow="Organização" title="Carteiras" description="Gerencie as carteiras que organizam seus investimentos.">
         <button *appAdmin page-header-action mat-flat-button type="button" (click)="openCreateDialog()">Nova carteira</button>
       </app-page-header>
 
@@ -59,7 +59,7 @@ import { CarteiraFormPageComponent } from './carteira-form-page.component';
       </div>
     </section>
   `,
-  styleUrl: '../../../shared/collection/refined-collection.scss',
+  styleUrl: '../carteiras-list.scss',
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class CarteirasListPageComponent {

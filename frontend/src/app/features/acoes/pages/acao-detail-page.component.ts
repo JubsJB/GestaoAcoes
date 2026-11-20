@@ -25,14 +25,14 @@ import { AcaoResponse } from '../models/acao';
     <section class="app-page" aria-labelledby="detail-title">
       <app-sticky-back route="/acoes" label="Voltar para ações" />
       @if (acao(); as item) {
-        <app-page-header headingId="detail-title" eyebrow="Detalhe da ação" icon="stock" [title]="item.ticker" [description]="item.nomeEmpresa">
+        <app-page-header headingId="detail-title" eyebrow="Investimentos" title="Detalhe da ação" description="Consulte a identificação e a última cotação registrada.">
           <button *appAdmin page-header-action mat-stroked-button type="button" (click)="updateQuote()" [disabled]="updating()" [attr.aria-busy]="updating()">Atualizar cotação</button>
         </app-page-header>
       } @else {
-        <app-page-header headingId="detail-title" eyebrow="Ações" icon="stock" [title]="notFound() ? 'Ação não encontrada' : loadError() ? 'Não foi possível carregar a ação' : 'Detalhe da ação'" description="Consulte a identificação e a última cotação registrada." />
+        <app-page-header headingId="detail-title" eyebrow="Ações" [title]="notFound() ? 'Ação não encontrada' : loadError() ? 'Não foi possível carregar a ação' : 'Detalhe da ação'" description="Consulte a identificação e a última cotação registrada." />
       }
 
-      @if (loadError()) { <app-feedback-alert variant="error" [message]="loadError()!.message" [details]="loadError()!.details" /> }
+      @if (loadError()) { <app-feedback-alert variant="error" [message]="loadError()!.message" /> }
       @else if (updateError()) { <app-feedback-alert variant="error" [message]="updateErrorMessage()" /> }
       @if(updating()){<p class="progress" role="status" aria-live="polite">Atualizando cotação…</p>}
 
@@ -42,14 +42,12 @@ import { AcaoResponse } from '../models/acao';
       }
       @else if(acao();as item){
         <div class="grid">
-          <mat-card class="section-card" appearance="outlined"><div class="section-card__heading"><app-icon name="identity" aria-hidden="true" /><h2>Identificação</h2></div><mat-card-content><dl class="data-list"><div><dt>Ticker</dt><dd>{{item.ticker}}</dd></div><div><dt>Empresa</dt><dd>{{item.nomeEmpresa}}</dd></div><div><dt>Mercado</dt><dd><span class="status-badge">{{market(item.mercado)}}</span></dd></div></dl></mat-card-content></mat-card>
-          <mat-card class="section-card quote-card" appearance="outlined"><div class="section-card__heading"><app-icon name="quote" aria-hidden="true" /><h2>Última cotação registrada</h2></div><mat-card-content><p class="quote-note">Cotação na referência abaixo; pode não refletir o preço em tempo real.</p><dl class="data-list"><div><dt>Moeda</dt><dd><span class="status-badge">{{item.moeda}}</span></dd></div><div><dt>Cotação</dt><dd class="quote-value">{{quote(item.cotacaoAtual,item.moeda)}}</dd></div><div><dt>Referência da cotação</dt><dd>{{reference(item.referenciaMercadoCotacao)}}</dd></div><div><dt>Cotação obtida em</dt><dd>{{obtained(item.cotacaoObtidaEm)}}</dd></div></dl></mat-card-content></mat-card>
+          <mat-card class="section-card" appearance="outlined"><div class="section-card__heading"><h2>Identificação</h2></div><mat-card-content><p class="stock-identity">{{item.ticker}}</p><p class="stock-company">{{item.nomeEmpresa}}</p><dl class="data-list"><div><dt>Mercado</dt><dd><span class="status-badge">{{market(item.mercado)}}</span></dd></div></dl></mat-card-content></mat-card>
+          <mat-card class="section-card quote-card" appearance="outlined"><div class="section-card__heading"><app-icon name="quote" aria-hidden="true" /><h2>Última cotação registrada</h2></div><mat-card-content><p class="quote-note">Cotação na referência abaixo; pode não refletir o preço em tempo real.</p><dl class="data-list"><div><dt>Moeda</dt><dd><span class="status-badge">{{item.moeda}}</span></dd></div><div><dt>Cotação</dt><dd [class.quote-value]="item.cotacaoAtual != null">{{item.cotacaoAtual == null ? 'Cotação indisponível' : quote(item.cotacaoAtual,item.moeda)}}</dd></div><div><dt>Referência da cotação</dt><dd>{{item.referenciaMercadoCotacao ? reference(item.referenciaMercadoCotacao) : 'Referência da cotação indisponível'}}</dd></div><div><dt>Cotação obtida em</dt><dd>{{obtained(item.cotacaoObtidaEm)}}</dd></div></dl></mat-card-content></mat-card>
         </div>
       }
     </section>`,
-  styles: [`
-    .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,22rem),1fr));gap:1rem;align-items:start}.section-card mat-card-content{padding:1.25rem}.progress{margin:0;color:var(--app-text-secondary)}.quote-card{background:var(--app-surface-card)}.quote-note{margin-top:0;color:var(--app-text-secondary);font-size:.875rem;line-height:1.5}.quote-value{font-variant-numeric:tabular-nums;font-size:1.75rem;font-weight:720;color:var(--app-text-primary)}
-  `],
+  styleUrl: '../acao-detail.scss',
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class AcaoDetailPageComponent {
@@ -99,15 +97,18 @@ export class AcaoDetailPageComponent {
     if (this.updating() || !this.acao()) return;
     const previous = this.acao()!;
     this.updating.set(true);
-    this.updateError.set(null);
+    if (this.updateError()?.details['cotacaoPreservada'] !== true) {
+      this.updateError.set(null);
+    }
     this.service.atualizarCotacao(this.id).pipe(finalize(() => this.updating.set(false)), takeUntilDestroyed(this.destroyRef)).subscribe({
       next: (item) => {
         const changed = item.cotacaoAtual !== previous.cotacaoAtual
-          || item.referenciaMercadoCotacao.tipo !== previous.referenciaMercadoCotacao.tipo
-          || item.referenciaMercadoCotacao.data !== previous.referenciaMercadoCotacao.data
-          || item.referenciaMercadoCotacao.instante !== previous.referenciaMercadoCotacao.instante
+          || item.referenciaMercadoCotacao?.tipo !== previous.referenciaMercadoCotacao?.tipo
+          || item.referenciaMercadoCotacao?.data !== previous.referenciaMercadoCotacao?.data
+          || item.referenciaMercadoCotacao?.instante !== previous.referenciaMercadoCotacao?.instante
           || item.cotacaoObtidaEm !== previous.cotacaoObtidaEm;
         this.acao.set(item);
+        this.updateError.set(null);
         // PATCH returns a state, not whether a provider was called or a quote was reused.
         this.successToast.show(changed
           ? 'Solicitação processada. Dados da cotação atualizados na tela.'

@@ -1,0 +1,11 @@
+// Local adoption of the approved Users/Corretoras scale.
+@mixin page-scale {
+  --app-title-size: 1.75rem;
+  --app-heading-color: var(--app-brand-primary);
+  --app-heading-weight: 700;
+  --app-eyebrow-size: .75rem;
+  --app-eyebrow-weight: 400;
+  --app-eyebrow-color: var(--app-text-secondary);
+  --app-description-size: .875rem;
+  @media (max-width: 48rem) { --app-title-size: 1.5rem; }
+}

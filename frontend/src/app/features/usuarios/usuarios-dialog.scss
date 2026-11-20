@@ -1,0 +1,9 @@
+@use '../../shared/dialog/dialog';
+
+:host { display: block; color: var(--app-text-primary); }
+h2[mat-dialog-title] { color: var(--app-brand-primary); font-size: 1.375rem; font-weight: 650; }
+mat-dialog-content { font-size: .9375rem; }
+mat-dialog-content p { margin-top: 0; }
+mat-dialog-actions { border-top: 1px solid var(--app-border-subtle); padding: 1rem 1.5rem; }
+mat-form-field { width: 100%; }
+button:focus-visible { outline: 2px solid var(--app-focus); outline-offset: 3px; }

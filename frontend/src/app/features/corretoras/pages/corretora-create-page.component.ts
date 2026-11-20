@@ -10,7 +10,6 @@ import { Router, RouterLink } from '@angular/router';
 import { EMPTY, finalize, switchMap } from 'rxjs';
 
 import { NormalizedHttpError } from '../../../core/errors/normalized-http-error';
-import { AppIconComponent } from '../../../shared/app-icon/app-icon.component';
 import { FeedbackAlertComponent } from '../../../shared/feedback-alert/feedback-alert.component';
 import { PageHeaderComponent } from '../../../shared/page-header/page-header.component';
 import { SuccessToastService } from '../../../shared/success-toast/success-toast.service';
@@ -24,26 +23,31 @@ export interface CorretoraCreateDialogData { readonly cnpj?: string; }
 
 @Component({
   selector: 'app-corretora-create-page',
-  imports: [AppIconComponent, FeedbackAlertComponent, MatButtonModule, MatFormFieldModule, MatInputModule, MatProgressSpinnerModule, PageHeaderComponent, ReactiveFormsModule, RouterLink, StickyBackComponent],
+  imports: [FeedbackAlertComponent, MatButtonModule, MatFormFieldModule, MatInputModule, MatProgressSpinnerModule, PageHeaderComponent, ReactiveFormsModule, RouterLink, StickyBackComponent],
   template: `
-    <section class="app-page" [class.app-dialog-page]="isDialog" aria-labelledby="create-title">
+    <section class="app-page" [class.broker-dialog-page]="isDialog" aria-labelledby="create-title">
       @if (!isDialog) { <app-sticky-back route="/corretoras" label="Voltar para corretoras" /> }
-      <app-page-header headingId="create-title" eyebrow="Corretoras" icon="broker" title="Cadastrar corretora" description="Informe o CNPJ da instituição que deseja cadastrar." />
-      @if (error()) { <app-feedback-alert variant="error" [message]="error()!.message" [details]="error()!.details" /> }
+      @if (isDialog) {
+        <header class="broker-dialog-heading"><h2 id="create-title">Cadastrar corretora</h2><p>Informe o CNPJ da instituição.</p></header>
+      } @else {
+        <app-page-header headingId="create-title" eyebrow="Corretoras" title="Cadastrar corretora" description="Informe o CNPJ da instituição que deseja cadastrar." />
+      }
+      @if (error()) { <app-feedback-alert variant="error" [message]="error()!.message" /> }
       <form class="app-form-surface app-surface" [formGroup]="form" (ngSubmit)="submit()" novalidate>
-        <div class="surface-heading"><app-icon name="identity" aria-hidden="true" /><div><h2>Identificação da instituição</h2><p>Nome, endereço e situação serão consultados pelo CNPJ.</p></div></div>
+        @if (!isDialog) { <div class="surface-heading"><div><h2>Identificação da instituição</h2><p>Nome, endereço e situação serão consultados pelo CNPJ.</p></div></div> }
         <mat-form-field appearance="outline">
           <mat-label>CNPJ</mat-label>
           <input matInput formControlName="cnpj" inputmode="numeric" maxlength="18" (input)="formatInput()" aria-describedby="cnpj-hint" />
           <mat-hint id="cnpj-hint">14 dígitos, com ou sem máscara.</mat-hint>
           @if (form.controls.cnpj.invalid && form.controls.cnpj.touched) { <mat-error>Informe um CNPJ com 14 dígitos.</mat-error> }
         </mat-form-field>
-        <div class="app-actions app-actions--stack-compact"><button mat-flat-button type="submit" [disabled]="submitting()" [attr.aria-busy]="submitting()">Cadastrar</button>@if(isDialog){<button mat-button type="button" (click)="cancel()">Cancelar</button>}@else{<a mat-button routerLink="..">Cancelar</a>}</div>
+        @if (isDialog) { <p class="broker-form-support">Nome, endereço e situação serão consultados pelo CNPJ.</p> }
+        <div class="app-actions app-actions--stack-compact">@if(isDialog){<button mat-button type="button" (click)="cancel()">Cancelar</button>}<button mat-flat-button type="submit" [disabled]="submitting()" [attr.aria-busy]="submitting()">Cadastrar</button>@if(!isDialog){<a mat-button routerLink="..">Cancelar</a>}</div>
         @if (submitting()) { <div role="status" aria-live="polite" class="progress"><mat-spinner diameter="28" /> Processando cadastro…</div> }
       </form>
     </section>
   `,
-  styleUrl: '../../../shared/form/simple-form.scss',
+  styleUrl: '../corretora-form.scss',
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class CorretoraCreatePageComponent {

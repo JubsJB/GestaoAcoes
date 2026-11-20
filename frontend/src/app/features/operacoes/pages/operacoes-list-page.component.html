@@ -1,0 +1,29 @@
+<section class="app-page" aria-labelledby="operations-title">
+      <app-page-header headingId="operations-title" eyebrow="Histórico" title="Operações"
+        description="Compras e vendas da carteira selecionada, em ordem cronológica.">
+        @if (context.active(); as carteira) {
+          <a *appAdmin page-header-action mat-flat-button routerLink="nova" [queryParams]="{carteiraId: carteira.id, origem: 'operacoes'}">Nova operação</a>
+        }
+      </app-page-header>
+      @if (context.active(); as carteira) { <p class="portfolio-context"><span>Carteira selecionada</span><strong>{{carteira.nome}} <small>· #{{carteira.id}}</small></strong></p> }
+      @if (context.loading()) {
+        <div class="app-state" role="status" aria-live="polite"><mat-spinner diameter="36"/>Carregando carteiras…</div>
+      } @else if (context.error()) {
+        <app-feedback-alert variant="error" [message]="context.error()!.message" [details]="context.error()!.details"/>
+        <div class="app-state"><button mat-stroked-button type="button" (click)="retryContext()">Tentar novamente</button></div>
+      } @else if (context.invalidSelection()) {
+        <app-feedback-alert variant="warning" message="A carteira informada não está disponível. Selecione uma carteira válida para continuar."/>
+        <div class="app-state"><a mat-stroked-button routerLink="/carteiras">Ir para carteiras</a></div>
+      } @else if (context.carteiras().length === 0) {
+        <div class="app-state app-surface"><span class="app-state__icon" aria-hidden="true"><app-icon name="empty"/></span><h2>Nenhuma carteira cadastrada.</h2><p>Crie uma carteira antes de registrar operações.</p><a *appAdmin mat-stroked-button routerLink="/carteiras/nova">Criar carteira</a></div>
+      } @else if (loading()) {
+        <div class="app-state" role="status" aria-live="polite"><mat-spinner diameter="36"/>Carregando operações de {{context.active()!.nome}}…</div>
+      } @else if (error()) {
+        <app-feedback-alert variant="error" [message]="operationErrorMessage()" [details]="error()!.details"/>
+        <div class="app-state"><button mat-stroked-button type="button" (click)="retryOperations()">Tentar novamente</button></div>
+      } @else if (items().length === 0) {
+        <div class="app-state app-surface"><span class="app-state__icon" aria-hidden="true"><app-icon name="empty"/></span><h2>Nenhuma operação nesta carteira.</h2><p>Registre a primeira compra ou venda em {{context.active()!.nome}}.</p><a *appAdmin mat-stroked-button routerLink="nova" [queryParams]="{carteiraId: context.activeId(), origem: 'operacoes'}">Registrar a primeira</a></div>
+      } @else {
+        <app-operacoes-collection [items]="items()" [carteiraId]="context.activeId()!" origem="operacoes"/>
+      }
+    </section>

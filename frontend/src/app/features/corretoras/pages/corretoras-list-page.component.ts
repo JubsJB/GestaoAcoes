@@ -27,17 +27,19 @@ import { CorretoraCreatePageComponent } from './corretora-create-page.component'
   imports: [AdminOnlyDirective,AppIconComponent, FeedbackAlertComponent, MatButtonModule, MatFormFieldModule, MatInputModule, MatProgressSpinnerModule, PageHeaderComponent, ReactiveFormsModule, RouterLink],
   template: `
     <section class="app-page collection-page" aria-labelledby="corretoras-title">
-      <app-page-header headingId="corretoras-title" eyebrow="Instituições financeiras" icon="broker" title="Corretoras" description="Consulte e cadastre instituições por CNPJ.">
+      <app-page-header headingId="corretoras-title" eyebrow="Instituições financeiras" title="Corretoras" description="Consulte as instituições cadastradas e seus dados cadastrais.">
         <button *appAdmin page-header-action mat-flat-button type="button" (click)="openCreateDialog()">Cadastrar corretora</button>
       </app-page-header>
 
       @if (loadError()) {
-        <app-feedback-alert variant="error" [message]="loadError()!.message" [details]="loadError()!.details" />
+        <app-feedback-alert variant="error" [message]="loadError()!.message" />
       } @else if (searchError()) {
-        <app-feedback-alert variant="error" [message]="searchError()!.message" [details]="searchError()!.details" />
+        <app-feedback-alert variant="error" [message]="searchError()!.message" />
       }
 
-      <form class="search app-search-surface app-surface" [formGroup]="searchForm" (ngSubmit)="search()" aria-label="Buscar corretora por CNPJ" novalidate>
+      <form class="search app-search-surface app-surface" [formGroup]="searchForm" (ngSubmit)="search()" aria-label="Buscar corretora por CNPJ" aria-describedby="broker-search-description" novalidate>
+        <div class="search-heading"><h2>Consultar por CNPJ</h2><p id="broker-search-description">Informe o CNPJ para abrir os detalhes de uma corretora cadastrada. A listagem abaixo não é filtrada.</p></div>
+        <div class="search-fields">
         <mat-form-field appearance="outline">
           <mat-label>CNPJ exato</mat-label>
           <input matInput formControlName="cnpj" inputmode="numeric" maxlength="18" aria-describedby="search-hint" />
@@ -47,6 +49,7 @@ import { CorretoraCreatePageComponent } from './corretora-create-page.component'
         <div class="app-actions app-actions--stack-compact">
           <button mat-stroked-button type="submit" [disabled]="searching()" [attr.aria-busy]="searching()">Buscar</button>
           <button mat-button type="button" (click)="clearSearch()">Limpar</button>
+        </div>
         </div>
       </form>
 
@@ -72,13 +75,13 @@ import { CorretoraCreatePageComponent } from './corretora-create-page.component'
             <tbody role="rowgroup">
               @for (corretora of corretoras(); track corretora.id) {
                 <tr role="row">
-                  <th scope="row" role="rowheader"><span class="cell-label" aria-hidden="true">Instituição</span>{{ corretora.razaoSocial }}
+                  <th scope="row" role="rowheader">{{ corretora.razaoSocial }}
                     @if (corretora.nomeFantasia && corretora.nomeFantasia !== corretora.razaoSocial) { <small>{{ corretora.nomeFantasia }}</small> }
                   </th>
                   <td role="cell"><span class="cell-label" aria-hidden="true">CNPJ</span>{{ formatCnpj(corretora.cnpj) }}</td>
                   <td role="cell"><span class="cell-label" aria-hidden="true">Localidade</span>{{ corretora.cidade }} — {{ corretora.uf }}</td>
                   <td role="cell"><span class="cell-label" aria-hidden="true">Situação cadastral</span><strong [class]="'status-badge status-badge--' + statusVariant(corretora.situacaoCadastral)" [attr.data-status-variant]="statusVariant(corretora.situacaoCadastral)">{{ corretora.situacaoCadastral }}</strong></td>
-                  <td role="cell" class="actions-cell"><span class="cell-label" aria-hidden="true">Ações</span><a class="details-link" [routerLink]="[corretora.id]" [attr.aria-label]="'Ver detalhes de ' + corretora.razaoSocial">Ver detalhes</a></td>
+                  <td role="cell" class="actions-cell"><a class="details-link" [routerLink]="[corretora.id]" [attr.aria-label]="'Ver detalhes de ' + corretora.razaoSocial">Ver detalhes</a></td>
                 </tr>
               }
             </tbody>
@@ -87,11 +90,7 @@ import { CorretoraCreatePageComponent } from './corretora-create-page.component'
       </div>
     </section>
   `,
-  styleUrl: '../../../shared/collection/refined-collection.scss',
-  styles: [`
-    .search{display:flex;align-items:flex-start;gap:1rem}.search mat-form-field{flex:1 1 18rem}.search-progress{margin:0;color:var(--app-text-secondary)}
-    @container collection (max-width:36rem){.search{display:grid;grid-template-columns:1fr}.search mat-form-field{width:100%}}
-  `],
+  styleUrl: '../corretoras-list.scss',
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class CorretorasListPageComponent {
@@ -154,6 +153,7 @@ export class CorretorasListPageComponent {
     this.dialog.open(CorretoraCreatePageComponent, {
       data,
       panelClass: ['app-create-dialog', 'app-dialog--form'],
+      ariaLabelledBy: 'create-title',
       autoFocus: 'first-tabbable',
       restoreFocus: true
     }).afterClosed().pipe(takeUntilDestroyed(this.destroyRef)).subscribe((created: Corretora | undefined) => {

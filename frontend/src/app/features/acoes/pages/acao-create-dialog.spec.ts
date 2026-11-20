@@ -29,6 +29,8 @@ describe('AcaoCreatePageComponent em dialog', () => {
   });
 
   it('preenche somente ticker e mercado sem POST automático', () => {
+    expect(fixture.nativeElement.querySelector('h1')).toBeNull();
+    expect(fixture.nativeElement.querySelector('h2#create-title')?.textContent).toBe('Cadastrar ação');
     expect((fixture.nativeElement.querySelector('input') as HTMLInputElement).value).toBe('AAPL');
     const component = fixture.componentInstance as unknown as { form: { controls: { mercado: { value: string | null } } } };
     expect(component.form.controls.mercado.value).toBe('EUA');

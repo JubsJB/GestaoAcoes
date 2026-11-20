@@ -36,6 +36,17 @@ describe('CorretoraCreatePageComponent', () => {
     (fixture.nativeElement.querySelector('form') as HTMLFormElement).dispatchEvent(new Event('submit'));
   }
 
+  it('keeps contextual error messages without rendering arbitrary technical details', () => {
+    const error = {status:503, code:'SERVICO_EXTERNO_INDISPONIVEL', message:'Serviço de consulta indisponível. Tente novamente.',
+      details:{provider:'BrasilAPI', internalTrace:'trace-interno-de-teste'}} as unknown as NormalizedHttpError;
+    service.cadastrar.mockReturnValueOnce(throwError(() => error));
+    submit(); fixture.detectChanges();
+    expect(fixture.nativeElement.textContent).toContain('Serviço de consulta indisponível');
+    expect(fixture.nativeElement.textContent).not.toContain('trace-interno-de-teste');
+    expect(fixture.nativeElement.querySelector('.feedback-alert dl')).toBeNull();
+    expect((fixture.componentInstance as unknown as {error():NormalizedHttpError}).error()).toBe(error);
+  });
+
   it('possui somente CNPJ e envia o payload inicial exato', () => {
     expect(fixture.nativeElement.querySelectorAll('input')).toHaveLength(1);
     expect(fixture.nativeElement.textContent).not.toContain('confirmarSituacaoCadastralNaoAtiva');

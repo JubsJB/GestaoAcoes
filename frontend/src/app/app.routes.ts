@@ -1,6 +1,5 @@
 import { Routes } from '@angular/router';
 
-import { MainLayoutComponent } from './layout/main-layout/main-layout.component';
 import { adminGuard, sessionGuard } from './core/auth/auth.guards';
 
 export const routes: Routes = [
@@ -9,7 +8,7 @@ export const routes: Routes = [
   { path: 'redefinir-senha', data: { mode: 'reset' }, loadComponent: () => import('./features/auth/password-page.component').then(m => m.PasswordPageComponent) },
   {
     path: '',
-    component: MainLayoutComponent,
+    loadComponent: () => import('./layout/main-layout/main-layout.component').then(m => m.MainLayoutComponent),
     canActivate: [sessionGuard],
     canActivateChild: [sessionGuard],
     children: [

@@ -156,7 +156,7 @@ describe('CarteiraDetailPageComponent', () => {
     const brokers = vi.mocked(TestBed.inject(CorretorasService).listar);
     brokers.mockReturnValue(of([{ id: 4, nomeFantasia: 'XP Investimentos', razaoSocial: 'XP SA' }] as any));
     const operation: OperacaoResponse = { id: 20, carteiraId: 3, ticker: 'AAPL', mercado: 'EUA', corretoraId: 4, tipo: 'COMPRA', quantidade: '2', precoUnitario: '12.34', dataOperacao: '2026-08-31', ordemNoDia: 2, valorTotal: '24.68' };
-    result.operations.listarPorCarteira.mockReturnValue(of([operation, { ...operation, id: 21, corretoraId: 99 }, { ...operation, id: 22, corretoraId: null }]));
+    result.operations.listarPorCarteira.mockReturnValue(of([operation, { ...operation, id: 21, corretoraId: 99 }, { ...operation, id: 22, corretoraId: null, tipo: 'VENDA', quantidade: '0.5' }]));
     (result.fixture.componentInstance as any).loadHistory();
     (result.fixture.componentInstance as any).loadHistory();
     result.fixture.detectChanges();
@@ -169,10 +169,20 @@ describe('CarteiraDetailPageComponent', () => {
     expect(root.textContent).toContain('US$ 12,34');
     expect(root.textContent).toContain('US$ 24,68');
     expect(operation.precoUnitario).toBe('12.34');
-    expect(root.querySelector('a.history-item')?.getAttribute('href')).toContain('/operacoes/20?carteiraId=3&origem=carteira');
+    const rows = [...root.querySelectorAll('.history .operations-collection tbody tr')];
+    expect(rows).toHaveLength(3);
+    expect(rows.map(row => row.querySelector('a')?.getAttribute('aria-label'))).toEqual([
+      'Ver detalhes da operação 20', 'Ver detalhes da operação 21', 'Ver detalhes da operação 22'
+    ]);
+    expect(rows[0].querySelector('.operation-asset')?.textContent).toContain('COMPRA');
+    expect(rows[0].querySelector('.operation-record')?.textContent).toContain('ordem 2 · carteira #3');
+    expect(rows[2].querySelector('.operation-type--sale')?.textContent).toContain('VENDA');
+    expect(rows[2].textContent).toContain('0,5');
+    expect(rows[2].querySelector('.operation-broker')?.textContent).toContain('Sem corretora');
+    expect(rows[0].querySelector('a')?.getAttribute('href')).toContain('/operacoes/20?carteiraId=3&origem=carteira');
   });
 
-  it('usa DTO transitório compatível sem GET e mostra dados básicos e histórico', async () => { const { fixture, service } = await create(CARTEIRA); expect(service.buscarPorId).not.toHaveBeenCalled(); expect(fixture.nativeElement.textContent).toContain('Carteira detalhada'); expect(fixture.nativeElement.textContent).toContain('Histórico de operações'); expect(fixture.nativeElement.textContent).not.toMatch(/patrimônio|resumo por moeda/i); });
+  it('usa DTO transitório compatível sem GET e mostra dados básicos e histórico', async () => { const { fixture, service } = await create(CARTEIRA); expect(service.buscarPorId).not.toHaveBeenCalled(); expect(fixture.nativeElement.querySelector('h1')?.textContent).toBe('Detalhe da carteira'); expect(fixture.nativeElement.textContent).toContain('31/08/2026'); expect(fixture.nativeElement.textContent).toContain('Carteira detalhada'); expect(fixture.nativeElement.textContent).toContain('Histórico de operações'); expect(fixture.nativeElement.textContent).not.toMatch(/patrimônio|resumo por moeda/i); });
   it('ignora DTO incompatível e faz GET no acesso direto', async () => { const { service } = await create({ ...CARTEIRA, id: 99 }); expect(service.buscarPorId).toHaveBeenCalledOnce(); expect(service.buscarPorId).toHaveBeenCalledWith(3); });
   it('apresenta 404 dedicado e retry em erro recuperável', async () => { const notFound = await create(undefined, httpError(404, 'Ausente')); expect(notFound.fixture.nativeElement.textContent).toContain('Carteira não encontrada'); expect(notFound.fixture.nativeElement.textContent).toContain('Voltar para a listagem'); notFound.fixture.destroy(); TestBed.resetTestingModule(); const temporary = await create(undefined, httpError(500, 'Falha temporária')); temporary.service.buscarPorId.mockReturnValueOnce(of(CARTEIRA)); (temporary.fixture.nativeElement.querySelector('button') as HTMLButtonElement).click(); temporary.fixture.detectChanges(); expect(temporary.service.buscarPorId).toHaveBeenCalledTimes(2); });
   it('edita por dialog e substitui DTO sem GET redundante', async () => { const { fixture, service, dialog, closed, toast } = await create(CARTEIRA); (fixture.nativeElement.querySelectorAll('button')[0] as HTMLButtonElement).click(); expect(dialog.open).toHaveBeenCalledWith(CarteiraFormPageComponent, expect.objectContaining({ data: { mode: 'edit', carteira: CARTEIRA }, restoreFocus: true })); closed.next({ ...CARTEIRA, nome: 'Atualizada' }); closed.complete(); fixture.detectChanges(); expect(fixture.nativeElement.textContent).toContain('Atualizada'); expect(service.buscarPorId).not.toHaveBeenCalled(); expect(toast.show).toHaveBeenCalledWith('Carteira atualizada com sucesso.'); });

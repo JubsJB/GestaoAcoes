@@ -37,12 +37,15 @@ public class SecurityWebConfig {
     }
     @Bean SecurityFilterChain securityFilterChain(HttpSecurity http, CookieCsrfTokenRepository csrf,
                                                   JwtService jwt, SessaoService sessoes, SecurityErrors errors, AuthRuntimeConfig config,
-                                                  RedefinicaoRateLimiter limites,JsonMapper mapper) throws Exception {
+                                                  RedefinicaoRateLimiter limites, JsonMapper mapper,
+                                                  org.springframework.core.env.Environment env) throws Exception {
+        String proxyApresentacao = env.matchesProfiles("operacional & apresentacao-http")
+                ? env.getRequiredProperty("app.trusted-proxy-ip") : "";
         http.sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .requestCache(c -> c.disable()).formLogin(c -> c.disable()).httpBasic(c -> c.disable()).logout(c -> c.disable())
                 .csrf(c -> c.spa().csrfTokenRepository(csrf))
                 .cors(org.springframework.security.config.Customizer.withDefaults())
-                .addFilterBefore(new TransportSecurityFilter(config,errors), CsrfFilter.class)
+                .addFilterBefore(new TransportSecurityFilter(config, errors, proxyApresentacao), CsrfFilter.class)
                 .exceptionHandling(e -> e.authenticationEntryPoint((req,res,ex) -> errors.write(req,res,HttpStatus.UNAUTHORIZED,
                                 "AUTENTICACAO_NECESSARIA", "Autenticação necessária."))
                         .accessDeniedHandler((req,res,ex) -> errors.write(req,res,HttpStatus.FORBIDDEN,
@@ -52,6 +55,10 @@ public class SecurityWebConfig {
                 .authorizeHttpRequests(a -> a.requestMatchers(HttpMethod.GET, "/auth/csrf", "/v3/api-docs/**", "/v3/api-docs.yaml", "/swagger-ui/**", "/swagger-ui.html").permitAll()
                         .requestMatchers(HttpMethod.POST, "/auth/login", "/auth/redefinicoes/confirmar").permitAll()
                         .requestMatchers(HttpMethod.GET, "/auth/me").authenticated()
+                        .requestMatchers(HttpMethod.GET, "/apresentacao/catalogo")
+                        .access((authentication, context) -> new org.springframework.security.authorization.AuthorizationDecision(
+                                env.matchesProfiles("dados-demonstracao") && authentication.get().getAuthorities().stream()
+                                        .anyMatch(role -> "ROLE_ADMIN".equals(role.getAuthority()))))
                         .requestMatchers(HttpMethod.POST, "/auth/logout", "/auth/atividade").authenticated()
                         .requestMatchers(HttpMethod.GET,
                                 "/carteiras", "/carteiras/{id}", "/carteiras/{id}/operacoes", "/carteiras/{id}/operacoes/sugestao-preco-venda",

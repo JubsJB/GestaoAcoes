@@ -1,0 +1,20 @@
+:host { display: block; min-width: 0; color: var(--app-text-primary); background: var(--app-surface-app); }
+section { display: grid; gap: 1.5rem; min-width: 0; }
+.admin-header { padding-bottom: 1.5rem; border-bottom: 1px solid var(--app-border-subtle); }
+.admin-header a { gap: .375rem; }
+dt { color: var(--app-text-secondary); font-size: .8125rem; line-height: 1.5; }
+dd { margin: .375rem 0 0; }
+.account-identity { display: flex; align-items: center; gap: .875rem; min-width: 0; }
+.account-identity > span:last-child, .account-identity > div { min-width: 0; overflow-wrap: anywhere; }
+.account-avatar { display: grid; place-items: center; width: 2.5rem; height: 2.5rem; flex-shrink: 0; border: 1px solid #dbe5f1; border-radius: .75rem; background: #eff6ff; color: var(--app-action-primary); }
+.account-avatar app-icon { width: 1.25rem; height: 1.25rem; }
+.role-badge { display: inline-flex; padding: .25rem .625rem; border: 1px solid var(--app-border-subtle); border-radius: .375rem; background: var(--app-surface-muted); color: var(--app-text-secondary); font-size: .6875rem; line-height: 1.5; font-weight: 700; letter-spacing: .025em; }
+.role-badge--admin { background: var(--app-surface-selected); border-color: #cbdcfb; color: var(--app-action-primary); }
+.status-badge { font-size: .75rem; }
+a:focus-visible, button:focus-visible { outline: 2px solid var(--app-focus); outline-offset: 3px; }
+@media (max-width: 48rem) {
+  section { gap: 1rem; }
+  .admin-header { padding-bottom: 1rem; }
+  .account-identity { gap: .625rem; }
+  .account-avatar { width: 2rem; height: 2rem; border-radius: .5rem; }
+}

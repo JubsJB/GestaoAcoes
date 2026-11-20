@@ -2,9 +2,9 @@
 @if (coordinator.masked()) { <p class="main-content" role="status">Verificando a sessão antes de liberar o conteúdo…</p> }
 @for (generation of [session.generationState()]; track generation) {
 <div class="session-content" [hidden]="coordinator.masked()" [inert]="coordinator.masked()">
-<a class="skip-link" href="#main-content" (click)="focusMainContent()">Pular para o conteúdo</a>
+<a class="skip-link app-blue-scope" href="#main-content" (click)="$event.preventDefault(); focusMainContent()">Pular para o conteúdo</a>
 
-<mat-toolbar class="app-toolbar">
+<mat-toolbar class="app-toolbar app-blue-scope">
   <div class="toolbar-content">
     @if (isCompact()) {
       <button
@@ -26,7 +26,7 @@
     </span>
     <app-carteira-selector />
     @if (session.identity(); as identity) {
-      <span aria-label="Usuário autenticado">{{ identity.username }} · {{ identity.papel }}</span>
+      <span class="session-identity" aria-label="Usuário autenticado"><strong>{{ identity.username }}</strong><small>{{ identity.papel }}</small></span>
       <button mat-button type="button" data-testid="logout" [disabled]="signingOut()" (click)="logout()">Sair</button>
     }
   </div>
@@ -36,7 +36,7 @@
   <mat-sidenav
     #drawer
     id="primary-navigation"
-    class="app-sidenav"
+    class="app-sidenav app-blue-scope"
     [class.app-sidenav--collapsed]="navigationCollapsed()"
     [mode]="isCompact() ? 'over' : 'side'"
     [opened]="!isCompact() || compactDrawerOpened()"

@@ -29,6 +29,7 @@ import java.time.format.DateTimeParseException;
 import java.util.List;
 import java.util.Locale;
 
+@org.springframework.context.annotation.Profile("!dados-demonstracao")
 @Component
 public class BrapiAdapter implements CotacaoProvider {
 

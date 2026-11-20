@@ -50,6 +50,8 @@
               "outputHashing": "all"
             },
             "development": {
+              "browser": "src/main.development.ts",
+              "tsConfig": "tsconfig.development.json",
               "optimization": false,
               "extractLicenses": false,
               "sourceMap": true

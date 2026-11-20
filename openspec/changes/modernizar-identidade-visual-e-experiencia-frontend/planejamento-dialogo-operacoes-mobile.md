@@ -1,0 +1,53 @@
+# Diálogo mobile de Operações — refinamento aprovado, aguardando conferência real
+
+## Reavaliação direcionada de rolagem e campos — 2026-11-15
+
+Somente diagnóstico solicitado após nova observação real; nenhuma alteração de aplicação. Probe descartável reaproveita Chrome headless isolado, build existente e fixtures: target/visual-dialogo-operacoes-mobile-20261115/scroll-probe/scroll-and-outlines.json. Oito estados:320/360×abertura/final/final com erros/página. Sem suítes, build ou operações Git nesta reavaliação.
+
+Em altura600px, .operation-dialog tem clientHeight568px e padding inferior16px. Em320: scrollHeight908px normal e997px com erros, scrollTop máximo340/429px. Em360:887/976px, scrollTop319/408px. Em ambos, no final, Registrar ocupa y471,80–515,80 e Cancelar523,80–567,80, dentro da superfície y16–584; sobra16,20px até o fim. O formulário não tem altura máxima nem scroll próprio; overflow visible. A superfície Material tem overflow auto, mas scrollHeight=clientHeight568px e scrollTop0: não houve duas rolagens efetivas nem corte permanente reproduzido. Ações fora da primeira área visível são compatíveis com conteúdo maior que a viewport; captura estática isolada não prova inacessibilidade. Não se reproduziu falha de alcançar o final. Teclado virtual, zoom e as condições exatas da captura real não foram reproduzidos nesta checagem.
+
+Campos usam appearance outline, com peças leading/notch/trailing nativas do Material. Abertura na borda superior do campo de data corresponde à label flutuante; não explica automaticamente outros traços. CSS global border-box é compatível com o border-box explícito das peças Material. Não há override local das peças; wrappers/controles medidos sem borda adicional, box-shadow ou outline visível. A regra global focus-visible existe, mas o outline computado dos controles testados é none; a checagem anterior de desativação temporária também não confirmou duplicação. Junções/subpixels/escala e estado da label são hipóteses de renderização, não causas comprovadas. Capturas reais originais não estavam anexadas/acessíveis nesta rodada para correlacionar coordenadas/estado do traço.
+
+Proposta mínima: não alterar altura/padding/overflow enquanto não houver corte permanente reproduzido. Se desejado apenas indicar continuidade do conteúdo, avaliar aviso local discreto exibido somente quando houver conteúdo abaixo, sem tornar rodapé sticky ou alterar largura/página/desktop; isso é melhoria de orientação e não correção comprovada de clipping. Para contornos, manter pendência sem override especulativo; uma captura original com o campo/traço identificável é suficiente para a próxima correlação, sem bateria manual. Qualquer alteração depende de aprovação explícita. Aceite real e transversais continuam pendentes.
+
+## Implementação autorizada — 2026-11-15
+
+Proposta aprovada explicitamente pelo usuário. Implementação local em operacao-form-page.component.ts e operacao-form.scss: largura mobile calc(100vw - 3rem), padding lateral12px, sem modificar o preset compartilhado nem os chamadores. A medição revelou uma restrição adicional comprovada: mínimo Material de280px limitava o painel de320px a280px/gutters20px. Somente no próprio painel do diálogo, após updateSize (que reaplica os estilos de tamanho do overlay), o mínimo inline passa a0 no mobile; valor original restaurado no desktop e na destruição. BreakpointObserver existente, observação desmontada com takeUntilDestroyed e acesso ao painel após renderização. Sem alterações em serviços, regras financeiras ou handlers de envio.
+
+Chrome headless isolado com fixtures e build production: painel272/312px nos viewports320/360, gutters externos24px e padding interno12px. Área útil248/288px. Dois chamadores (Dashboard/Carteira), alturas600/1000px; sem overflow horizontal. Campos, cinco mensagens de validação e ambos os botões44px integralmente alcançáveis por rolagem; Tab, Cancelar, Escape e retorno de foco verificados. Rolagem única mantida, sem footer sticky. Desktop1440 preserva painel768px e geometria anterior; cadastro em página mantém672px, faixa e formulário alinhados. Redimensionamento mobile/desktop/mobile também verificado.
+
+TDD: teste do painel real falhou antes da implementação; a asserção do mínimo também falhou e passou após a correção da ordem updateSize/mínimo. Resultado final42/42 testes em três suítes direcionadas. Build production aprovado com warnings de budget, sem alterar limites: formulário4,04kB (39bytes acima do warning4kB, abaixo do limite de erro8kB), initial503,01kB; demais warnings existentes. Cobertura global não reexecutada nesta rodada direcionada e limites preservados. Evidências e comandos em target/visual-dialogo-operacoes-mobile-20261115/relatorio.md; geometria e capturas em after/.
+
+Traços nos contornos Material continuam pendentes, causa não comprovada, sem override de bordas/foco. Conferência visual real, aceite de6.5 e verificações transversais permanecem abertos. Movimentação horizontal não reinvestigada. Sem commit, push, merge ou arquivamento. O diagnóstico original abaixo permanece como histórico.
+
+2026-11-15. Somente análise/documentação e diagnóstico descartável; nenhum código de aplicação alterado. Desktop aprovado, cadastro em página de42rem, tabela/cartões e regras existentes fora do escopo. Movimentação horizontal não investigada.
+
+## Largura e margens
+
+Causa confirmada: preset compartilhado app-dialog--extended aplica width:min(48rem,100vw - 2rem), max-width:100vw - 2rem. Em320/360, o painel mede288/328px e sobra16px por lado. O formulário local acrescenta16px internos por lado. Não há overflow horizontal confirmado; a questão é a composição visual com gutter externo de apenas16px.
+
+Proposta para viewport até36rem: margem externa24px, painel272px em320 e312px em360; padding interno horizontal12px (16px vertical preservado). Área útil estimada248/288px, apenas8px menor que hoje, preservando legibilidade/compactação e campos Material com altura nativa. Desktop mantém preset48rem e dimensões aprovadas. Página de672px não muda.
+
+Para não tocar CSS global ou os dois chamadores, aplicar largura móvel pelo MatDialogRef.updateSize, API pública já instalada, no próprio OperacaoFormPageComponent. Ativar somente quando há MatDialogRef e breakpoint mobile; remover a largura inline ao voltar ao desktop para restaurar o preset. CDK BreakpointObserver já pertence às dependências existentes; desmontar observação com takeUntilDestroyed. CSS interno limitado a .operation-dialog no media query mobile. Não usar regra encapsulada para tentar estilizar ancestral CDK, nem reduzir apenas a largura do filho deixando a superfície branca larga.
+
+## Traços e descontinuidades dos campos
+
+Origem ainda não comprovada no ambiente real. Revisão local: o componente não sobrescreve as peças privadas do outline Material, nem aplica transform/zoom/clipping ao campo. O Material compõe o contorno com leading/notch/trailing e abre o notch da label; foco/erro alteram espessura. As evidências anteriores incluem DPR1/1,25, estados normais/foco/erro e capturas após450ms, sem traço inferior adicional persistente identificado.
+
+Verificação adicional curta desta análise: quatro focos (Tipo/Preço ×320/360), em Chrome isolado com application production e fixtures, sem alterações no banco. FocusVisible=true, mas outlineStyle=none nos controles internos; portanto não há outline interno global duplicado confirmado. Comparação temporária com outline:none no elemento focado não mostrou remoção de traço adicional; estilo temporário removido ao fim de cada par. Capturas e dados em target/diagnostico-dialogo-mobile-20261115/probe/ (focus.json e PNGs). Isso não comprova ausência do defeito no ambiente real.
+
+Proposta: manter os outlines Material e não aplicar correção de bordas por hipótese. Para decidir essa parte é necessário correlacionar o traço com um recorte real que o mostre, seu campo/estado e escala. Não declarar coordenadas fracionárias, zoom ou animação como causa sem essa correlação. Não trocar appearance nem remover foco/erro.
+
+## Rodapé e alcance por rolagem
+
+Causa do botão parcialmente visível na captura inicial: formulário maior que a área visível, com ações no fluxo normal e scroll local em .operation-dialog. Não foi identificado corte permanente. Evidências direcionadas já existentes em target/visual-operacoes-refinement-20261115/after/footer-and-fields.json: quatro combinações320/360 ×Dashboard/Carteira, viewport600px, cinco erros, último campo e os dois botões visíveis ao rolar até o final; botões44px. Reutilizadas sem repetir outra bateria extensa.
+
+Proposta: manter área única de rolagem, limite vertical do diálogo e padding inferior16px; conferir novamente o alcance de preço/erro/corretora/Registrar/Cancelar na nova largura, antes/depois de validação e com viewport baixa. Não inserir rodapé sticky simples: avaliação anterior de96px em área568px sobrepôs Ação/Quantidade. Um rodapé sempre visível exigiria separar estruturalmente conteúdo rolável e ações, com revisão própria do formulário; não é necessário para garantir acesso por rolagem e não faz parte da correção mínima proposta.
+
+## Escopo e validação após aprovação
+
+Alterações futuras previstas: operacao-form-page.component.ts (somente adaptação visual do painel em diálogo), operacao-form.scss (padding mobile), teste correspondente e evidências/OpenSpec. Template só se a verificação de rolagem demonstrar necessidade concreta. Sem shared overlay, Dashboard/Carteira, tabela, cadastro em página, DTOs/serviços/validadores ou regras de envio alterados.
+
+Fronteira de teste nova proposta: largura do painel conforme viewport, com restauração de desktop, exclusivamente em diálogo. Seguir RED/GREEN no teste aplicável após aprovação; reutilizar integração MatDialog para foco/Escape/cancelamento/disableClose e submissão. Geometria real isolada somente em320/360 para os dois chamadores, mais uma largura desktop de regressão. Campos com erro e último campo/ações alcançáveis sem sobreposição/overflow. Build e OpenSpec estrito pertinentes; budgets/cobertura intactos. Não executadas suítes/build nesta análise; compilado de produção existente usado apenas para diagnóstico de foco.
+
+Riscos: aumentar gutter reduz a área útil8px e pode adicionar quebras de texto; medir antes de aceitar. Botões não ficarão permanentemente visíveis na abertura, mas devem continuar integralmente alcançáveis por rolagem. Artefatos de borda continuam como questão não diagnosticada; não prometer correção desse ponto com ajuste de largura. Aprovação explícita necessária antes de qualquer implementação. Aceite visual e verificações transversais permanecem pendentes, sem operações Git.

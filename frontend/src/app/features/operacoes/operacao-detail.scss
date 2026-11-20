@@ -1,0 +1,15 @@
+@use '../../../styles/visual-foundation' as visual;
+@use 'operacoes-typography' as typography;
+:host { @include visual.blue-scope; @include typography.page-scale; display: block; min-width: 0; }
+.app-page { gap: 1.25rem; margin-block-start: -1rem; }
+.app-page > app-sticky-back + app-page-header { margin-block-start: -.75rem; }
+.section-card { max-width: 52rem; padding: 1.5rem; border-radius: .75rem; box-shadow: none; }
+.section-card mat-card-content { padding: 0; }
+.data-list { grid-template-columns: repeat(2,minmax(0,1fr)); gap: 1.25rem; }
+.data-list > div { min-width: 0; }
+.data-list dt { color: var(--app-text-secondary); font-size: .8125rem; }
+.data-list dd { font-size: .875rem; font-weight: 400; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
+.operation-total { grid-column: 1/-1; padding-top: 1rem; border-top: 1px solid var(--app-border-subtle); }
+.operation-total dd { color: var(--app-brand-primary); font-size: 1.5rem; font-weight: 600; }
+@media(max-width:959.98px) { .app-page { margin-block-start: -.5rem; } }
+@media(max-width:36rem) { .data-list { grid-template-columns: minmax(0,1fr); } .section-card { padding: 1rem; } }

@@ -1,13 +1,15 @@
 import { By } from '@angular/platform-browser';
+import { BreakpointObserver, BreakpointState } from '@angular/cdk/layout';
+import { OverlayContainer } from '@angular/cdk/overlay';
 import { MatFormField } from '@angular/material/form-field';
 import { CARTEIRA_STORAGE } from '../../../core/carteira/carteira-context.service';
 import { provideHttpClient, withInterceptors } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
 import { FormGroup } from '@angular/forms';
-import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
+import { MAT_DIALOG_DATA, MatDialog, MatDialogRef } from '@angular/material/dialog';
 import { provideRouter } from '@angular/router';
-import { of, Subject, throwError } from 'rxjs';
+import { BehaviorSubject, firstValueFrom, of, Subject, throwError } from 'rxjs';
 import { provideApiConfig } from '../../../core/config/api.config';
 import { NormalizedHttpError } from '../../../core/errors/normalized-http-error';
 import { httpErrorInterceptor } from '../../../core/http/http-error.interceptor';
@@ -28,21 +30,42 @@ function setContext(component: TestComponent, tipo: 'COMPRA' | 'VENDA', action =
 
 describe('OperacaoFormPageComponent', () => {
   afterEach(() => TestBed.resetTestingModule());
-  async function create(options: { post?: Subject<OperacaoResponse>; context?: CarteiraResponse; preview?: Subject<PreviaPrecoCompraResponse>; suggestion?: Subject<SugestaoPrecoVendaResponse>; dialogRef?: object } = {}) {
+  async function create(options: { post?: Subject<OperacaoResponse>; context?: CarteiraResponse; preview?: Subject<PreviaPrecoCompraResponse>; suggestion?: Subject<SugestaoPrecoVendaResponse>; dialogRef?: object; viewport?: BehaviorSubject<BreakpointState> } = {}) {
     const operations = { cadastrar: vi.fn().mockReturnValue(options.post ?? new Subject<OperacaoResponse>()), obterPreviaCompra: vi.fn().mockReturnValue(options.preview ?? of(PREVIEW)), obterSugestaoPrecoVenda: vi.fn().mockReturnValue(options.suggestion ?? of({ precoUnitarioSugerido: '10' })) };
     const providers: object[] = [{ provide: CARTEIRA_STORAGE, useValue: null },provideRouter([]), { provide: OperacoesService, useValue: operations }, { provide: CarteirasService, useValue: { listar: () => of([CARTEIRA]) } }, { provide: AcoesService, useValue: { listar: () => of([{ id: 2, ticker: 'AAPL', nomeEmpresa: 'Apple', mercado: 'EUA', moeda: 'USD' }, { id: 3, ticker: 'PETR4', nomeEmpresa: 'Petrobras', mercado: 'BRASIL', moeda: 'BRL' }]) } }, { provide: CorretorasService, useValue: { listar: () => of([]) } }, { provide: SuccessToastService, useValue: { show: vi.fn() } }];
-    if (options.dialogRef) providers.push({ provide: MatDialogRef, useValue: options.dialogRef });
+    if (options.dialogRef) providers.push({ provide: MatDialogRef, useValue: Object.assign(options.dialogRef, { updateSize: vi.fn() }) });
+    if (options.viewport) providers.push({ provide: BreakpointObserver, useValue: { observe: () => options.viewport!.asObservable() } });
     if (options.context) providers.push({ provide: MAT_DIALOG_DATA, useValue: { carteira: options.context } });
     await TestBed.configureTestingModule({ imports: [OperacaoFormPageComponent], providers }).compileComponents();
     const fixture = TestBed.createComponent(OperacaoFormPageComponent); fixture.detectChanges();
     return { fixture, component: fixture.componentInstance as unknown as TestComponent, operations };
   }
 
-  it('identifica a carteira capturada somente no cabeçalho, sem bloco informativo redundante', async () => {
+  it('identifica a carteira fixa em região própria, sem seletor local nem repetição na descrição', async () => {
     const { fixture } = await create({ context: CARTEIRA, dialogRef: { close: vi.fn() } });
-    expect(fixture.nativeElement.querySelector('.page-header__description')?.textContent).toContain('Registre a movimentação na carteira Principal.');
-    expect(fixture.nativeElement.querySelector('.operation-form .context')).toBeNull();
-    expect(fixture.nativeElement.textContent).not.toContain('Esta operação será registrada nesta carteira.');
+    const context = fixture.nativeElement.querySelector('[aria-label="Carteira da operação"]');
+    expect(context?.textContent).toContain('Principal');
+    expect(context?.textContent).toContain('#1');
+    expect(fixture.nativeElement.querySelector('.page-header__description')?.textContent).not.toContain('Principal');
+    expect(fixture.nativeElement.querySelector('[formcontrolname="carteiraId"]')).toBeNull();
+    expect(fixture.nativeElement.querySelectorAll('form')).toHaveLength(1);
+  });
+  it('reserva margens mobile no painel real e restaura a largura original no desktop', async () => {
+    const viewport = new BehaviorSubject<BreakpointState>({ matches: true, breakpoints: {} });
+    const { fixture } = await create({ viewport });
+    const ref = TestBed.inject(MatDialog).open(OperacaoFormPageComponent, { data: { carteira: CARTEIRA } });
+    fixture.detectChanges(); await fixture.whenStable();
+    const pane = TestBed.inject(OverlayContainer).getContainerElement().querySelector<HTMLElement>('.cdk-overlay-pane')!;
+    expect(pane.style.width).toBe('calc(100vw - 3rem)');
+    expect(pane.style.minWidth).toBe('0px');
+    viewport.next({ matches: false, breakpoints: {} });
+    fixture.detectChanges(); await fixture.whenStable();
+    expect(pane.style.width).toBe('');
+    expect(pane.style.minWidth).toBe('');
+    viewport.next({ matches: true, breakpoints: {} });
+    fixture.detectChanges(); await fixture.whenStable();
+    expect(pane.style.width).toBe('calc(100vw - 3rem)');
+    const closed = firstValueFrom(ref.afterClosed()); ref.close(); await closed;
   });
   it('explica saldo local sem expor mensagem SQL nem alterar campos da venda', async () => {
     const post = new Subject<OperacaoResponse>(); const r = await create({ post });

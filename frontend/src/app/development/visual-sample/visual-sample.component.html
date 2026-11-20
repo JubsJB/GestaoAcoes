@@ -1,0 +1,66 @@
+<a class="sample-skip" href="/__dev/amostra-a#sample-content">Pular para os componentes</a>
+<header class="sample-masthead">
+  <div class="masthead-inner">
+    <div class="sample-brand"><span class="brand-mark" aria-hidden="true"><app-icon name="wallet" /></span><span>Gestão de Ações<small>Estudo de identidade visual</small></span></div>
+    <span class="preview-tag"><span aria-hidden="true">◌</span> Amostra A · desenvolvimento</span>
+  </div>
+</header>
+<main id="sample-content" tabindex="-1">
+  <section class="intro" aria-labelledby="sample-title">
+    <app-page-header headingId="sample-title" eyebrow="FUNDAÇÃO VISUAL / 01" title="Clareza para cada decisão." description="Uma linguagem visual mais leve, consistente e orientada aos seus investimentos." />
+    <div class="intro-note"><app-icon name="info" /><p><strong>Dados de demonstração.</strong> Esta amostra é independente das carteiras e operações do sistema.</p></div>
+  </section>
+
+  <section class="foundation-bar" aria-label="Paleta e princípios da amostra">
+    <div class="palette"><span class="swatch deep" aria-hidden="true"></span><span class="swatch blue" aria-hidden="true"></span><span class="swatch neutral" aria-hidden="true"></span><span class="swatch white" aria-hidden="true"></span><span>Azul, espaço e clareza.</span></div>
+    <p>Superfícies claras <span aria-hidden="true">/</span> Tipografia legível <span aria-hidden="true">/</span> Estados com significado</p>
+  </section>
+
+  <section aria-labelledby="indicators-title">
+    <div class="section-heading"><h2 id="indicators-title">Informação em primeiro plano</h2><span>Indicadores ilustrativos · BRL</span></div>
+    <div class="indicators">
+      <article class="indicator indicator-primary"><div class="indicator-label"><span>Patrimônio atual</span><app-icon name="portfolio" /></div><strong>R$ 24.580,00</strong><small>Valor demonstrativo, sem vínculo com uma carteira</small></article>
+      <article class="indicator"><div class="indicator-label"><span>Resultado não realizado</span><app-icon name="stock" /></div><strong class="positive">+R$ 1.240,00</strong><small><span class="result positive">↗ Positivo</span> · exemplo de resultado</small></article>
+      <article class="indicator"><div class="indicator-label"><span>Rentabilidade</span><app-icon name="dashboard" /></div><strong>+5,31<span class="percent-unit">%</span></strong><small>Percentual ilustrativo · <span class="positive">resultado positivo</span></small></article>
+    </div>
+  </section>
+
+  <div class="component-grid">
+    <section class="sample-card" aria-labelledby="controls-title">
+      <header class="card-heading"><span class="section-number">01</span><div><h2 id="controls-title">Ações e formulários</h2><p>Uma ação principal. Um caminho claro.</p></div></header>
+      <div class="card-body">
+        <div class="button-examples" aria-label="Variantes de botão"><button mat-flat-button type="button" (click)="nameInput.focus()">Primário <span aria-hidden="true">↗</span></button><button mat-stroked-button type="button" (click)="nameInput.focus()">Secundário</button><button mat-stroked-button type="button" disabled>Indisponível</button></div>
+        <form [formGroup]="form" (ngSubmit)="validate()" novalidate>
+          <mat-form-field appearance="outline" subscriptSizing="dynamic"><mat-label>Nome da amostra</mat-label><input #nameInput matInput formControlName="name" placeholder="Ex.: Minha primeira amostra" autocomplete="off" required><mat-hint>Campo demonstrativo. Validação somente nesta página.</mat-hint>@if(form.controls.name.touched && form.controls.name.invalid){<mat-error>Informe um nome para o exemplo.</mat-error>}</mat-form-field>
+          <div class="form-actions"><button mat-flat-button type="submit">Validar exemplo</button><span>Nenhum dado é enviado.</span></div>
+          @if(validated()) { <app-feedback-alert variant="success" message="Exemplo validado localmente. Nenhum dado foi enviado." /> }
+        </form>
+        <div class="validation-example"><span class="example-label">Exemplo de campo com erro</span><label for="sample-invalid">Referência demonstrativa</label><input id="sample-invalid" value="" readonly aria-invalid="true" aria-describedby="sample-invalid-message"><p id="sample-invalid-message"><app-icon name="error" /> Informe uma referência para continuar. Exemplo visual.</p></div>
+      </div>
+    </section>
+
+    <section class="sample-card" aria-labelledby="states-title">
+      <header class="card-heading"><span class="section-number">02</span><div><h2 id="states-title">Estados que orientam</h2><p>Contexto e próximos passos, além da cor.</p></div></header>
+      <div class="card-body feedback-examples">
+        <app-feedback-alert variant="success" message="Tudo certo. Exemplo concluído com sucesso." />
+        <app-feedback-alert variant="error" [urgent]="false" message="Não foi possível carregar este exemplo. Tente novamente." />
+        <div class="loading-example" role="status"><span class="loading-mark" aria-hidden="true">◌</span><div><strong>Carregando informações</strong><p>Exemplo de estado de carregamento.</p></div></div>
+        <div class="empty-example"><span class="empty-icon" aria-hidden="true"><app-icon name="empty" /></span><div><h3>Nenhum registro por aqui</h3><p>Exemplo de coleção vazia, sem erro de carregamento.</p></div></div>
+        <div class="badge-examples" aria-label="Exemplos de situação"><span class="sample-badge active">Ativo</span><span class="sample-badge pending">Pendente</span><span class="sample-badge blocked">Bloqueado</span><span class="sample-badge neutral-badge">Sem alteração</span></div>
+      </div>
+    </section>
+  </div>
+
+  <section class="sample-card collection-card" aria-labelledby="collection-title">
+    <header class="card-heading"><span class="section-number">03</span><div><h2 id="collection-title">Dados organizados, em qualquer tela</h2><p>Identificação clara, valores comparáveis e situações por escrito.</p></div><span class="table-note">3 registros demonstrativos</span></header>
+    <div class="sample-collection">
+      <table class="collection-table" role="table"><caption>Carteiras ilustrativas · valores em BRL</caption>
+        <thead role="rowgroup"><tr role="row"><th scope="col">Carteira</th><th scope="col">Situação</th><th scope="col" class="numeric">Patrimônio</th><th scope="col" class="numeric">Resultado não realizado</th></tr></thead>
+        <tbody role="rowgroup">
+          @for(row of rows; track row.name){<tr role="row"><th scope="row" role="rowheader"><strong>{{row.name}}</strong><small>{{row.context}}</small></th><td role="cell"><span class="cell-label">Situação</span><span class="sample-badge" [class.active]="row.status === 'Ativo'" [class.pending]="row.status === 'Pendente'">{{row.status}}</span></td><td class="numeric" role="cell"><span class="cell-label">Patrimônio · BRL</span><strong>{{row.value}}</strong></td><td class="numeric" role="cell"><span class="cell-label">Resultado não realizado</span><strong [class.positive]="row.outcome === 'Positivo'" [class.negative]="row.outcome === 'Negativo'">{{row.result}}</strong><small [class.positive]="row.outcome === 'Positivo'" [class.negative]="row.outcome === 'Negativo'">{{row.outcome}}</small></td></tr>}
+        </tbody>
+      </table>
+    </div>
+  </section>
+  <footer class="sample-footer"><span>Gestão de Ações <span aria-hidden="true">/</span> Amostra A</span><p>Protótipo de fundação visual. A identidade das páginas atuais permanece preservada.</p></footer>
+</main>

@@ -37,7 +37,7 @@ import { PositionPerformanceChartComponent } from './position-performance-chart.
       }
     </section>
   `,
-  styles: ':host{display:grid;gap:1.25rem;min-width:0;container-type:inline-size}.analysis-section{display:grid;gap:1rem;min-width:0}.section-heading h2,.section-heading p{margin:0}.section-heading h2{font-size:1.25rem;letter-spacing:-.025em}.section-heading p{margin-top:.35rem;color:var(--app-text-secondary);overflow-wrap:anywhere}.analysis-section app-portfolio-composition{margin-top:0}',
+  styles: ':host{display:grid;gap:1.25rem;min-width:0;container-type:inline-size}.analysis-section{display:grid;gap:.75rem;min-width:0}.section-heading h2,.section-heading p{margin:0}.section-heading h2{font-size:1.125rem;font-weight:600;color:var(--app-brand-primary)}.section-heading p{margin-top:.25rem;font-size:.875rem;color:var(--app-text-secondary);overflow-wrap:anywhere}',
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class PositionAnalysisComponent {

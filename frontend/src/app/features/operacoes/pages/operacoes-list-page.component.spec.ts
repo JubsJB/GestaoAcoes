@@ -96,6 +96,18 @@ describe('OperacoesListPageComponent', () => {
     expect(fixture.nativeElement.textContent).toContain('Nenhuma operação nesta carteira');
     expect(fixture.nativeElement.textContent).toContain('Carteira A');
   });
+  it('agrupa ativo e registro sem perder os dados do histórico ou duplicar ações', async () => {
+    const { fixture } = await create({ items: [A], activeId: 1, status: 'ready', error: null, invalidSelection: false }, () => of([first]));
+    const table: HTMLTableElement = fixture.nativeElement.querySelector('table');
+    expect([...table.querySelectorAll('thead th')].map(cell => cell.textContent?.trim())).toEqual(['Ativo · tipo', 'Registro', 'Quantidade', 'Preço unitário', 'Valor total', 'Corretora', 'Ações']);
+    const row = table.querySelector('tbody tr')!;
+    expect(row.children).toHaveLength(7);
+    expect(row.children[0].textContent).toContain('AAPL');
+    expect(row.children[0].textContent).toContain('VENDA');
+    expect(row.children[1].textContent).toContain('ordem');
+    expect(row.children[1].textContent).toContain('#1');
+    expect(row.querySelectorAll('a')).toHaveLength(1);
+  });
 
   it.each([500, 404])('mostra erro de operações %s e refaz somente a carteira atual', async status => {
     const failure = { status, message: 'Falha no histórico', details: {}, code: null } as unknown as NormalizedHttpError;

@@ -10,6 +10,7 @@ import org.springframework.web.client.RestClient;
 import java.net.http.HttpClient;
 import java.time.Duration;
 
+@org.springframework.context.annotation.Profile("!dados-demonstracao")
 @Configuration
 public class ExternalApiConfig {
 

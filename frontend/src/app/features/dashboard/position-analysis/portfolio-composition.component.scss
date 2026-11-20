@@ -1,17 +1,14 @@
-:host{display:block;min-width:0;margin-top:1.5rem}
-h3,h4,p{margin:0}h3{font-size:1.1rem}header p{margin-top:.5rem;color:var(--app-text-secondary)}
-.composition-groups{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,25rem),1fr));gap:1rem;margin-top:1rem;align-items:start}
-.composition-group{padding:1.25rem;min-width:0;box-shadow:none;container-type:inline-size;overflow-wrap:anywhere}
-h4{font-size:.875rem;letter-spacing:.06em}.composition-body{display:grid;gap:.5rem}
-.ring-container{width:min(100%,17rem);justify-self:center}svg{display:block;width:100%;height:auto}
-.slice{stroke-linecap:butt}.slice-number{text-anchor:middle;dominant-baseline:central;fill:white;font-size:12px;font-weight:700}
-.ring-currency{text-anchor:middle;fill:var(--app-text-primary);font-size:25px;font-weight:700}.ring-caption{text-anchor:middle;fill:var(--app-text-secondary);font-size:11px}
-.composition-state{padding:2rem 0;text-align:center;color:var(--app-text-secondary)}
-.composition-legend{list-style:none;margin:0;padding:0;min-width:0}
-li{display:grid;grid-template-columns:1.5rem minmax(0,1fr) minmax(0,1fr);gap:.6rem;align-items:start;padding:.85rem 0;border-top:1px solid var(--app-border-subtle)}
-.legend-number{color:white;text-align:center;border-radius:.25rem;font-size:.75rem;line-height:1.5rem;font-weight:700}.textured{background-image:repeating-linear-gradient(45deg,transparent 0 4px,#ffffff40 4px 6px)}
-.identity,.amount{display:grid;gap:.2rem;min-width:0}.identity span,small{font-size:.8125rem;color:var(--app-text-secondary)}.amount{text-align:right;font-variant-numeric:tabular-nums}
-@container(min-width:40rem){.composition-body{grid-template-columns:minmax(12rem,1fr) minmax(20rem,2fr);align-items:center}}
-@media(max-width:36rem){.composition-group{padding:1rem}li{grid-template-columns:1.5rem minmax(0,1fr)}.amount{grid-column:2;text-align:left}}
-
-@container(min-width:20rem) and (max-width:39.99rem){.composition-body{grid-template-columns:minmax(0,10rem) minmax(0,1fr);align-items:center;gap:.75rem}.ring-container{width:100%}.composition-legend li{grid-template-columns:1.5rem minmax(0,1fr)}.amount{grid-column:2;text-align:left}}
+:host{display:block;min-width:0}
+h3,h4,p{margin:0}h4{font-size:.875rem;font-weight:600;color:var(--app-brand-primary)}
+.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
+.composition-groups{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,25rem),1fr));gap:1rem;align-items:start}
+.composition-group{padding:1rem;min-width:0;box-shadow:none;container-type:inline-size;overflow-wrap:anywhere;border-radius:.75rem}
+.composition-body{display:grid;gap:.5rem}.ring-container{width:min(100%,12rem);justify-self:center}svg{display:block;width:100%;height:auto}
+.slice{stroke-linecap:butt}.slice-number{text-anchor:middle;dominant-baseline:central;font-size:13px;font-weight:700;paint-order:stroke;stroke-width:3px}.ring-currency{text-anchor:middle;fill:var(--app-brand-primary);font-size:25px;font-weight:700}.ring-caption{text-anchor:middle;fill:var(--app-text-secondary);font-size:12px}
+.composition-state{padding:1.5rem 0;text-align:center;color:var(--app-text-secondary)}.composition-legend{list-style:none;margin:0;padding:0;min-width:0}
+li{display:grid;grid-template-columns:1.5rem minmax(0,1fr);gap:.25rem .5rem;align-items:start;padding:.625rem 0;border-top:1px solid var(--app-border-subtle)}
+.legend-number{text-align:center;border-radius:.25rem;font-size:.75rem;line-height:1.5rem;font-weight:700}.textured{background-image:repeating-linear-gradient(45deg,transparent 0 4px,#ffffff40 4px 6px);background-size:4px 100%;background-position:right;background-repeat:no-repeat}
+.identity,.amount{display:grid;gap:.15rem;min-width:0}.identity strong{font-size:.875rem;font-weight:600}.identity span,small{font-size:.75rem;color:var(--app-text-secondary)}.amount{grid-column:2;font-size:.875rem;font-variant-numeric:tabular-nums}
+@container(min-width:30rem){.composition-body{grid-template-columns:minmax(0,11rem) minmax(0,1fr);align-items:start;gap:1rem}}
+@media(max-width:36rem){.composition-group{padding:.75rem}.ring-container{width:min(100%,9.5rem)}}
+@media(min-width:341px) and (max-width:36rem){li{grid-template-columns:1.5rem minmax(0,1fr) minmax(0,1fr)}.amount{grid-column:auto;text-align:right}}

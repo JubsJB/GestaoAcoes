@@ -8,7 +8,7 @@ import org.springframework.core.env.Environment;
 
 /** Fronteira de validação do deployment operacional. */
 @Configuration(proxyBeanMethods = false)
-@Profile("operacional")
+@Profile("operacional | apresentacao-http | dados-demonstracao")
 public class OperationalRuntimeConfig {
     @Bean static BeanFactoryPostProcessor validarRuntimeOperacional(Environment env) {
         return factory -> {
@@ -17,12 +17,20 @@ public class OperationalRuntimeConfig {
                     || java.util.Arrays.stream(ip.split("\\.")).anyMatch(v -> Integer.parseInt(v) > 255)
                     || !(ip + "/32").equals(env.getProperty("server.tomcat.remoteip.internal-proxies")))
                 throw new IllegalStateException("Proxy operacional deve ser um único IPv4 explicitamente identificado");
-            if (java.util.Arrays.stream(env.getActiveProfiles()).anyMatch(p -> !p.equals("operacional") && !p.equals("bootstrap-admin"))
+            var profiles = java.util.Set.of(env.getActiveProfiles());
+            boolean dadosDemonstracao = profiles.equals(java.util.Set.of("operacional", "apresentacao-http", "dados-demonstracao"));
+            boolean httpApresentacao = dadosDemonstracao || profiles.equals(java.util.Set.of("operacional", "apresentacao-http"));
+            if (dadosDemonstracao && (!"demonstracao".equals(env.getProperty("op.db.name"))
+                    || !env.getProperty("app.demo-run-id", "").matches("[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}")))
+                throw new IllegalStateException("Catálogo restrito ao banco e à execução de apresentação");
+            if ((!httpApresentacao && !profiles.equals(java.util.Set.of("operacional"))
+                    && !profiles.equals(java.util.Set.of("operacional", "bootstrap-admin")))
                     || !"native".equals(env.getProperty("server.forward-headers-strategy"))
                     || !env.getProperty("server.tomcat.remoteip.trusted-proxies", "").isBlank()
                     || !"false".equals(env.getProperty("auth.allow-local-http")))
-                throw new IllegalStateException("Perfil operacional exige HTTPS e encaminhamento nativo estrito");
-            if (!"https://gestaoacoes.localhost:8443".equals(env.getProperty("app.public-origin")))
+                throw new IllegalStateException("Perfis e encaminhamento operacional incompatíveis");
+            String origem = httpApresentacao ? TransportSecurityFilter.APRESENTACAO_ORIGEM : "https://gestaoacoes.localhost:8443";
+            if (!origem.equals(env.getProperty("app.public-origin")))
                 throw new IllegalStateException("Origem operacional incompatível com o ingresso homologado");
             var headers = java.util.Map.of("remote-ip-header", "X-Forwarded-For", "protocol-header", "X-Forwarded-Proto",
                     "host-header", "X-Forwarded-Host", "port-header", "X-Forwarded-Port");
