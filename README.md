@@ -6,6 +6,16 @@ Aplicação web para gerenciamento e acompanhamento de carteiras de investimento
 
 **Autenticação e usuários:** as 56 tarefas da change `adicionar-autenticacao-e-gestao-de-usuarios` foram concluídas e aprovadas tecnicamente, incluindo backend, Angular e homologação operacional HTTPS/runtime local em recursos descartáveis. ADMIN/USER, cookie JWT HttpOnly, CSRF, gestão administrativa e definição/redefinição por código estão integrados. Carteiras e dados financeiros permanecem compartilhados; USER somente consulta e ADMIN pode modificar conforme as regras existentes. A homologação PostgreSQL 17.11 da migration 009/autenticação também foi aprovada tecnicamente. **O sistema não está declarado pronto para produção.** Consulte o [guia de autenticação, configuração e ferramentas](docs/AUTENTICACAO.md).
 
+## Apresentação acadêmica — 24/11/2026
+
+O roteiro principal usa o Docker limpo em `http://localhost:8081`, com transporte `http-local` e modo `sem-integracoes`. As carteiras preparadas usam as cotações já persistidas. O [roteiro de apresentação](docs/APRESENTACAO-DOCKER.md) registra o ensaio autenticado e a versão implantada.
+
+| Modo da apresentação | Integrações |
+| --- | --- |
+| `sem-integracoes` | BrasilAPI, ViaCEP, BRAPI e Alpha Vantage ficam desativadas. |
+| `integracoes-cadastrais` | Janela temporária do Docker limpo para BrasilAPI e ViaCEP. As integrações de mercado ficam desativadas. |
+| `com-integracoes` | Acesso autorizado aos quatro provedores, com credenciais próprias no backend para BRAPI e Alpha Vantage. |
+
 ## Sobre o projeto
 
 O Gestão de Ações centraliza informações que normalmente ficam distribuídas entre planilhas e consultas de mercado. O histórico de operações é a base dos cálculos financeiros; os provedores externos complementam o acompanhamento com dados cadastrais e cotações.
@@ -16,6 +26,7 @@ O núcleo atual é focado em carteiras de ações, com posição consolidada por
 
 | Área | Recursos disponíveis |
 | --- | --- |
+| **Sessão e perfis** | Login com JWT em cookie HttpOnly e proteção CSRF. Logout revoga a sessão no backend. USER consulta dados financeiros compartilhados. ADMIN também executa os comandos financeiros e administra usuários, incluindo cadastro, alteração de perfil e situação e emissão de códigos de definição ou redefinição de senha. |
 | **Ações BRASIL/EUA** | Cadastro validado por ticker e mercado, listagem, consulta e atualização manual de cotação no detalhe da ação. |
 | **Corretoras** | Cadastro por CNPJ, consulta cadastral, validação de endereço e consulta por ID ou CNPJ. |
 | **Carteiras** | Criação, consulta, renomeação e exclusão de carteiras sem operações, snapshots ou histórico de custódia/estorno. Seleção de carteira compartilhada entre telas. |
@@ -25,7 +36,9 @@ O núcleo atual é focado em carteiras de ações, com posição consolidada por
 | **Dashboard** | Resumo por moeda, histórico patrimonial, distribuição da carteira, desempenho por ativo com resultado não realizado e rentabilidade complementar, e resultados realizados individuais. Registro de operação em dialog contextual; posições detalhadas disponíveis na Carteira. |
 | **Evolução patrimonial** | Criação manual de snapshots e visualização das observações históricas por moeda. |
 
-“Atualizar dados” no dashboard recarrega as informações persistidas. A consulta de uma nova cotação é uma ação separada, disponível no detalhe da ação. Falhas nessa atualização preservam a última cotação válida e são informadas na interface.
+- **Atualizar dados** recarrega resumo, posições, resultados realizados e evolução patrimonial com os dados persistidos.
+- **Atualizar cotações** é uma ação do ADMIN no Dashboard. O backend seleciona os ativos das posições abertas da carteira e consulta os provedores conforme as regras de consumo. Cada ativo recebe um resultado de atualização, ausência de nova cotação ou falha. O lote admite sucesso parcial e preserva a última cotação válida quando a tentativa de um ativo falha.
+- O ADMIN também pode atualizar a cotação de um ativo no detalhe da ação. Essas atualizações preservam os preços das operações e os snapshots existentes.
 
 ## 🖼️ Demonstração da aplicação
 
@@ -71,7 +84,7 @@ A carteira capturada é identificada no cabeçalho do formulário, tanto na pág
 
 ### Detalhes da carteira
 
-Consulta das posições abertas e do histórico de operações da carteira selecionada.
+Consulta das posições abertas e do histórico da carteira selecionada. O histórico usa a mesma coleção da página Operações, com tabela em desktop, cartões em telas estreitas e retorno à tela de origem pelo detalhe da operação.
 
 ![Detalhes da carteira com posições e operações](docs/img/carteira-detalhes.png)
 
@@ -172,7 +185,9 @@ openspec/                  especificações e histórico de alterações
 
 Detalhes adicionais: [frontend](frontend/README.md), [PRD](docs/PRD.md), [specs OpenSpec](openspec/specs) e [diretrizes de manutenção](AGENTS.md). O Graphify oferece um grafo local de apoio à leitura das dependências; `graphify-out/` não é versionado.
 
-## 🚀 Como executar o projeto
+## 🚀 Como executar o projeto em desenvolvimento
+
+Para 24/11, use o [roteiro acadêmico](docs/APRESENTACAO-DOCKER.md). As instruções abaixo são para desenvolvimento local.
 
 ### Com Docker Compose
 
@@ -279,7 +294,7 @@ Com o backend ativo:
 | --- | --- |
 | Corretoras | `POST/GET /corretoras`, `GET /corretoras/{id}`, `GET /corretoras/por-cnpj` |
 | Ações | `POST/GET /acoes`, `GET /acoes/{id}`, `GET /acoes/por-ticker`, `PATCH /acoes/{id}/cotacao` |
-| Carteiras | `POST/GET /carteiras`, `GET/PATCH/DELETE /carteiras/{id}` |
+| Carteiras | `POST/GET /carteiras`, `GET/PATCH/DELETE /carteiras/{id}`, `POST /carteiras/{carteiraId}/atualizacoes-cotacoes` (ADMIN, sem corpo) |
 | Operações | `POST/GET /operacoes`, `GET /operacoes/{id}`, `GET /operacoes/previa-compra`, `GET /carteiras/{carteiraId}/operacoes`, `GET /carteiras/{carteiraId}/operacoes/sugestao-preco-venda` |
 | Custódia | `POST/GET /carteiras/{carteiraId}/movimentacoes-custodia`, `GET /carteiras/{carteiraId}/movimentacoes-custodia/{movimentacaoId}`, `POST /carteiras/{carteiraId}/movimentacoes-custodia/{movimentacaoId}/estornos` |
 | Indicadores | `GET /carteiras/{carteiraId}/posicoes`, `/resultados-realizados`, `/patrimonio`, `/resumo`, `/evolucao-patrimonial`; `POST /carteiras/{carteiraId}/snapshots` |
@@ -320,12 +335,23 @@ O backend possui testes de regras financeiras, contratos REST/OpenAPI, persistê
 $env:VITEST_MAX_WORKERS = "2"
 $env:NG_BUILD_MAX_WORKERS = "2"
 npm test -- --watch=false
+npm run test:coverage
 npm run build -- --configuration production
 
 # Raiz, com OpenSpec instalado
 openspec validate --all --strict
 git diff --check
 ```
+
+O [guia de validações automatizadas](docs/validacoes-automatizadas.md) descreve o CI e os portões de JaCoCo e Vitest, ambos com mínimo de 80% em linhas e ramos.
+
+| Evidência | Escopo e resultado |
+| --- | --- |
+| 18/11/2026 — validação isolada de dados fictícios | Backend com 2.683 testes contabilizados, 2.476 aprovados e 207 ignorados, sem falhas. JaCoCo: 96,25% de linhas e 84,90% de ramos. Angular: 1.171 testes aprovados, 98,29% de linhas e 92,00% de ramos. |
+| 20/11/2026 — histórico de operações | 46 testes direcionados, build de produção e conferência das duas telas em Chrome isolado. A implantação e o aceite visual constam na [tarefa 6.5](openspec/changes/modernizar-identidade-visual-e-experiencia-frontend/tasks.md#6-carteiras-ativos-corretoras-e-operações). |
+| 20/11/2026 — commit operacional | 62 testes Java direcionados e 42 testes Node aprovados em isolamento. Seis configurações Compose renderizadas com valores fictícios. O [ensaio autenticado](openspec/changes/apresentar-em-http-loopback/tasks.md#ensaio-autenticado-de-20112026) tem registro próprio. |
+
+Os percentuais de cobertura pertencem à [execução de 18/11](openspec/changes/preparar-dados-ficticios-offline/tasks.md#evidências).
 
 Liquibase mantém a evolução do schema; OpenSpec registra os requisitos e suas validações. Graphify apoia consultas de dependências conforme [AGENTS.md](AGENTS.md). O build frontend valida compilação e templates; há avisos conhecidos de budget do bundle inicial e do estilo da evolução, sem impedir a compilação. Não há deploy automatizado nesta entrega.
 
@@ -349,7 +375,7 @@ Liquibase mantém a evolução do schema; OpenSpec registra os requisitos e suas
 ### Carteiras
 
 - Compactar o detalhe, removendo o bloco “Identificação” e preservando as informações relevantes.
-- No **Histórico de operações**, adicionar filtros por Ativo, Tipo e Corretora; remover a coluna Carteira e o título/coluna genérica “Ações”, quando aplicável; disponibilizar “Ver detalhes” e logotipos; padronizar a apresentação com **Posições abertas**.
+- No **Histórico de operações**, adicionar filtros por Ativo, Tipo e Corretora; remover a coluna Carteira e o título/coluna genérica “Ações”, quando aplicável; incluir logotipos e padronizar a apresentação com **Posições abertas**. A coleção atual já oferece “Ver detalhes”.
 - Em **Posições abertas**, adicionar logotipos e filtros por Ativo, Resultado não realizado e Rentabilidade, com opções Positivo, Negativo e Neutro para os dois indicadores.
 
 ### Dashboard

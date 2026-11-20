@@ -413,6 +413,8 @@ O sistema deverá permitir buscar uma ação por ID ou ticker.
 
 O sistema deverá permitir solicitar uma nova consulta à API correspondente para atualizar a última cotação conhecida de uma ação cadastrada.
 
+A change `atualizar-cotacoes-da-carteira` acrescentou a atualização manual por carteira. No Dashboard, o ADMIN pode solicitar a atualização das cotações das posições abertas. O backend determina os ativos, aplica as regras de cada provedor e informa o resultado por ativo, com sucesso parcial e preservação da última cotação válida em caso de falha individual. **Atualizar dados** apenas relê os indicadores persistidos. O lote preserva os preços de operações, as fórmulas financeiras e os snapshots. Consulte a [especificação da atualização por carteira](../openspec/specs/portfolio-quote-refresh/spec.md).
+
 #### RF12 — Impedir duplicidade
 
 O sistema deverá impedir o cadastro duplicado da mesma combinação de ticker e mercado.
@@ -1151,6 +1153,7 @@ GET  /carteiras/{id}/patrimonio
 GET  /carteiras/{id}/resumo
 GET  /carteiras/{id}/evolucao-patrimonial
 POST /carteiras/{id}/snapshots
+POST /carteiras/{id}/atualizacoes-cotacoes
 ```
 
 ### Operações
@@ -1164,7 +1167,7 @@ GET  /carteiras/{carteiraId}/operacoes
 GET  /carteiras/{carteiraId}/operacoes/sugestao-preco-venda?ticker={ticker}&mercado={mercado}&dataOperacao={dataOperacao}
 ```
 
-As rotas acima refletem os controllers atuais. Carteira no cadastro financeiro continua no corpo; no cadastro de custódia vem exclusivamente do path. Exemplos completos e contratos publicados estão na coleção Postman e no OpenAPI; não há GET individual de snapshot ou de operação sob `/carteiras/{carteiraId}/operacoes/{id}`.
+`POST /carteiras/{id}/atualizacoes-cotacoes` exige ADMIN e não recebe corpo de requisição. As rotas acima refletem os controllers atuais. Carteira no cadastro financeiro continua no corpo; no cadastro de custódia vem exclusivamente do path. Exemplos completos e contratos publicados estão na coleção Postman e no OpenAPI; não há GET individual de snapshot ou de operação sob `/carteiras/{carteiraId}/operacoes/{id}`.
 
 ---
 
@@ -1326,7 +1329,7 @@ Poderão ser implementados:
 - Validar CEP.
 - Não permitir venda superior à quantidade disponível.
 - Não depender exclusivamente de uma API externa para informações históricas já persistidas.
-- Autenticação não fará parte do MVP inicial.
+- A autenticação ficou fora do escopo do MVP inicial. Foi incorporada posteriormente pela change `adicionar-autenticacao-e-gestao-de-usuarios`, conforme as seções 6 e 27.1.
 
 ---
 
