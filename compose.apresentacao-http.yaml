@@ -1,0 +1,17 @@
+# Uso exclusivo pelo roteiro de apresentação, como extensão do Compose operacional.
+services:
+  backend:
+    image: ${OP_PROJECT:?Defina projeto exclusivo}-backend:http-local
+    environment:
+      SPRING_PROFILES_ACTIVE: operacional,apresentacao-http
+      APP_PUBLIC_ORIGIN: http://localhost:8081
+  frontend:
+    ports: !override ["127.0.0.1:8081:8081"]
+    secrets: !reset []
+    volumes:
+      - type: bind
+        source: ${OP_PRIVATE_DIR:?Diretório externo privado}/http-local/nginx.conf
+        target: /etc/nginx/conf.d/default.conf
+        read_only: true
+        bind:
+          create_host_path: false

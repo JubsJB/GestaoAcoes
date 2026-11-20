@@ -1,0 +1,16 @@
+services:
+  backend:
+    labels:
+      gestaoacoes.apresentacao.cadastral: ${GA_CADASTRAL_GUARD:?Use o roteiro de apresentacao para autorizar este override}
+    environment:
+      BRASIL_API_BASE_URL: https://brasilapi.com.br
+      VIA_CEP_BASE_URL: https://viacep.com.br
+      BRAPI_BASE_URL: http://127.0.0.1:1
+      ALPHA_VANTAGE_BASE_URL: http://127.0.0.1:1
+    networks:
+      egress:
+        gw_priority: 1
+networks:
+  egress:
+    external: true
+    name: gademofc3279fb5761_egress

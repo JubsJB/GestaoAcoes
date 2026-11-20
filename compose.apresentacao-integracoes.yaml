@@ -1,0 +1,26 @@
+# Somente demonstracao local. Usar APOS compose.operacional.yaml, nunca compose.yaml.
+# Saida sem allowlist aceita explicitamente; nao adotar esta politica em producao.
+services:
+  backend:
+    environment:
+      BRASIL_API_BASE_URL: https://brasilapi.com.br
+      VIA_CEP_BASE_URL: https://viacep.com.br
+      BRAPI_BASE_URL: https://brapi.dev
+      ALPHA_VANTAGE_BASE_URL: https://www.alphavantage.co
+    networks:
+      egress:
+        gw_priority: 1
+    secrets:
+      - source: brapi_key
+        target: integration.brapi.api-key
+      - source: alpha_key
+        target: integration.alpha-vantage.api-key
+networks:
+  egress:
+    external: true
+    name: ${OP_EGRESS_NETWORK:?Defina rede exclusiva de saida da apresentacao}
+secrets:
+  brapi_key:
+    file: ${OP_PRIVATE_DIR:?Diretorio privado externo}/brapi-api-key
+  alpha_key:
+    file: ${OP_PRIVATE_DIR}/alpha-vantage-api-key

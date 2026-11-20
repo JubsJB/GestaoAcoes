@@ -21,7 +21,7 @@ import java.time.ZoneId;
 import java.util.*;
 
 @Component
-@Profile("!test")
+@Profile("!test & !dados-demonstracao")
 public class BrapiCotacaoHistoricaAdapter implements CotacaoHistoricaProvider {
     private static final String PROVIDER = "BRAPI";
     private static final ZoneId MARKET_ZONE = ZoneId.of("America/Sao_Paulo");

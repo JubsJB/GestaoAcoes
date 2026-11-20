@@ -13,6 +13,7 @@ import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
 
+@org.springframework.context.annotation.Profile("!dados-demonstracao")
 @Component
 public class ViaCepAdapter implements CepProvider {
 
