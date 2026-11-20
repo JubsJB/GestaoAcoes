@@ -33,6 +33,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @SpringBootTest(classes = GestaoacoesApplication.class)
+@org.springframework.context.annotation.Import(com.projeto.autenticacao.FinanceiroAutenticadoFixture.class)
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
 class PosicaoResourceTest {
@@ -118,7 +119,7 @@ class PosicaoResourceTest {
                 .andExpect(content().string(Matchers.containsString("\"precoMedio\":14.000000000000")))
                 .andExpect(content().string(Matchers.containsString("\"custoPosicao\":1400.000000000000")))
                 .andExpect(jsonPath("$", Matchers.hasSize(3)))
-                .andExpect(jsonPath("$[0]", Matchers.aMapWithSize(13)))
+                .andExpect(jsonPath("$[0]", Matchers.aMapWithSize(15)))
                 .andExpect(jsonPath("$[0].acaoId").value(petr4.getId()))
                 .andExpect(jsonPath("$[0].ticker").value("PETR4"))
                 .andExpect(jsonPath("$[0].nomeEmpresa").value("Petróleo Brasileiro S.A."))
@@ -207,7 +208,7 @@ class PosicaoResourceTest {
 
         Carteira carteira = carteiraRepository.saveAndFlush(portfolio("Carteira"));
         mockMvc.perform(get("/carteiras/{id}/posicoes/{acaoId}", carteira.getId(), 1L))
-                .andExpect(status().isNotFound());
+                .andExpect(status().isForbidden());
     }
 
     @Test

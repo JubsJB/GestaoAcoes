@@ -5,7 +5,7 @@
       <p>Seu patrimônio nos momentos em que você registrou. Registros manuais, separados por moeda.</p>
       <p class="evolution__timezone">Datas e horários são apresentados no horário local.</p>
     </div>
-    <button mat-stroked-button type="button" (click)="registerSnapshot()" [disabled]="creating()">
+    <button *appAdmin mat-stroked-button type="button" (click)="registerSnapshot()" [disabled]="creating()">
       {{ creating() ? 'Registrando patrimônio…' : 'Registrar patrimônio atual' }}
     </button>
   </header>
@@ -39,11 +39,18 @@
               @if (series.points[series.points.length - 1]; as latest) {
                 <div class="chart__latest"><span>Último registro em {{ series.currency }}</span><strong>{{ money(latest.authoritativeValue, series.currency) }}</strong><time [attr.datetime]="latest.timestamp">{{ localDate(latest.timestamp) }}</time></div>
               }
+              <div class="chart__plot" appEvolutionValueLabels>
+              <div class="value-axis" aria-hidden="true">
+                @for (point of series.points; track point.snapshotId) {
+                  <span [attr.data-value-y]="point.y">{{ money(point.authoritativeValue, series.currency) }}</span>
+                }
+              </div>
+              <div class="chart__drawing">
               <svg viewBox="0 0 720 260" role="group" [attr.aria-labelledby]="'chart-title-' + series.currency + ' chart-description-' + series.currency">
                 <defs>
                   <linearGradient [id]="'area-' + series.currency" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stop-color="currentColor" stop-opacity=".20" />
-                    <stop offset="100%" stop-color="currentColor" stop-opacity=".015" />
+                    <stop offset="0%" stop-color="currentColor" stop-opacity=".16" />
+                    <stop offset="100%" stop-color="currentColor" stop-opacity=".01" />
                   </linearGradient>
                 </defs>
                 @for (segment of series.segments; track $index) {
@@ -58,6 +65,11 @@
                   <line x1="44" y1="158" x2="702" y2="158" />
                 </g>
                 <line class="axis" x1="44" y1="222" x2="702" y2="222" />
+                @if (activeSelection(); as active) {
+                  @if (active.currency === series.currency) {
+                    <line class="inspection-guide" aria-hidden="true" [attr.x1]="active.point.x" [attr.x2]="active.point.x" y1="18" y2="222" />
+                  }
+                }
                 @for (segment of series.segments; track $index) {
                   @if (segment.length > 1) { <path class="series-line series-line--{{ series.currency.toLowerCase() }}" [attr.d]="path(segment)" /> }
                 }
@@ -79,6 +91,8 @@
                 @for (label of series.xLabels; track label.snapshotId) {
                   <span [style.left.%]="label.x / 720 * 100" [attr.data-full]="shortDate(label.timestamp)" [attr.data-compact]="shortDate(label.timestamp, true)">{{ shortDate(label.timestamp) }}</span>
                 }
+              </div>
+              </div>
               </div>
               <div class="record-picker" role="group" [attr.aria-label]="'Selecionar registro em ' + series.currency">
                 <p>Selecione um registro. Pontos próximos podem aparecer sobrepostos.</p>

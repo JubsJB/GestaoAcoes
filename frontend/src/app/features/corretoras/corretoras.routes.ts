@@ -1,3 +1,4 @@
+import { adminGuard } from '../../core/auth/auth.guards';
 import { Routes } from '@angular/router';
 
 export const CORRETORAS_ROUTES: Routes = [
@@ -8,6 +9,7 @@ export const CORRETORAS_ROUTES: Routes = [
   },
   {
     path: 'nova',
+    canActivate: [adminGuard],
     loadComponent: () =>
       import('./pages/corretora-create-page.component').then((module) => module.CorretoraCreatePageComponent)
   },

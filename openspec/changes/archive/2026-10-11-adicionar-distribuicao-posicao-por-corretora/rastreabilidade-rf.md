@@ -1,0 +1,20 @@
+# Matriz RF01-RF12
+
+Fonte:requisitos funcionais do pedido original de planejamento aprovado,anexo Texto colado.txt (3a99d1a8-b24e-4ef9-92f7-bed0a20425e7). Codigos locais desta change,nao renumeram os RF do PRD. Descricoes reproduzem o escopo aprovado,sem requisito novo. B=delta portfolio-broker-distribution;F=delta frontend-portfolio-management. Todos atendidos pelas evidencias existentes,sem reexecucao nesta etapa.
+
+| Codigo | Descricao aprovada | Requirement OpenSpec | Componente | Testes/evidencias | Situacao |
+| --- | --- | --- | --- | --- | --- |
+| RF01 | Consultar distribuicao por corretora das posicoes abertas de uma carteira | B:Consulta independente de distribuicao de posicoes abertas | DistribuicaoPosicaoCorretoraService/Resource | ServiceIntegrationTest/PostgresqlTest;ResourceTest,vazio/404/isolamento | Atendido |
+| RF02 | Apresentar nome da corretora e quantidade liquida atribuida | B:Atribuicao exata e cronologica por corretora;F:Distribuicao informativa no detalhe da Carteira | CalculadoraDistribuicaoCorretora/painel Angular | N+1/ordenacao,component.spec.ts,preview visual | Atendido |
+| RF03 | Agrupar operacoes sem corretora em Sem corretora informada | B:Atribuicao exata e cronologica por corretora | CalculadoraDistribuicaoCorretora | Core/HTTP/consumer/component/null-last | Atendido |
+| RF04 | Calcular quantidades com replay cronologico deterministico | B:Atribuicao exata e cronologica por corretora | CalculadoraDistribuicaoCorretora/CalculadoraPosicao.validarQuantidade | Core retroativas/ordem/BRASIL/EUA | Atendido |
+| RF05 | Detectar saldos negativos intermediarios e finais por agrupamento | B:Diagnosticos historicos persistem na leitura derivada | CalculadoraDistribuicaoCorretora | Core primeira ocorrencia/ciclos/negativos;HTTP exemplos | Atendido |
+| RF06 | Preservar avisos de inconsistencias historicas regularizadas | B:Diagnosticos historicos persistem na leitura derivada;F:Distribuicao informativa no detalhe da Carteira | Core/painel | Core/HTTP/component;NVDA confirmado pelo usuario | Atendido |
+| RF07 | Ocultar agrupamentos com saldo final zero mantendo inconsistencias identificaveis | B:Diagnosticos historicos persistem na leitura derivada;F:Distribuicao informativa no detalhe da Carteira | Core/painel | HTTP exemplo zero;component;PETR4 manual PASSOU | Atendido |
+| RF08 | Verificar reconciliacao matematica com posicao consolidada | B:Reconciliacao consistente sem efeitos colaterais | Core/Service | Core negativos/divergencia isolada;H2/PG snapshot;consumer semrecalc | Atendido |
+| RF09 | Apresentar distribuicao em posicoes abertas do detalhe da carteira | F:Distribuicao informativa no detalhe da Carteira | CarteiraDetailPage/DistribuicaoCorretorasComponent | Detail/component;360px/zoom/NVDA aprovados | Atendido |
+| RF10 | Disponibilizar endpoint separado de consulta | B:Consulta independente de distribuicao de posicoes abertas;Schema publico completo e separacao de diagnosticos | DistribuicaoCorretoraResource/Mapper/seis DTOs | ResourceTest/OpenApiDocumentationTest/cinco JSONs | Atendido |
+| RF11 | Preservar compras/vendas,inclusive retroativas | B:Preservacao das regras consolidadas | Servicos existentes de Operacao inalterados | OperacaoService/Orchestration/ConcurrencyTest;Core retroativas | Atendido |
+| RF12 | Preservar preco medio,custo,realizado,rentabilidade e indicadores consolidados | B:Preservacao das regras consolidadas;F:Contratos e superficies anteriores | CalculadoraPosicao/Rentabilidade/Posicao/Snapshot existentes | 217 casos backend distintos;249 Angular;Dashboard inalterado | Atendido |
+
+Nomes abreviados de testes remetem aos arquivos emsrc/test/java/com/projeto/services,resources efrontend/src/app/features/carteiras. Comandos,resultados e ressalvas integrais emresultado-nucleo-backend.md,resultado-camada-consulta.md,resultado-api-rest.md,resultado-consumidor-angular.md,resultado-painel-angular.md,resultado-certificacoes-finais.md e resultado-consolidacao-manual.md. Nao confundir evidencia manual na previa com ponta a ponta real,que permanece NAO EXECUTADA.

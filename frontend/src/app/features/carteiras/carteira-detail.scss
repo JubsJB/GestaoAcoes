@@ -1,0 +1,42 @@
+@use '../../../styles/visual-foundation' as visual;
+@use 'carteiras-typography' as typography;
+
+// Scope tokens to the external composition, never to the financial children.
+:host { display: block; min-width: 0; }
+// Match the approved detail inset without changing the shared shell or children.
+.app-page { gap: 1.25rem; margin-block-start: -1rem; }
+.app-page > app-sticky-back + app-page-header { margin-block-start: -.75rem; }
+@media (max-width: 959.98px) { .app-page { margin-block-start: -.5rem; } }
+.carteira-heading, .carteira-identification, .history__heading, .carteira-section-title { @include visual.blue-scope; }
+.carteira-heading { @include typography.page-scale; color: var(--app-text-primary); }
+.carteira-identification { width: 100%; max-width: none; border-color: var(--app-border-subtle); background: var(--app-surface-card); }
+.carteira-identification { padding: 1.5rem; box-shadow: none; }
+.carteira-identification .section-card__heading { padding: 0 0 .75rem; border: 0; }
+.carteira-identification h2 { font-size: 1.125rem; font-weight: 650; }
+.carteira-identification mat-card-content { padding: 0; }
+.carteira-name { margin: 0 0 1rem; color: var(--app-brand-primary); font-size: 1.25rem; font-weight: 600; line-height: 1.4; overflow-wrap: anywhere; }
+.carteira-identification .data-list { display: grid; grid-template-columns: minmax(0, .6fr) minmax(0, 1fr); gap: 1.125rem; }
+.carteira-identification .data-list > div { min-width: 0; }
+.carteira-identification dd { font-size: .875rem; font-weight: 400; overflow-wrap: anywhere; word-break: normal; }
+.carteira-identification dt { color: var(--app-text-secondary); font-size: .8125rem; }
+.carteira-identification h2, .carteira-section-title, .history__heading h2 { color: #16324f; }
+.destructive { --mat-button-filled-container-color: #b42318; --mat-button-filled-label-text-color: #fff; }
+.destructive:not(:disabled):hover { --mat-button-filled-container-color: #8f1d16; }
+.carteira-detail-actions { gap: .625rem; }
+.history { display: grid; gap: 1rem; }
+.history__heading { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem; }
+.history__heading h2, .history__heading p { margin: 0; }
+.history__heading p { margin-top: .25rem; color: var(--app-text-secondary); }
+.history__actions { display: flex; flex-wrap: wrap; gap: .625rem; }
+.history__actions > button { min-height: 2.75rem; }
+@media (max-width: 48rem) {
+  .carteira-identification { padding: 1.125rem; }
+  .carteira-name { font-size: 1.125rem; }
+  .carteira-identification .data-list { grid-template-columns: minmax(0, 1fr); gap: 1rem; }
+}
+@media (max-width: 36rem) {
+  .carteira-detail-actions > button { flex: 1; min-width: 0; }
+  .history__heading { align-items: stretch; flex-direction: column; }
+  .history__actions { flex-direction: column; }
+  .history__actions > button { width: 100%; }
+}

@@ -1,7 +1,7 @@
 import { DestroyRef, inject, Injectable } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, NavigationEnd, Router } from '@angular/router';
-import { filter } from 'rxjs';
+import { filter, Subscription } from 'rxjs';
 import { CarteiraContextService } from './carteira-context.service';
 
 @Injectable({ providedIn: 'root' })
@@ -10,6 +10,9 @@ export class CarteiraNavigationService {
   private readonly context = inject(CarteiraContextService);
   private readonly destroyRef = inject(DestroyRef);
   private started = false;
+  private subscription?: Subscription;
+
+  stop(): void { this.subscription?.unsubscribe(); this.subscription = undefined; this.started = false; }
 
   start(): void {
     if (this.started) return;
@@ -19,16 +22,24 @@ export class CarteiraNavigationService {
       const segments = tree.root.children['primary']?.segments.map(segment => segment.path) ?? [];
       if (segments[0] === 'carteiras' && segments.length === 2 && segments[1] !== 'nova') {
         this.context.resolveUrl(segments[1]);
-      } else if (segments[0] !== 'dashboard' && !(segments[0] === 'operacoes' && segments[1] === 'nova')) {
+      } else if (segments[0] !== 'dashboard' && !(segments[0] === 'operacoes' && (segments.length === 1 || segments[1] === 'nova'))) {
         this.context.resolveUrl(null);
       }
     };
-    this.router.events.pipe(filter(event => event instanceof NavigationEnd), takeUntilDestroyed(this.destroyRef)).subscribe(synchronize);
+    this.subscription = this.router.events.pipe(filter(event => event instanceof NavigationEnd), takeUntilDestroyed(this.destroyRef)).subscribe(synchronize);
     synchronize();
     this.context.initialize().subscribe();
   }
 
   bindDashboard(route: ActivatedRoute, destroyRef: DestroyRef): void {
+    this.bindQueryContext(route, destroyRef);
+  }
+
+  bindOperations(route: ActivatedRoute, destroyRef: DestroyRef): void {
+    this.bindQueryContext(route, destroyRef);
+  }
+
+  private bindQueryContext(route: ActivatedRoute, destroyRef: DestroyRef): void {
     let raw: string | null = null;
     let normalized: string | null = null;
     route.queryParamMap.pipe(takeUntilDestroyed(destroyRef)).subscribe(params => {
@@ -49,7 +60,7 @@ export class CarteiraNavigationService {
     if (!this.context.select(id)) return;
     const tree = this.router.parseUrl(this.router.url);
     const segments = tree.root.children['primary']?.segments.map(segment => segment.path) ?? [];
-    if (segments[0] === 'dashboard') {
+    if (segments[0] === 'dashboard' || (segments[0] === 'operacoes' && segments.length === 1)) {
       tree.queryParams = { ...tree.queryParams, carteiraId: id };
       if (this.router.serializeUrl(tree) !== this.router.url) void this.router.navigateByUrl(tree);
     } else if (segments[0] === 'carteiras' && segments.length === 2 && segments[1] !== 'nova') {

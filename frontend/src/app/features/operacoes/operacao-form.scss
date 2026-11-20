@@ -1,0 +1,34 @@
+@use '../../../styles/visual-foundation' as visual;
+@use 'operacoes-typography' as typography;
+:host { @include visual.blue-scope; @include typography.page-scale; display: block; min-width: 0; }
+.app-page { gap: .75rem; }
+// Compensate the shell once, only for the page; keep the compact dialog intact.
+.app-page:not(.operation-dialog) { max-width: 42rem; margin-block-start: -1rem; }
+.app-page:not(.operation-dialog) > app-sticky-back + app-page-header { margin-block-start: -.25rem; margin-block-end: .5rem; }
+.portfolio-context { display: grid; grid-template-columns: minmax(0,1fr) auto; align-items: baseline; column-gap: .5rem; max-width: 48rem; min-width: 0; padding: .5rem .75rem; border-radius: .5rem; background: var(--app-surface-selected); color: var(--app-brand-primary); overflow-wrap: anywhere; }
+.portfolio-context span { display: block; font-size: .75rem; color: var(--app-text-secondary); }
+.portfolio-context strong { grid-column: 1/-1; display: block; font-size: .875rem; font-weight: 600; }
+.portfolio-context small { font-size: inherit; font-weight: 400; }
+.portfolio-context p { grid-column: 2; grid-row: 1; margin: 0; font-size: .75rem; color: var(--app-text-secondary); }
+.operation-form { display: grid; gap: .75rem; max-width: 48rem; padding: 1.25rem; border-radius: .75rem; box-shadow: none; }
+fieldset { min-width: 0; margin: 0; padding: 0; border: 0; }
+legend { padding: 0; margin-bottom: .5rem; color: var(--app-brand-primary); font-size: 1rem; font-weight: 600; }
+.negotiation-fields { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: .625rem 1rem; }
+.negotiation-fields > *, .broker-fields > * { min-width: 0; }
+mat-form-field { width: 100%; }
+.wide-field, .price-status { grid-column: 1/-1; }
+.price-status:empty { display: none; }
+.optional-note, .price-status, .estimated-total span { color: var(--app-text-secondary); }
+.optional-note { margin: 0; font-size: .875rem; }
+.estimated-total { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: .25rem .75rem; padding-top: .625rem; border-top: 1px solid var(--app-border-subtle); }
+.estimated-total strong { min-width: 0; font-size: 1.25rem; font-weight: 600; color: var(--app-brand-primary); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.app-actions { justify-content: flex-end; gap: .5rem; }
+.app-actions > * { min-height: 2.75rem; }
+.progress { display: flex; align-items: center; gap: .75rem; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+.operation-dialog { max-height: calc(100dvh - 2rem); overflow: auto; overscroll-behavior: contain; padding: 1rem; }
+.operation-dialog .operation-form { max-width: none; padding: 0; border: 0; box-shadow: none; background: transparent; }
+.operation-dialog .portfolio-context { max-width: none; }
+@media(max-width:42rem) { .negotiation-fields { grid-template-columns: minmax(0,1fr); } .operation-form { padding: 1rem; } }
+@media(max-width:959.98px) { .app-page:not(.operation-dialog) { margin-block-start: -.5rem; } }
+@media(max-width:36rem) { .app-actions { flex-direction: column; align-items: stretch; } .app-actions > * { width: 100%; } .operation-dialog { padding-inline: .75rem; } }

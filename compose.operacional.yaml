@@ -1,0 +1,107 @@
+# Autônomo: NÃO combinar com compose.yaml. Nenhum datasource/segredo de dev.
+name: ${OP_PROJECT:?Defina projeto exclusivo}
+x-labels: &labels
+  gestaoacoes.operacional.run: ${OP_RUN_ID:?Defina UUID da execução}
+x-backend-env: &backend-env
+  SPRING_PROFILES_ACTIVE: operacional
+  OP_DB_NAME: ${OP_DB_NAME:?Defina banco exclusivo}
+  OP_DB_APP_USER: ${OP_DB_APP_USER:?Defina role aplicação}
+  APP_TRUSTED_PROXY_IP: ${APP_TRUSTED_PROXY_IP:?Defina IPv4 exato Nginx}
+  APP_PUBLIC_ORIGIN: https://gestaoacoes.localhost:8443
+  # Homologação sem providers reais; implantação futura deve definir destinos aprovados.
+  BRASIL_API_BASE_URL: http://127.0.0.1:1
+  VIA_CEP_BASE_URL: http://127.0.0.1:1
+  BRAPI_BASE_URL: http://127.0.0.1:1
+  ALPHA_VANTAGE_BASE_URL: http://127.0.0.1:1
+services:
+  postgres:
+    image: ${OP_POSTGRES_IMAGE:?Defina imagem verificada}
+    labels: *labels
+    environment:
+      POSTGRES_USER: provisionador
+      POSTGRES_DB: ${OP_DB_NAME}
+      POSTGRES_PASSWORD_FILE: /run/secrets/provision-password
+      OP_DB_APP_USER: ${OP_DB_APP_USER}
+      OP_RUN_ID: ${OP_RUN_ID}
+    secrets:
+      - source: provision_password
+        target: provision-password
+      - source: app_password
+        target: app-password
+    volumes: ["data:/var/lib/postgresql/data"]
+    networks: [database]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U provisionador -d $$POSTGRES_DB"]
+      interval: 2s
+      timeout: 2s
+      retries: 40
+  bootstrap:
+    profiles: [bootstrap]
+    image: ${OP_BACKEND_IMAGE:?Defina imagem verificada}
+    labels: *labels
+    environment:
+      <<: *backend-env
+      SPRING_PROFILES_ACTIVE: operacional,bootstrap-admin
+      AUTH_BOOTSTRAP_USERNAME: ${OP_BOOTSTRAP_USER:?Defina usuário one-shot}
+    secrets:
+      - source: app_password
+        target: spring.datasource.password
+      - source: bootstrap_password
+        target: AUTH_BOOTSTRAP_PASSWORD
+    networks: [database]
+  backend:
+    image: ${OP_BACKEND_IMAGE}
+    labels: *labels
+    environment: *backend-env
+    secrets:
+      - source: app_password
+        target: spring.datasource.password
+      - source: jwt
+        target: auth.jwt.secret
+      - source: reset
+        target: auth.reset.secret
+    networks:
+      api: {}
+      database: {}
+  frontend:
+    image: ${OP_FRONTEND_IMAGE:?Defina imagem verificada}
+    labels: *labels
+    ports: ["127.0.0.1:8443:8443"]
+    secrets:
+      - source: tls_key
+        target: /run/tls/server.key
+      - source: tls_cert
+        target: /run/tls/server.crt
+    networks:
+      ingress: {}
+      api:
+        ipv4_address: ${APP_TRUSTED_PROXY_IP}
+secrets:
+  provision_password:
+    file: ${OP_PRIVATE_DIR:?Diretório externo privado}/provision-password
+  app_password:
+    file: ${OP_PRIVATE_DIR}/app-password
+  bootstrap_password:
+    file: ${OP_PRIVATE_DIR}/AUTH_BOOTSTRAP_PASSWORD
+  jwt:
+    file: ${OP_PRIVATE_DIR}/auth.jwt.secret
+  reset:
+    file: ${OP_PRIVATE_DIR}/auth.reset.secret
+  tls_key:
+    file: ${OP_PRIVATE_DIR}/server.key
+  tls_cert:
+    file: ${OP_PRIVATE_DIR}/server.crt
+networks:
+  ingress:
+    external: true
+    name: ${OP_INGRESS_NETWORK:?Rede exclusiva}
+  api:
+    external: true
+    name: ${OP_API_NETWORK:?Rede exclusiva}
+  database:
+    external: true
+    name: ${OP_DATABASE_NETWORK:?Rede exclusiva}
+volumes:
+  data:
+    external: true
+    name: ${OP_DATA_VOLUME:?Volume exclusivo}

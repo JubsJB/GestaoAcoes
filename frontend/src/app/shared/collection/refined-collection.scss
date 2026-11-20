@@ -27,12 +27,15 @@
   .details-link { padding: .25rem .65rem; border: 1px solid var(--app-border-subtle); border-radius: .5rem; text-decoration: none; font-weight: 600; }
   .details-link:hover { background: var(--app-surface-selected); }
 }
-@media (min-width: 70.001rem) {
+@container collection (min-width: 70.001rem) {
   .collection-table .actions-cell { text-align: right; }
 }
-@media (max-width: 70rem) {
+@container collection (max-width: 70rem) {
   .collection-table { border: 0; background: transparent; }
   .collection-table tr { background: var(--app-surface-card); }
   .collection-table caption { border: 0; border-radius: var(--app-card-radius); margin-bottom: .75rem; }
   .collection-table tbody th, .collection-table td { padding: .4rem; }
 }
+
+// Let the shell main region scroll; headers and filters can grow under zoom.
+.collection-region { min-width: 0; padding: .125rem .25rem .75rem 0; }

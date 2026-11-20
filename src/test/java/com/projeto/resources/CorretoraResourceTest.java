@@ -34,6 +34,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @SpringBootTest(classes = GestaoacoesApplication.class)
+@org.springframework.context.annotation.Import(com.projeto.autenticacao.FinanceiroAutenticadoFixture.class)
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
 class CorretoraResourceTest {
@@ -331,7 +332,7 @@ class CorretoraResourceTest {
         repository.saveAndFlush(completeBroker(CNPJ, "Corretora Listada S.A.", false));
 
         mockMvc.perform(get("/corretoras/cnpj/{cnpj}", CNPJ))
-                .andExpect(status().isNotFound());
+                .andExpect(status().isForbidden());
 
         mockMvc.perform(get("/corretoras").param("cnpj", CNPJ))
                 .andExpect(status().isOk())

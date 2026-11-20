@@ -31,7 +31,10 @@ describe('CorretoraDetailPageComponent', () => {
     expect(text).toContain('11.222.333/0001-81');
     expect(text).toContain('Praça da Sé');
     expect(text).toContain('São Paulo/SP');
-    expect(text).toContain('CEP 01001-000');
+    expect(fixture.nativeElement.querySelector('h1')?.textContent).toBe('Detalhe da corretora');
+    const entries = Array.from(fixture.nativeElement.querySelectorAll('dl > div')) as HTMLElement[];
+    const cep = entries.find(entry => entry.querySelector('dt')?.textContent === 'CEP')!;
+    expect(cep.querySelector('dd')?.textContent).toBe('01001-000');
     expect(text).toContain('SUSPENSA');
     expect(text).toContain('Validação ainda não realizada');
     expect(text).toMatch(/29\/08\/2026 às \d{2}:\d{2}/);

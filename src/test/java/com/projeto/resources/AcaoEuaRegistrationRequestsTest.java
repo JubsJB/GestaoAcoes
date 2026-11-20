@@ -6,7 +6,7 @@ import com.projeto.integrations.cotacao.AlphaVantageAdapter;
 import com.projeto.mappers.AcaoMapper;
 import com.projeto.repositories.AcaoRepository;
 import com.projeto.resources.exceptions.ResourceExceptionHandler;
-import com.projeto.services.AcaoCotacaoPersistenceService;
+import com.projeto.services.AplicacaoCotacaoService;
 import com.projeto.services.AcaoPersistenceService;
 import com.projeto.services.AcaoService;
 import com.projeto.services.exceptions.ApiException;
@@ -64,8 +64,8 @@ class AcaoEuaRegistrationRequestsTest {
         ReflectionTestUtils.setField(adapter, "registrationIntervalMs", 1L);
         service = new AcaoService(new TickerNormalizer(),
                 List.of(adapter),
-                persistence, mock(AcaoCotacaoPersistenceService.class), repository,
-                new AcaoMapper(), Clock.systemUTC());
+                persistence, mock(AplicacaoCotacaoService.class), repository,
+                new AcaoMapper(), Clock.fixed(java.time.Instant.parse("2026-10-04T15:30:17.123456Z"), java.time.ZoneOffset.UTC));
         mvc = MockMvcBuilders.standaloneSetup(new AcaoResource(service))
                 .setControllerAdvice(new ResourceExceptionHandler()).build();
     }
@@ -81,7 +81,7 @@ class AcaoEuaRegistrationRequestsTest {
                 ]}
                 """.formatted(ticker, ticker, name));
         expectQuote(ticker, """
-                {"Global Quote":{"01. symbol":"%s","05. price":"123.450001"}}
+                {"Global Quote":{"01. symbol":"%s","05. price":"123.450001","07. latest trading day":"2026-10-02"}}
                 """.formatted(ticker));
         when(persistence.saveUnique(any())).thenAnswer(invocation -> {
             Acao acao = invocation.getArgument(0);
@@ -94,9 +94,16 @@ class AcaoEuaRegistrationRequestsTest {
                 .andExpect(jsonPath("$.ticker").value(ticker))
                 .andExpect(jsonPath("$.nomeEmpresa").value(name))
                 .andExpect(jsonPath("$.moeda").value("USD"))
-                .andExpect(jsonPath("$.cotacaoAtual").value(123.450001));
+                .andExpect(jsonPath("$.cotacaoAtual").value(123.450001))
+                .andExpect(header().string("Location", org.hamcrest.Matchers.endsWith("/acoes/1")))
+                .andExpect(jsonPath("$.referenciaMercadoCotacao.tipo").value("DATA"))
+                .andExpect(jsonPath("$.referenciaMercadoCotacao.data").value("2026-10-02"))
+                .andExpect(jsonPath("$.referenciaMercadoCotacao.instante").value(org.hamcrest.Matchers.nullValue()))
+                .andExpect(jsonPath("$.cotacaoObtidaEm").isNotEmpty());
+        var captor = org.mockito.ArgumentCaptor.forClass(Acao.class);
+        verify(persistence).saveUnique(captor.capture());
+        assertEquals(captor.getValue().getCotacaoObtidaEm(), captor.getValue().getDataHoraCotacao());
         verify(persistence).ensureAvailable(ticker, Mercado.EUA);
-        verify(persistence).saveUnique(any());
         verifyNoMoreInteractions(persistence);
         verifyRequests(2);
     }

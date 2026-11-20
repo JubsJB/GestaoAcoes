@@ -73,3 +73,14 @@ graphify-out/
 *.swp
 *.swo
 *~
+
+### Materiais operacionais privados (devem permanecer fora do repositório) ###
+*.key
+*.p12
+*.pfx
+*.pem
+*.enc
+*.dump
+secrets/
+certificados-privados/
+backups/

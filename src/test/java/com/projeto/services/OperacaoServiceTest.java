@@ -81,9 +81,11 @@ class OperacaoServiceTest {
     private Acao brazilianAction;
     private Acao americanAction;
     private OperacaoService service;
+    private long fixtureId = 100;
 
     @BeforeEach
     void setUp() {
+        org.springframework.transaction.support.TransactionSynchronizationManager.setActualTransactionActive(true);
         carteira = portfolio(1L, "Carteira Principal");
         brazilianAction = action(2L, "PETR4", Mercado.BRASIL, Moeda.BRL, "99.123456");
         americanAction = action(3L, "AAPL", Mercado.EUA, Moeda.USD, "224.410000");
@@ -96,7 +98,7 @@ class OperacaoServiceTest {
         lenient().when(acaoRepository.findByTickerAndMercado("AAPL", Mercado.EUA))
                 .thenReturn(Optional.of(americanAction));
         lenient().when(operacaoRepository
-                        .findByCarteiraIdAndAcaoIdOrderByDataOperacaoAscOrdemNoDiaAsc(anyLong(), anyLong()))
+                        .listarParaReplayQuantitativo(anyLong(), anyLong()))
                 .thenReturn(List.of());
         lenient().when(operacaoRepository.saveAndFlush(any(Operacao.class))).thenAnswer(invocation -> {
             Operacao operation = invocation.getArgument(0);
@@ -130,7 +132,7 @@ class OperacaoServiceTest {
         verify(operacaoRepository).findAll(approvedOrder);
         verify(operacaoRepository, never()).saveAndFlush(any(Operacao.class));
         verify(operacaoRepository, never())
-                .findByCarteiraIdAndAcaoIdOrderByDataOperacaoAscOrdemNoDiaAsc(anyLong(), anyLong());
+                .listarParaReplayQuantitativo(anyLong(), anyLong());
     }
 
     @Test
@@ -210,7 +212,7 @@ class OperacaoServiceTest {
         verifyNoInteractions(queryClock);
         verify(carteiraRepository, never()).findByIdForUpdate(anyLong());
         verify(operacaoRepository, never())
-                .findByCarteiraIdAndAcaoIdOrderByDataOperacaoAscOrdemNoDiaAsc(anyLong(), anyLong());
+                .listarParaReplayQuantitativo(anyLong(), anyLong());
         verify(operacaoRepository, never()).save(any(Operacao.class));
         verify(operacaoRepository, never()).saveAndFlush(any(Operacao.class));
         verify(operacaoRepository, never()).delete(any(Operacao.class));
@@ -244,7 +246,7 @@ class OperacaoServiceTest {
         assertEquals(new BigDecimal("3247.000000000000"), response.valorTotal());
         assertEquals(new BigDecimal("99.123456"), brazilianAction.getCotacaoAtual());
         assertEquals("Carteira Principal", carteira.getNome());
-        verify(acaoRepository, times(2)).findByTickerAndMercado("PETR4", Mercado.BRASIL);
+        verify(acaoRepository).findByTickerAndMercado("PETR4", Mercado.BRASIL);
         verifyNoInteractions(corretoraRepository);
     }
 
@@ -435,12 +437,12 @@ class OperacaoServiceTest {
         assertTrue(exception.getDetails().containsKey("ordemNoDia"));
         verify(operacaoRepository, never()).saveAndFlush(any(Operacao.class));
         verify(operacaoRepository, never())
-                .findByCarteiraIdAndAcaoIdOrderByDataOperacaoAscOrdemNoDiaAsc(anyLong(), anyLong());
+                .listarParaReplayQuantitativo(anyLong(), anyLong());
     }
 
     @Test
     void permitsSaleWithinOrExactlyAtAvailablePositionAfterMultipleOperations() {
-        when(operacaoRepository.findByCarteiraIdAndAcaoIdOrderByDataOperacaoAscOrdemNoDiaAsc(1L, 2L))
+        when(operacaoRepository.listarParaReplayQuantitativo(1L, 2L))
                 .thenReturn(List.of(
                         operation(TipoOperacao.COMPRA, "60", LocalDate.of(2026, 8, 1), 1),
                         operation(TipoOperacao.COMPRA, "40", LocalDate.of(2026, 8, 2), 1),
@@ -463,7 +465,7 @@ class OperacaoServiceTest {
     @Test
     void rejectsSaleAbovePositionAndPreservesExistingHistory() {
         Operacao existing = operation(TipoOperacao.COMPRA, "100", LocalDate.of(2026, 8, 1), 1);
-        when(operacaoRepository.findByCarteiraIdAndAcaoIdOrderByDataOperacaoAscOrdemNoDiaAsc(1L, 2L))
+        when(operacaoRepository.listarParaReplayQuantitativo(1L, 2L))
                 .thenReturn(List.of(existing));
 
         ApiException exception = assertThrows(
@@ -483,7 +485,7 @@ class OperacaoServiceTest {
 
     @Test
     void replaysRetroactiveCandidateByDateAndDailyOrderAndRejectsInvalidLaterSale() {
-        when(operacaoRepository.findByCarteiraIdAndAcaoIdOrderByDataOperacaoAscOrdemNoDiaAsc(1L, 2L))
+        when(operacaoRepository.listarParaReplayQuantitativo(1L, 2L))
                 .thenReturn(List.of(
                         operation(TipoOperacao.COMPRA, "100", LocalDate.of(2026, 8, 1), 1),
                         operation(TipoOperacao.VENDA, "80", LocalDate.of(2026, 8, 10), 1)
@@ -503,7 +505,7 @@ class OperacaoServiceTest {
 
     @Test
     void acceptsValidRetroactivePurchaseAndUsesOnlySamePortfolioAndActionHistory() {
-        when(operacaoRepository.findByCarteiraIdAndAcaoIdOrderByDataOperacaoAscOrdemNoDiaAsc(1L, 2L))
+        when(operacaoRepository.listarParaReplayQuantitativo(1L, 2L))
                 .thenReturn(List.of(
                         operation(TipoOperacao.COMPRA, "20", LocalDate.of(2026, 8, 10), 1),
                         operation(TipoOperacao.VENDA, "20", LocalDate.of(2026, 8, 10), 2)
@@ -516,7 +518,7 @@ class OperacaoServiceTest {
 
         assertEquals(TipoOperacao.COMPRA, response.tipo());
         verify(operacaoRepository)
-                .findByCarteiraIdAndAcaoIdOrderByDataOperacaoAscOrdemNoDiaAsc(1L, 2L);
+                .listarParaReplayQuantitativo(1L, 2L);
     }
 
     @Test
@@ -545,9 +547,9 @@ class OperacaoServiceTest {
                 1,
                 new BigDecimal("1000.000000000000")
         );
-        lenient().when(operacaoRepository.findByCarteiraIdAndAcaoIdOrderByDataOperacaoAscOrdemNoDiaAsc(99L, 2L))
+        lenient().when(operacaoRepository.listarParaReplayQuantitativo(99L, 2L))
                 .thenReturn(List.of(otherPortfolioPurchase));
-        lenient().when(operacaoRepository.findByCarteiraIdAndAcaoIdOrderByDataOperacaoAscOrdemNoDiaAsc(1L, 98L))
+        lenient().when(operacaoRepository.listarParaReplayQuantitativo(1L, 98L))
                 .thenReturn(List.of(otherActionPurchase));
 
         ApiException exception = assertThrows(
@@ -560,11 +562,11 @@ class OperacaoServiceTest {
 
         assertEquals(ErrorCodes.POSICAO_INSUFICIENTE, exception.getCode());
         verify(operacaoRepository)
-                .findByCarteiraIdAndAcaoIdOrderByDataOperacaoAscOrdemNoDiaAsc(1L, 2L);
+                .listarParaReplayQuantitativo(1L, 2L);
         verify(operacaoRepository, never())
-                .findByCarteiraIdAndAcaoIdOrderByDataOperacaoAscOrdemNoDiaAsc(99L, 2L);
+                .listarParaReplayQuantitativo(99L, 2L);
         verify(operacaoRepository, never())
-                .findByCarteiraIdAndAcaoIdOrderByDataOperacaoAscOrdemNoDiaAsc(1L, 98L);
+                .listarParaReplayQuantitativo(1L, 98L);
     }
 
     @Test
@@ -583,7 +585,7 @@ class OperacaoServiceTest {
         when(operacaoRepository.saveAndFlush(any(Operacao.class)))
                 .thenThrow(integrity("different_constraint"));
         assertThrows(
-                DataIntegrityViolationException.class,
+                ApiException.class,
                 () -> service.cadastrar(request(
                         "PETR4", Mercado.BRASIL, TipoOperacao.COMPRA,
                         "1", "10", LocalDate.of(2026, 8, 10), 2, null
@@ -595,7 +597,7 @@ class OperacaoServiceTest {
                         "uk_operacao_carteira_acao_data_ordem only in message"
                 ));
         assertThrows(
-                DataIntegrityViolationException.class,
+                ApiException.class,
                 () -> service.cadastrar(request(
                         "PETR4", Mercado.BRASIL, TipoOperacao.COMPRA,
                         "1", "10", LocalDate.of(2026, 8, 10), 3, null
@@ -603,10 +605,15 @@ class OperacaoServiceTest {
         );
     }
 
+    @org.junit.jupiter.api.AfterEach void limparTransacaoSimulada() {
+        org.springframework.transaction.support.TransactionSynchronizationManager.clear();
+    }
     private OperacaoService service(Clock clock) {
         OperacaoPersistenceService persistence = new OperacaoPersistenceService(
                 operacaoRepository, carteiraRepository, acaoRepository, corretoraRepository,
-                new CalculadoraPosicao(), new OperacaoMapper(), new ConstraintNameExtractor()
+                new CalculadoraPosicao(), new OperacaoMapper(), new ConstraintNameExtractor(),
+                new HistoricoQuantitativoCustodia(operacaoRepository, org.mockito.Mockito.mock(com.projeto.repositories.MovimentacaoCustodiaRepository.class),
+                        org.mockito.Mockito.mock(com.projeto.repositories.EstornoMovimentacaoCustodiaRepository.class)), clock, new TickerNormalizer()
         );
         return new OperacaoService(
                 operacaoRepository,
@@ -663,7 +670,7 @@ class OperacaoServiceTest {
 
     private Operacao operation(TipoOperacao type, String quantity, LocalDate date, Integer order) {
         BigDecimal normalizedQuantity = new BigDecimal(quantity).setScale(6);
-        return new Operacao(
+        var operation = new Operacao(
                 carteira,
                 brazilianAction,
                 null,
@@ -674,6 +681,8 @@ class OperacaoServiceTest {
                 order,
                 normalizedQuantity.multiply(new BigDecimal("10.000000")).setScale(12)
         );
+        ReflectionTestUtils.setField(operation, "id", fixtureId++);
+        return operation;
     }
 
     private Carteira portfolio(Long id, String name) {

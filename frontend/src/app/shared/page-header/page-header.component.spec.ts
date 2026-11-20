@@ -32,6 +32,12 @@ describe('PageHeaderComponent', () => {
     expect(fixture.nativeElement.querySelector('.page-header')).toBeTruthy();
   });
 
+  it('uses its available container width as the responsive reference', () => {
+    const host = fixture.nativeElement.querySelector('app-page-header');
+    expect(getComputedStyle(host).containerType).toBe('inline-size');
+    expect(host.querySelector('.page-header__action button')?.textContent).toBe('Ação principal');
+  });
+
   it('renders optional contextual eyebrow and decorative local icon', () => {
     expect(fixture.nativeElement.querySelector('.page-header__eyebrow')?.textContent).toBe('Contexto');
     expect(fixture.nativeElement.querySelector('.page-header__icon app-icon svg')).toBeTruthy();

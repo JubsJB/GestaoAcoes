@@ -11,6 +11,21 @@ async function render(positions: readonly PosicaoResponse[]) {
   return { fixture, root: fixture.nativeElement as HTMLElement };
 }
 describe('portfolio composition', () => {
+  it('mantém a paleta aprovada e a correspondência entre cada fatia e sua legenda além de seis ativos', async () => {
+    const positions = Array.from({ length: 8 }, (_, index) => positionFixture({ acaoId: index + 1, ticker: `ATIVO${index + 1}`, valorAtualPosicao: '100' }));
+    const { root } = await render(positions);
+    const slices = Array.from(root.querySelectorAll('.slice'));
+    const markers = Array.from(root.querySelectorAll<HTMLElement>('.legend-number'));
+    const colors = slices.map(slice => slice.getAttribute('stroke'));
+    expect(colors.slice(0, 6)).toEqual(['#315EAB', '#D39A64', '#478F89', '#8875AD', '#C87986', '#8A98A7']);
+    expect(new Set(colors).size).toBe(8);
+    colors.forEach((color, index) => {
+      const expected = document.createElement('span'); expected.style.backgroundColor = color!;
+      expect(markers[index].style.backgroundColor).toBe(expected.style.backgroundColor);
+      expect(markers[index].textContent?.trim()).toBe(String(index + 1));
+    });
+    expect(root.textContent).not.toContain('%');
+  });
   it.each(['BRL', 'USD'] as const)('renders one authoritative %s asset without percentages or total', async moeda => {
     const { root } = await render([positionFixture({ moeda, valorAtualPosicao: '12.123456789012' })]);
     expect(root.querySelectorAll('svg')).toHaveLength(1);

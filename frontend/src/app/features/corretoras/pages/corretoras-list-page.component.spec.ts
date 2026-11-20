@@ -1,3 +1,4 @@
+import { authenticatedModule } from '../../../../../test-support/authenticated-module';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { MatDialog } from '@angular/material/dialog';
 import { provideRouter, Router } from '@angular/router';
@@ -26,7 +27,7 @@ describe('CorretorasListPageComponent', () => {
     dialogClosed = new Subject<boolean | Corretora | undefined>();
     dialog = { open: vi.fn().mockReturnValue({ afterClosed: () => dialogClosed.asObservable() }) };
     toast = { show: vi.fn() };
-    await TestBed.configureTestingModule({ imports: [CorretorasListPageComponent], providers: [provideRouter([]), { provide: CorretorasService, useValue: service }, { provide: MatDialog, useValue: dialog }, { provide: SuccessToastService, useValue: toast }] }).compileComponents();
+    await authenticatedModule({ imports: [CorretorasListPageComponent], providers: [provideRouter([]), { provide: CorretorasService, useValue: service }, { provide: MatDialog, useValue: dialog }, { provide: SuccessToastService, useValue: toast }] }).compileComponents();
     vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
     fixture = TestBed.createComponent(CorretorasListPageComponent);
     fixture.detectChanges();

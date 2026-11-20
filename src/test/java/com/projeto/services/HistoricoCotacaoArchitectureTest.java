@@ -20,7 +20,7 @@ class HistoricoCotacaoArchitectureTest {
     @Test
     void somenteFronteirasDePersistenciaDependemDoRepositoryHistorico() {
         assertTrue(dependeDeHistorico(AcaoPersistenceService.class));
-        assertTrue(dependeDeHistorico(AcaoCotacaoPersistenceService.class));
+        assertTrue(dependeDeHistorico(AplicacaoCotacaoService.class));
 
         for (Class<?> tipo : List.of(
                 AcaoService.class,
@@ -42,6 +42,14 @@ class HistoricoCotacaoArchitectureTest {
                 .filter(method -> method.isAnnotationPresent(GetMapping.class))
                 .map(Method::getName)
                 .anyMatch(nome -> nome.toLowerCase().contains("historico") || nome.toLowerCase().contains("cotacoes")));
+    }
+
+    @Test
+    void fronteiraAntigaEMutadorSemReferenciaNaoEstaoDisponiveis() {
+        org.junit.jupiter.api.Assertions.assertThrows(ClassNotFoundException.class,
+                () -> Class.forName("com.projeto.services.AcaoCotacaoPersistenceService"));
+        assertFalse(Arrays.stream(Acao.class.getDeclaredMethods())
+                .anyMatch(method -> method.getName().equals("atualizarCotacao")));
     }
 
     private boolean dependeDeHistorico(Class<?> tipo) {

@@ -4,7 +4,8 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { TestBed } from '@angular/core/testing';
 import { provideRouter, Router } from '@angular/router';
 import { RouterTestingHarness } from '@angular/router/testing';
-import { of } from 'rxjs';
+import { firstValueFrom, of } from 'rxjs';
+import { SessionService } from './core/auth/session.service';
 
 import { routes } from './app.routes';
 import { provideApiConfig } from './core/config/api.config';
@@ -18,7 +19,7 @@ describe('application routes', () => {
   let httpTesting: HttpTestingController;
   let readPreference: ReturnType<typeof vi.fn>;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     readPreference = vi.fn().mockReturnValue(null);
     TestBed.configureTestingModule({
       providers: [
@@ -32,6 +33,9 @@ describe('application routes', () => {
     });
 
     httpTesting = TestBed.inject(HttpTestingController);
+    const restoration = firstValueFrom(TestBed.inject(SessionService).restore());
+    httpTesting.expectOne('/api/auth/me').flush({ id: 1, username: 'fixture-admin', papel: 'ADMIN', horarioServidor: '2026-10-31T12:00:00Z', ultimaAtividadeEm: '2026-10-31T12:00:00Z', inativaEm: '2026-10-31T12:10:00Z', expiraEm: '2026-10-31T16:00:00Z' }); httpTesting.expectOne('/api/auth/csrf').flush(null);
+    await restoration;
   });
 
   afterEach(() => httpTesting.verify());
@@ -54,12 +58,24 @@ describe('application routes', () => {
   });
 
   it('declares an independent lazy boundary for every main destination', () => {
-    const shellRoute = routes[0];
+    const shellRoute = routes.find(route => route.path === '')!;
     const lazyPaths = shellRoute.children
       ?.filter((route) => route.loadChildren)
       .map((route) => route.path);
 
-    expect(lazyPaths).toEqual(['dashboard', 'corretoras', 'acoes', 'carteiras', 'operacoes']);
+    expect(lazyPaths).toEqual(['dashboard', 'corretoras', 'acoes', 'carteiras', 'operacoes', 'usuarios']);
+  });
+
+  it('USER não abre administração por URL direta nem recebe o link administrativo', async () => {
+    TestBed.inject(SessionService).restore().subscribe();
+    httpTesting.expectOne('/api/auth/me').flush({ id: 1, username: 'fixture-user', papel: 'USER', horarioServidor: '2026-10-31T12:00:00Z', ultimaAtividadeEm: '2026-10-31T12:00:00Z', inativaEm: '2026-10-31T12:10:00Z', expiraEm: '2026-10-31T16:00:00Z' });
+    httpTesting.expectOne('/api/auth/csrf').flush(null);
+    const harness = await RouterTestingHarness.create(); const navigation = harness.navigateByUrl('/usuarios/novo');
+    await vi.waitFor(() => httpTesting.expectOne('/api/carteiras').flush([])); await navigation; harness.detectChanges();
+    expect(TestBed.inject(Router).url).toBe('/dashboard');
+    expect(harness.routeNativeElement?.querySelector('a[href="/usuarios"]')).toBeNull();
+    expect(harness.routeNativeElement?.querySelector('app-usuario-create-page')).toBeNull();
+    httpTesting.expectNone(request => request.url.startsWith('/api/usuarios'));
   });
 
   it('shares shell/dashboard loading and honors the explicit URL before requesting finances', async () => {
@@ -80,7 +96,7 @@ describe('application routes', () => {
     harness.detectChanges();
     expect(harness.routeNativeElement?.querySelector('select')?.value).toBe('2');
     expect(harness.routeNativeElement?.querySelector('app-dashboard-page mat-select')).toBeNull();
-    expect(harness.routeNativeElement?.querySelector('nav a[href="/operacoes"]')).toBeNull();
+    expect(harness.routeNativeElement?.querySelector('nav a[href="/operacoes"]')?.textContent).toContain('Operações');
   });
 
   it('resolves all functional features including dashboard', async () => {
@@ -112,7 +128,7 @@ describe('application routes', () => {
         httpTesting.expectOne('/api/carteiras').flush([]);
       }
       if (url === '/operacoes') {
-        httpTesting.expectOne('/api/operacoes').flush('[]');
+        httpTesting.expectNone(request => request.url.includes('/operacoes'));
       }
       expect(harness.routeNativeElement?.querySelector('h1')?.textContent).toBe(heading);
     }
@@ -133,5 +149,50 @@ describe('application routes', () => {
     expect(harness.routeNativeElement?.querySelector('section a[href="/dashboard"]')?.textContent).toContain(
       'Voltar para o Dashboard'
     );
+  });
+
+  it('opens contextual operation history from the menu and follows the global portfolio selector', async () => {
+    const harness = await RouterTestingHarness.create('/rota-inexistente');
+    httpTesting.expectOne('/api/carteiras').flush([
+      { id: 1, nome: 'Carteira A', dataCriacao: '' },
+      { id: 2, nome: 'Carteira B', dataCriacao: '' }
+    ]);
+    harness.detectChanges();
+    const link = harness.routeNativeElement?.querySelector('nav a[href="/operacoes"]') as HTMLAnchorElement;
+    expect(link.getAttribute('href')).toBe('/operacoes');
+    link.click();
+    await harness.fixture.whenStable();
+    const request = httpTesting.expectOne('/api/carteiras/1/operacoes');
+    expect(request.request.method).toBe('GET');
+    expect(request.request.params.keys()).toEqual([]);
+    request.flush(JSON.stringify([{ id: 1, carteiraId: 1, ticker: 'PETR4', mercado: 'BRASIL', corretoraId: null, tipo: 'COMPRA', quantidade: 10, precoUnitario: 30, valorTotal: 300, dataOperacao: '2026-01-01', ordemNoDia: 1 }]));
+    harness.detectChanges();
+    expect(TestBed.inject(Router).url).toBe('/operacoes?carteiraId=1');
+    const select = harness.routeNativeElement?.querySelector('#global-carteira') as HTMLSelectElement;
+    expect(select.value).toBe('1');
+    select.value = '2';
+    select.dispatchEvent(new Event('change'));
+    await harness.fixture.whenStable();
+    httpTesting.expectOne('/api/carteiras/2/operacoes').flush(JSON.stringify([{ id: 2, carteiraId: 2, ticker: 'AAPL', mercado: 'EUA', corretoraId: null, tipo: 'COMPRA', quantidade: 1, precoUnitario: 200, valorTotal: 200, dataOperacao: '2026-01-02', ordemNoDia: 1 }]));
+    harness.detectChanges();
+    expect(select.value).toBe('2');
+    expect(TestBed.inject(Router).url).toBe('/operacoes?carteiraId=2');
+    const rows = harness.routeNativeElement?.querySelectorAll('tbody tr');
+    expect(rows).toHaveLength(1);
+    expect(rows?.[0].textContent).toContain('AAPL');
+    expect(rows?.[0].textContent).not.toContain('PETR4');
+    expect(harness.routeNativeElement?.textContent).toContain('Carteira B');
+    expect(harness.routeNativeElement?.querySelector('app-operacoes-list-page select')).toBeNull();
+    httpTesting.expectNone('/api/operacoes');
+    httpTesting.expectNone(() => true);
+    expect(link.getAttribute('aria-current')).toBe('page');
+
+    (harness.routeNativeElement?.querySelector('nav a[href="/acoes"]') as HTMLAnchorElement).click();
+    await harness.fixture.whenStable();
+    httpTesting.expectOne('/api/acoes').flush([]);
+    harness.detectChanges();
+    expect(TestBed.inject(Router).url).toBe('/acoes');
+    expect(harness.routeNativeElement?.querySelector('h1')?.textContent).toBe('Ações');
+    expect(harness.routeNativeElement?.querySelector('nav a[aria-current="page"]')?.getAttribute('aria-label')).toBe('Ativos');
   });
 });

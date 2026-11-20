@@ -1,3 +1,4 @@
+import { AdminOnlyDirective } from '../../core/auth/admin-only.directive';
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { CarteiraContextService } from '../../core/carteira/carteira-context.service';
@@ -5,7 +6,7 @@ import { CarteiraNavigationService } from '../../core/carteira/carteira-navigati
 
 @Component({
   selector: 'app-carteira-selector',
-  imports: [RouterLink],
+  imports: [AdminOnlyDirective,RouterLink],
   template: `
     <label for="global-carteira">Carteira</label>
     <select id="global-carteira" [value]="context.activeId() ?? ''" [disabled]="context.loading() || !!context.error() || context.carteiras().length === 0" (change)="select($event)" aria-describedby="global-carteira-status">
@@ -16,14 +17,14 @@ import { CarteiraNavigationService } from '../../core/carteira/carteira-navigati
       @if (context.loading()) { Carregando carteiras… }
       @else if (context.error()) { {{ context.error()!.message }} <button type="button" (click)="retry()">Tentar novamente</button> }
       @else if (context.invalidSelection()) { Carteira indicada indisponível. Escolha outra carteira. }
-      @else if (context.carteiras().length === 0) { <a routerLink="/carteiras/nova">Criar carteira</a> }
+      @else if (context.carteiras().length === 0) { <a *appAdmin routerLink="/carteiras/nova">Criar carteira</a> }
     </span>
   `,
   styles: [`
-    :host{display:grid;grid-template-columns:auto minmax(0,1fr);align-items:center;gap:.125rem .5rem;min-width:0;width:clamp(9rem,30vw,22rem);font-size:.8rem;line-height:1.2}
-    label{font-weight:600}select{min-width:0;width:100%;min-height:2rem;font:inherit;color:var(--app-text-primary);background:var(--app-surface-card);border:1px solid var(--app-border-subtle);border-radius:var(--app-control-radius);padding:.25rem}select:focus-visible,button:focus-visible,a:focus-visible{outline:3px solid var(--app-brand-primary);outline-offset:2px}
+    :host{display:grid;grid-template-columns:auto minmax(0,1fr);align-items:center;gap:.125rem .5rem;min-width:0;width:clamp(12rem,26vw,22rem);font-size:.8rem;line-height:1.2}
+    label{font-weight:600}select{min-width:0;width:100%;min-height:2.75rem;font:inherit;color:var(--app-text-primary);background:var(--app-surface-card);border:1px solid var(--app-border-control);border-radius:var(--app-control-radius);padding:.25rem}select:focus-visible,button:focus-visible,a:focus-visible{outline:3px solid var(--app-brand-primary);outline-offset:2px}
     span{grid-column:1/-1;font-size:.7rem;white-space:normal;overflow-wrap:anywhere}span:empty{display:none}button,a{font:inherit;color:var(--app-brand-primary)}button{cursor:pointer;background:none;border:0;text-decoration:underline}
-    @media(max-width:36rem){:host{grid-template-columns:minmax(0,1fr)}label{font-size:.7rem}}
+    @media(max-width:36rem){label{font-size:.7rem}select{min-height:2.75rem}}
   `],
   changeDetection: ChangeDetectionStrategy.OnPush
 })

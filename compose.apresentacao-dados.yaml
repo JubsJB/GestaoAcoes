@@ -1,0 +1,19 @@
+# Última extensão, somente após operacional + http-local.
+services:
+  backend:
+    image: ${OP_PROJECT:?Defina projeto exclusivo}-backend:dados-demonstracao
+    environment:
+      SPRING_PROFILES_ACTIVE: operacional,apresentacao-http,dados-demonstracao
+      APP_DEMO_RUN_ID: ${OP_RUN_ID:?Defina UUID da apresentação}
+      BRASIL_API_BASE_URL: http://127.0.0.1:1
+      VIA_CEP_BASE_URL: http://127.0.0.1:1
+      BRAPI_BASE_URL: http://127.0.0.1:1
+      ALPHA_VANTAGE_BASE_URL: http://127.0.0.1:1
+    networks: !override {api: {}, database: {}}
+    secrets: !override
+      - source: app_password
+        target: spring.datasource.password
+      - source: jwt
+        target: auth.jwt.secret
+      - source: reset
+        target: auth.reset.secret

@@ -1,0 +1,27 @@
+@use 'usuarios-foundation';
+
+.editor-grid { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 1.5rem; align-items: start; }
+.admin-card { display: grid; gap: 1.25rem; min-width: 0; margin: 0; padding: 1.5rem; border: 1px solid var(--app-border-subtle); border-radius: .875rem; background: #fff; }
+.card-heading p, .support-card p, .support-note { margin: .375rem 0 0; color: var(--app-text-secondary); font-size: .875rem; line-height: 1.6; }
+.support-card { background: #f0f5fc; gap: .625rem; }
+.account-overview { grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr); align-items: center; }
+.account-overview .role-badge { margin-top: .5rem; }
+.account-facts { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 1.5rem; margin: 0; }
+.account-facts dd { font-size: .875rem; overflow-wrap: anywhere; }
+mat-form-field { width: 100%; min-width: 0; }
+.actions { display: flex; flex-wrap: wrap; gap: .75rem; }
+.actions > * { min-height: 2.75rem; }
+form > button { justify-self: start; }
+p[role=alert] { padding: 1rem; border: 1px solid var(--app-error); border-radius: .75rem; background: var(--app-surface-error); color: var(--app-error); }
+p[role=status] { margin: 0; color: var(--app-text-secondary); }
+@media (max-width: 68rem) { .editor-grid, .account-overview { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 48rem) {
+  .account-facts { gap: 1rem; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .admin-card { padding: 1.125rem; }
+  .actions > *, form > button { width: 100%; }
+}
+
+.back-link { width: fit-content; color: var(--app-action-primary); font-size: .875rem; padding-block: .5rem; }
+.account-avatar--large { width: 3.25rem; height: 3.25rem; }
+h2 { margin: 0; color: var(--app-brand-primary); font-size: 1.125rem; font-weight: 650; line-height: 1.4; overflow-wrap: anywhere; }
+.card-eyebrow { display: block; margin-bottom: .375rem; color: var(--app-text-secondary); font-size: .75rem; }

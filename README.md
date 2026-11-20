@@ -4,6 +4,18 @@ Aplicação web para gerenciamento e acompanhamento de carteiras de investimento
 
 **BRL e USD são tratados separadamente, sem conversão cambial automática.**
 
+**Autenticação e usuários:** as 56 tarefas da change `adicionar-autenticacao-e-gestao-de-usuarios` foram concluídas e aprovadas tecnicamente, incluindo backend, Angular e homologação operacional HTTPS/runtime local em recursos descartáveis. ADMIN/USER, cookie JWT HttpOnly, CSRF, gestão administrativa e definição/redefinição por código estão integrados. Carteiras e dados financeiros permanecem compartilhados; USER somente consulta e ADMIN pode modificar conforme as regras existentes. A homologação PostgreSQL 17.11 da migration 009/autenticação também foi aprovada tecnicamente. **O sistema não está declarado pronto para produção.** Consulte o [guia de autenticação, configuração e ferramentas](docs/AUTENTICACAO.md).
+
+## Apresentação acadêmica — 24/11/2026
+
+O roteiro principal usa o Docker limpo em `http://localhost:8081`, com transporte `http-local` e modo `sem-integracoes`. As carteiras preparadas usam as cotações já persistidas. O [roteiro de apresentação](docs/APRESENTACAO-DOCKER.md) registra o ensaio autenticado e a versão implantada.
+
+| Modo da apresentação | Integrações |
+| --- | --- |
+| `sem-integracoes` | BrasilAPI, ViaCEP, BRAPI e Alpha Vantage ficam desativadas. |
+| `integracoes-cadastrais` | Janela temporária do Docker limpo para BrasilAPI e ViaCEP. As integrações de mercado ficam desativadas. |
+| `com-integracoes` | Acesso autorizado aos quatro provedores, com credenciais próprias no backend para BRAPI e Alpha Vantage. |
+
 ## Sobre o projeto
 
 O Gestão de Ações centraliza informações que normalmente ficam distribuídas entre planilhas e consultas de mercado. O histórico de operações é a base dos cálculos financeiros; os provedores externos complementam o acompanhamento com dados cadastrais e cotações.
@@ -14,39 +26,65 @@ O núcleo atual é focado em carteiras de ações, com posição consolidada por
 
 | Área | Recursos disponíveis |
 | --- | --- |
+| **Sessão e perfis** | Login com JWT em cookie HttpOnly e proteção CSRF. Logout revoga a sessão no backend. USER consulta dados financeiros compartilhados. ADMIN também executa os comandos financeiros e administra usuários, incluindo cadastro, alteração de perfil e situação e emissão de códigos de definição ou redefinição de senha. |
 | **Ações BRASIL/EUA** | Cadastro validado por ticker e mercado, listagem, consulta e atualização manual de cotação no detalhe da ação. |
 | **Corretoras** | Cadastro por CNPJ, consulta cadastral, validação de endereço e consulta por ID ou CNPJ. |
-| **Carteiras** | Criação, consulta, renomeação e exclusão de carteiras sem operações ou snapshots vinculados. Seleção de carteira compartilhada entre telas. |
+| **Carteiras** | Criação, consulta, renomeação e exclusão de carteiras sem operações, snapshots ou histórico de custódia/estorno. Seleção de carteira compartilhada entre telas. |
+| **Custódia interna** | Transferência entre corretoras existentes, atribuição do grupo sem corretora, histórico com filtros/detalhe e estorno retroativo auditável no detalhe da Carteira. |
 | **Compras e vendas** | Registro e consulta de operações, corretora opcional, prévia histórica de compra e sugestão de preço de venda, ambas editáveis. |
 | **Posições e resultados** | Quantidade atual, preço médio, custo, cotação persistida, valor atual, resultados realizados e não realizados e rentabilidade. |
-| **Dashboard** | Resumo por moeda, composição por ativo, comparação entre custo e valor atual, resultado e rentabilidade por ativo. Registro de operação em dialog contextual. |
+| **Dashboard** | Resumo por moeda, histórico patrimonial, distribuição da carteira, desempenho por ativo com resultado não realizado e rentabilidade complementar, e resultados realizados individuais. Registro de operação em dialog contextual; posições detalhadas disponíveis na Carteira. |
 | **Evolução patrimonial** | Criação manual de snapshots e visualização das observações históricas por moeda. |
 
-“Atualizar dados” no dashboard recarrega as informações persistidas. A consulta de uma nova cotação é uma ação separada, disponível no detalhe da ação. Falhas nessa atualização preservam a última cotação válida e são informadas na interface.
+- **Atualizar dados** recarrega resumo, posições, resultados realizados e evolução patrimonial com os dados persistidos.
+- **Atualizar cotações** é uma ação do ADMIN no Dashboard. O backend seleciona os ativos das posições abertas da carteira e consulta os provedores conforme as regras de consumo. Cada ativo recebe um resultado de atualização, ausência de nova cotação ou falha. O lote admite sucesso parcial e preserva a última cotação válida quando a tentativa de um ativo falha.
+- O ADMIN também pode atualizar a cotação de um ativo no detalhe da ação. Essas atualizações preservam os preços das operações e os snapshots existentes.
 
 ## 🖼️ Demonstração da aplicação
 
 ### Dashboard
 
-Resumo da carteira em BRL e USD, com patrimônio das posições, custo, resultado não realizado e rentabilidade.
+Resumo da carteira em BRL e USD, com patrimônio e resultado não realizado em destaque, custo e rentabilidade complementares, seguido por histórico patrimonial, distribuição, desempenho e resultados realizados.
+
+**Captura histórica:** a imagem abaixo antecede a reorganização do Dashboard e não representa seu layout atual.
 
 ![Dashboard com resumo financeiro separado por moeda](docs/img/dashboard.png)
 
 ### Análise por ativo
 
-Composição da carteira e comparação entre custo e valor atual, complementadas por visualizações de resultado e rentabilidade por ativo.
+Distribuição da carteira por ativo e moeda, seguida por desempenho com resultado não realizado monetário e rentabilidade percentual complementar na mesma leitura por ativo. O comparativo independente Custo × Valor atual e o gráfico percentual separado foram removidos do Dashboard.
+
+**Captura histórica:** a imagem abaixo mostra a organização anterior, incluindo o comparativo removido. Não há captura atualizada disponível no projeto.
 
 ![Análise por ativo com composição e comparação de valores](docs/img/dashboard-analise-por-ativo.png)
+
+### Distribuição de posição por corretora
+
+No detalhe da Carteira, em **Posições abertas**, cada ativo possui uma seção expansível com nomes das corretoras e quantidades líquidas derivadas das operações financeiras e movimentações efetivas de custódia. Operações sem corretora são agrupadas em **Sem corretora informada**. A distribuição é informativa: não comprova custódia externa nem executa transferências junto às instituições ou conciliação com extratos.
+
+O replay cronológico preserva quantidades decimais exatas, saldos negativos e o primeiro déficit histórico, mesmo após regularização. Agrupamentos zerados não geram linhas quantitativas, mas seus avisos históricos permanecem identificáveis. A reconciliação compara todos os saldos, inclusive negativos, com a posição consolidada do mesmo conjunto consistente de operações; divergências são apresentadas sem correção automática.
+
+Consulta: `GET /carteiras/{carteiraId}/posicoes/distribuicao-corretoras`. Retorna somente posições consolidadas abertas; carteira sem posições retorna coleção vazia, e carteira inexistente retorna 404. O endpoint é separado do contrato atual de posições. Corretora continua opcional; novas vendas também validam saldo local e histórico, sem mudar fórmulas consolidadas. Falhas do painel não ocultam a tabela consolidada. `primeiroDeficit` identifica `dominio` FINANCEIRO/CUSTODIA, `id`, `natureza`, `dataEfetiva`, `posicaoCronologica` e `saldoAposEvento`; a posição usa `ordemNoDia` no financeiro ou âncora/fração textual na custódia.
+
+### Movimentações de custódia
+
+No detalhe da Carteira, **Movimentar custódia** registra TRANSFERENCIA entre corretoras distintas ou ATRIBUICAO do grupo **Sem corretora informada** para uma corretora existente. A carteira vem do contexto; informe ação, natureza, corretoras aplicáveis, quantidade e data efetiva. O saldo auxiliar é atual e não garante disponibilidade na data retroativa: o backend valida todo o histórico, inclusive eventos posteriores.
+
+O histórico de custódia é separado do financeiro e permite filtros por natureza/situação. Cada original tem identidade `(MOVIMENTACAO,id)` e situação ATIVA/ESTORNADA; o registro de estorno tem identidade `(ESTORNO,id)`, vínculo com a original e situação nula. O detalhe é sempre o da original. **Estornar** exige confirmação e aceita motivo opcional de até 1.000 caracteres; neutraliza o efeito desde a posição original, preserva auditoria e pode ser rejeitado por dependências posteriores. Não cria transferência inversa.
+
+Custódia não altera a compra, quantidade consolidada, preço médio, custo, resultados, rentabilidade ou patrimônio para as mesmas operações/cotações, nem cria snapshot automaticamente. Não há edição/exclusão de movimentações, endpoint individual de estorno, transferência entre carteiras ou integração institucional. Após POST confirmado, histórico e distribuição são recarregados independentemente; falha de leitura mantém a confirmação e oferece retry somente do GET afetado.
 
 ### Registro de operações
 
 Compras e vendas recebem ativo, data, quantidade e preço unitário, com corretora opcional. Na compra, a prévia histórica pode preencher uma sugestão de preço que permanece editável.
 
+A carteira capturada é identificada no cabeçalho do formulário, tanto na página quanto no dialog, sem bloco contextual duplicado. **Captura histórica:** a imagem abaixo ainda apresenta esse bloco, removido na reorganização; regras, envio e navegação das operações permanecem preservados.
+
 ![Formulário de registro de compra com preço unitário e corretora opcional](docs/img/operacao-compra.png)
 
 ### Detalhes da carteira
 
-Consulta das posições abertas e do histórico de operações da carteira selecionada.
+Consulta das posições abertas e do histórico da carteira selecionada. O histórico usa a mesma coleção da página Operações, com tabela em desktop, cartões em telas estreitas e retorno à tela de origem pelo detalhe da operação.
 
 ![Detalhes da carteira com posições e operações](docs/img/carteira-detalhes.png)
 
@@ -78,6 +116,7 @@ Os cálculos oficiais ficam no backend e utilizam `BigDecimal`, com precisão e 
 | **Patrimônio** | Soma do valor atual das posições abertas, separada por moeda; não representa saldo em dinheiro de uma conta de investimentos. |
 
 - Venda acima da quantidade cronologicamente disponível é rejeitada, inclusive se uma inserção retroativa invalidar operações posteriores.
+- Novas vendas exigem saldo na corretora informada ou no grupo sem corretora; saldo de outro grupo não pode financiá-las. Compras/vendas retroativas também preservam custódias ativas e não criam, agravam ou prolongam déficits históricos. Negativos locais legados continuam consultáveis, sem liberar novas escritas inválidas.
 - O processamento respeita `dataOperacao` e `ordemNoDia`. A ordem no dia e o `valorTotal` são gerados pelo backend.
 - Quantidade e preço devem ser positivos e representáveis com até 13 dígitos inteiros e seis casas decimais. Ações brasileiras exigem quantidade inteira; datas futuras não são aceitas.
 - BRL e USD não são somados em um total convertido. A cotação mais recente pode estar defasada e não modifica os preços das operações já registradas.
@@ -146,9 +185,13 @@ openspec/                  especificações e histórico de alterações
 
 Detalhes adicionais: [frontend](frontend/README.md), [PRD](docs/PRD.md), [specs OpenSpec](openspec/specs) e [diretrizes de manutenção](AGENTS.md). O Graphify oferece um grafo local de apoio à leitura das dependências; `graphify-out/` não é versionado.
 
-## 🚀 Como executar o projeto
+## 🚀 Como executar o projeto em desenvolvimento
+
+Para 24/11, use o [roteiro acadêmico](docs/APRESENTACAO-DOCKER.md). As instruções abaixo são para desenvolvimento local.
 
 ### Com Docker Compose
+
+**Pendência operacional:** a composição abaixo antecede o aceite de segurança e ainda publica HTTP, sem injetar as chaves AUTH_JWT_SECRET e AUTH_RESET_SECRET. Estes passos não representam implantação autenticada homologada. A alternativa operacional homologada localmente está em compose.operacional.yaml e [OPERACIONAL-HTTPS.md](docs/OPERACIONAL-HTTPS.md); não combinar com este Compose. Para qualquer execução, não remover Secure/CSRF, ampliar CORS ou confiar em headers arbitrários para fazê-la funcionar. O volume PostgreSQL é persistente e não deve ser usado como banco de testes da change.
 
 Requer Docker Engine/Desktop com Compose e containers Linux; no ambiente Windows homologado, utiliza WSL2. A primeira construção requer acesso aos repositórios de imagens e dependências. Não exige Java ou Node instalados no host.
 
@@ -213,9 +256,11 @@ $env:SPRING_PROFILES_ACTIVE = "dev"
 $env:SPRING_DATASOURCE_URL = "jdbc:postgresql://localhost:5432/gestaoacoesdb"
 $env:SPRING_DATASOURCE_USERNAME = "<usuario-local>"
 $env:SPRING_DATASOURCE_PASSWORD = "<senha-local>"
+$env:AUTH_JWT_SECRET = "<chave-Base64-aleatoria-de-pelo-menos-32-bytes>"
+$env:AUTH_RESET_SECRET = "<outra-chave-Base64-independente-de-pelo-menos-32-bytes>"
 $env:BRAPI_API_KEY = "<chave-brapi>"
 $env:ALPHA_VANTAGE_API_KEY = "<chave-alpha-vantage>"
-.\mvnw.cmd spring-boot:run
+.\mvnw.cmd spring-boot:run "-Dspring-boot.run.arguments=--server.address=127.0.0.1 --auth.allow-local-http=true"
 ```
 
 Em outro terminal:
@@ -228,9 +273,11 @@ npm start
 
 Em Linux/macOS, use `./mvnw` e exporte as variáveis com a sintaxe do shell. Maven e frontend têm builds independentes. O [proxy de desenvolvimento](frontend/proxy.conf.json) remove `/api` e encaminha ao backend em `localhost:8080`. O build frontend gera `frontend/dist/frontend/browser/`; fora do Docker, a hospedagem precisa fornecer proxy e fallback de rotas equivalentes.
 
-O [changelog Liquibase](src/main/resources/db/changelog/db.changelog-master.yaml) contém seis migrations, abrangendo corretoras, ações, carteiras, operações, histórico de cotações e snapshots por moeda. Hibernate valida o schema (`ddl-auto=validate` no profile `dev`). H2 não é fallback da aplicação normal. Bancos legados criados fora do changelog precisam de reconciliação; não há baseline automático documentado.
+O [changelog Liquibase](src/main/resources/db/changelog/db.changelog-master.yaml) inclui **nove arquivos de migration (001–009), com dez changeSets**. Além das estruturas financeiras existentes, a 009 acrescenta usuários, sessões, autorizações, contadores, singleton e auditoria de segurança. Foi validada em H2 e PostgreSQL 17.11 exclusivamente descartáveis, incluindo instalação/upgrade e concorrência de autenticação em 10.4; evidências em openspec/changes/archive/2026-11-02-adicionar-autenticacao-e-gestao-de-usuarios/homologacao-postgresql.md. Isso não autoriza migrations em outro banco. Hibernate valida o schema (`ddl-auto=validate` no profile `dev`). H2 não é fallback da aplicação normal. Não usar banco persistente para teste de migration nem executar rollback destrutivo da 009. Bancos legados criados fora do changelog precisam de reconciliação; não há baseline automático documentado.
 
 ### Primeiro uso e API
+
+Os marcadores do exemplo não são segredos utilizáveis: substituí-los somente no ambiente do processo, sem salvar/exportar valores. A exceção HTTP acima é exclusivamente dev/loopback e não configura produção ou acesso entre containers. Use datasource explicitamente autorizado e isolado para validação. Antes do primeiro acesso, um operador autorizado inicializa o ADMIN pelo comando one-shot descrito no [guia](docs/AUTENTICACAO.md); o modo normal não cria usuário automático. Efetue login; somente ADMIN pode executar os cadastros abaixo. Contas novas definem a própria senha pelo código inicial recebido do administrador.
 
 Crie e selecione uma carteira, cadastre ações, opcionalmente cadastre uma corretora e registre uma COMPRA. Depois consulte posições, registre vendas compatíveis com o saldo e gere snapshots no dashboard para formar o histórico patrimonial.
 
@@ -247,8 +294,9 @@ Com o backend ativo:
 | --- | --- |
 | Corretoras | `POST/GET /corretoras`, `GET /corretoras/{id}`, `GET /corretoras/por-cnpj` |
 | Ações | `POST/GET /acoes`, `GET /acoes/{id}`, `GET /acoes/por-ticker`, `PATCH /acoes/{id}/cotacao` |
-| Carteiras | `POST/GET /carteiras`, `GET/PATCH/DELETE /carteiras/{id}` |
+| Carteiras | `POST/GET /carteiras`, `GET/PATCH/DELETE /carteiras/{id}`, `POST /carteiras/{carteiraId}/atualizacoes-cotacoes` (ADMIN, sem corpo) |
 | Operações | `POST/GET /operacoes`, `GET /operacoes/{id}`, `GET /operacoes/previa-compra`, `GET /carteiras/{carteiraId}/operacoes`, `GET /carteiras/{carteiraId}/operacoes/sugestao-preco-venda` |
+| Custódia | `POST/GET /carteiras/{carteiraId}/movimentacoes-custodia`, `GET /carteiras/{carteiraId}/movimentacoes-custodia/{movimentacaoId}`, `POST /carteiras/{carteiraId}/movimentacoes-custodia/{movimentacaoId}/estornos` |
 | Indicadores | `GET /carteiras/{carteiraId}/posicoes`, `/resultados-realizados`, `/patrimonio`, `/resumo`, `/evolucao-patrimonial`; `POST /carteiras/{carteiraId}/snapshots` |
 
 Prévia e sugestão recebem `ticker`, `mercado` e `dataOperacao`. Não há GET individual de snapshot, apesar do `Location` de criação; a consulta disponível é a evolução patrimonial.
@@ -257,9 +305,21 @@ A coleção usa a URL direta do backend, sem `/api`. Ajuste `baseUrl`, CNPJ e da
 
 Execute COMPRA antes de VENDA; os exemplos compram 10 e vendem 5. A exclusão usa `carteiraDescartavelId`, de uma carteira criada vazia para esse fim. A coleção cria dados, consome cotas e executa exclusão real: não é idempotente. Uma prévia indisponível não impede o POST com preço manual válido.
 
+Na pasta Custódia da coleção, configure `corretoraOrigemId`, `corretoraDestinoId` e `dataEfetivaCustodia`. Transferência exige compra/saldo na origem; atribuição exige compra sem corretora. Use massa descartável e quantidades compatíveis: os exemplos não formam um roteiro que possa ser repetido indiscriminadamente. `movimentacaoCustodiaId` é ID de original; `estornoCustodiaId` é separado. As respostas salvas são exemplos documentais, não evidências de execução. Quantidade de entrada admite número JSON ou string decimal (exemplos usam string); resposta é numérica, e clientes devem fazer parsing sem perda de precisão. A âncora e as frações são calculadas pelo servidor; os componentes da fração são strings de até 512 dígitos.
+
 Erros seguem `timeStamp`, `status`, `error`, `message`, `path`, `code` e `details`. Incluem validação, ausência, conflitos, histórico indisponível, limites e falhas externas; consulte o OpenAPI para os códigos de cada endpoint.
 
+Custódia usa 400 para estrutura/data futura, 404 para referências/contexto e 409 para saldo, histórico, limite, duplicidade, integridade ou concorrência reconhecida. `POSICAO_CUSTODIA_INDISPONIVEL` pode trazer a causa em `details.motivo`; não substituir esse código pelo motivo. Não há retry automático de escrita nem idempotency key.
+
+Na exclusão de carteira, operações financeiras precedem snapshots, que precedem histórico de custódia/estorno: códigos `CARTEIRA_POSSUI_OPERACOES`, `CARTEIRA_POSSUI_SNAPSHOTS` e `CARTEIRA_POSSUI_MOVIMENTACOES_CUSTODIA`, respectivamente. Uma original estornada continua sendo histórico e não libera exclusão.
+
 </details>
+
+### Deploy coordenado e rollback
+
+Backend e Angular devem ser entregues de forma coordenada: `primeiroDeficit` agora distingue eventos FINANCEIRO/CUSTODIA, e novas vendas validam saldo local mesmo sem movimentações de custódia. Planeje backup recuperável do banco e confira a versão do changelog antes de uma implantação autorizada; Liquibase aplica o schema aditivo e Hibernate o valida. As homologações PostgreSQL anteriores não autorizam, por si só, aplicação em outro banco. A coleção Postman não é um script de deploy.
+
+Se houver retorno a backend incompatível com custódia, suspenda as escritas até restaurar uma versão compatível. Preserve as tabelas, originais, estornos e registros Liquibase; não executar drop, limpar auditoria ou marcar reversões fictícias. O rollback estrutural de ambos os changeSets 008 é bloqueado explicitamente para preservar auditoria/integridade e exige plano separado e autorização. Não há deploy automatizado ou comando de rollback destrutivo suportado.
 
 ## 🧪 Testes e qualidade
 
@@ -275,12 +335,23 @@ O backend possui testes de regras financeiras, contratos REST/OpenAPI, persistê
 $env:VITEST_MAX_WORKERS = "2"
 $env:NG_BUILD_MAX_WORKERS = "2"
 npm test -- --watch=false
+npm run test:coverage
 npm run build -- --configuration production
 
 # Raiz, com OpenSpec instalado
 openspec validate --all --strict
 git diff --check
 ```
+
+O [guia de validações automatizadas](docs/validacoes-automatizadas.md) descreve o CI e os portões de JaCoCo e Vitest, ambos com mínimo de 80% em linhas e ramos.
+
+| Evidência | Escopo e resultado |
+| --- | --- |
+| 18/11/2026 — validação isolada de dados fictícios | Backend com 2.683 testes contabilizados, 2.476 aprovados e 207 ignorados, sem falhas. JaCoCo: 96,25% de linhas e 84,90% de ramos. Angular: 1.171 testes aprovados, 98,29% de linhas e 92,00% de ramos. |
+| 20/11/2026 — histórico de operações | 46 testes direcionados, build de produção e conferência das duas telas em Chrome isolado. A implantação e o aceite visual constam na [tarefa 6.5](openspec/changes/modernizar-identidade-visual-e-experiencia-frontend/tasks.md#6-carteiras-ativos-corretoras-e-operações). |
+| 20/11/2026 — commit operacional | 62 testes Java direcionados e 42 testes Node aprovados em isolamento. Seis configurações Compose renderizadas com valores fictícios. O [ensaio autenticado](openspec/changes/apresentar-em-http-loopback/tasks.md#ensaio-autenticado-de-20112026) tem registro próprio. |
+
+Os percentuais de cobertura pertencem à [execução de 18/11](openspec/changes/preparar-dados-ficticios-offline/tasks.md#evidências).
 
 Liquibase mantém a evolução do schema; OpenSpec registra os requisitos e suas validações. Graphify apoia consultas de dependências conforme [AGENTS.md](AGENTS.md). O build frontend valida compilação e templates; há avisos conhecidos de budget do bundle inicial e do estilo da evolução, sem impedir a compilação. Não há deploy automatizado nesta entrega.
 
@@ -304,7 +375,7 @@ Liquibase mantém a evolução do schema; OpenSpec registra os requisitos e suas
 ### Carteiras
 
 - Compactar o detalhe, removendo o bloco “Identificação” e preservando as informações relevantes.
-- No **Histórico de operações**, adicionar filtros por Ativo, Tipo e Corretora; remover a coluna Carteira e o título/coluna genérica “Ações”, quando aplicável; disponibilizar “Ver detalhes” e logotipos; padronizar a apresentação com **Posições abertas**.
+- No **Histórico de operações**, adicionar filtros por Ativo, Tipo e Corretora; remover a coluna Carteira e o título/coluna genérica “Ações”, quando aplicável; incluir logotipos e padronizar a apresentação com **Posições abertas**. A coleção atual já oferece “Ver detalhes”.
 - Em **Posições abertas**, adicionar logotipos e filtros por Ativo, Resultado não realizado e Rentabilidade, com opções Positivo, Negativo e Neutro para os dois indicadores.
 
 ### Dashboard
@@ -326,9 +397,9 @@ Liquibase mantém a evolução do schema; OpenSpec registra os requisitos e suas
 
 ### Usuários e segurança
 
-- Criar usuários, login e autenticação.
-- Associar dados ao usuário autenticado, permitindo que cada pessoa visualize e manipule somente seus próprios dados.
-- Isolar carteiras e operações e definir o isolamento de ações/corretoras conforme o modelo de negócio futuro.
+- As 56 tarefas da change de autenticação e gestão de usuários foram concluídas e aprovadas tecnicamente, incluindo documentação/ferramentas, Angular e homologação operacional HTTPS local. Isso não constitui implantação nem declaração de prontidão de produção.
+- Associação de dados a proprietários e isolamento de carteiras/operações são evolução futura que exigiria nova decisão de negócio/change. **Não existem nesta entrega:** os dados são compartilhados entre identidades autorizadas.
+- Preservar a separação entre homologação local HTTPS/PostgreSQL descartável e implantação de produção; consultar docs/OPERACIONAL-HTTPS.md.
 
 ### Interface e experiência do usuário
 
@@ -337,9 +408,9 @@ Liquibase mantém a evolução do schema; OpenSpec registra os requisitos e suas
 
 ## Status do projeto
 
-O projeto possui um núcleo funcional para gestão de carteiras de ações brasileiras e americanas. As próximas etapas concentram-se em interface, filtros e visualizações, novos indicadores, autenticação e isolamento por usuário, além da expansão futura para outras categorias de investimentos.
+O projeto possui um núcleo funcional para gestão de carteiras de ações brasileiras e americanas e autenticação/administração integradas ao Angular. As 56 tarefas da change de autenticação e gestão de usuários foram concluídas e aprovadas tecnicamente, incluindo HTTPS/runtime local em recursos descartáveis e homologação PostgreSQL 17.11. O sistema não está declarado pronto para produção. Consulte [a operação HTTPS local](docs/OPERACIONAL-HTTPS.md). Interface, novos indicadores, isolamento por proprietário e expansão para outras categorias continuam evoluções separadas.
 
-**Limitações atuais:** não há autenticação, envio de ordens, importação automática de negociações, impostos, taxas, dividendos ou eventos corporativos. Não há edição/exclusão de operações nem exclusão de ações/corretoras na API. Listagens e evolução não possuem paginação; snapshots são manuais. O cadastro de corretora valida dados cadastrais e endereço, sem comprovar autorização regulatória para atuação financeira.
+**Limitações atuais:** não há envio de ordens, importação automática de negociações, impostos, taxas, dividendos ou eventos corporativos. Não há edição/exclusão de operações nem exclusão de ações/corretoras na API. Listagens e evolução não possuem paginação; snapshots são manuais. Carteiras não são isoladas por proprietário; não há cadastro público, refresh token, recuperação por e-mail ou senha escolhida por ADMIN. O cadastro de corretora valida dados cadastrais e endereço, sem comprovar autorização regulatória para atuação financeira.
 
 **Pendência de segurança já registrada:** uma credencial PostgreSQL anteriormente exposta em arquivo versionado deve ser revogada/rotacionada antes de voltar a ser utilizada. A remoção do valor atual não revoga a credencial nem elimina o histórico Git; este README não confirma rotação externa ou reescrita do histórico.
 

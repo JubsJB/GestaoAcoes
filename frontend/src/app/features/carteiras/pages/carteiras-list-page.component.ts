@@ -1,3 +1,4 @@
+import { AdminOnlyDirective } from '../../../core/auth/admin-only.directive';
 import { ChangeDetectionStrategy, Component, DestroyRef, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { MatButtonModule } from '@angular/material/button';
@@ -19,11 +20,11 @@ import { CarteiraFormPageComponent } from './carteira-form-page.component';
 
 @Component({
   selector: 'app-carteiras-list-page',
-  imports: [AppIconComponent, FeedbackAlertComponent, MatButtonModule, MatProgressSpinnerModule, PageHeaderComponent, RouterLink],
+  imports: [AdminOnlyDirective,AppIconComponent, FeedbackAlertComponent, MatButtonModule, MatProgressSpinnerModule, PageHeaderComponent, RouterLink],
   template: `
     <section class="app-page collection-page" aria-labelledby="carteiras-title">
-      <app-page-header headingId="carteiras-title" eyebrow="Organização" icon="portfolio" title="Carteiras" description="Gerencie as carteiras que organizam seus investimentos.">
-        <button page-header-action mat-flat-button type="button" (click)="openCreateDialog()">Nova carteira</button>
+      <app-page-header headingId="carteiras-title" eyebrow="Organização" title="Carteiras" description="Gerencie as carteiras que organizam seus investimentos.">
+        <button *appAdmin page-header-action mat-flat-button type="button" (click)="openCreateDialog()">Nova carteira</button>
       </app-page-header>
 
       @if (error()) { <app-feedback-alert variant="error" [message]="error()!.message" [details]="error()!.details" /> }
@@ -33,7 +34,7 @@ import { CarteiraFormPageComponent } from './carteira-form-page.component';
         } @else if (error()) {
           <div class="app-state"><button mat-stroked-button type="button" (click)="load()">Tentar novamente</button></div>
         } @else if (carteiras().length === 0) {
-          <div class="app-state app-surface"><span class="app-state__icon" aria-hidden="true"><app-icon name="empty" /></span><h2>Você ainda não possui carteiras cadastradas.</h2><p>Cadastre a primeira carteira para começar sua organização.</p><button mat-stroked-button type="button" (click)="openCreateDialog()">Cadastrar a primeira</button></div>
+          <div class="app-state app-surface"><span class="app-state__icon" aria-hidden="true"><app-icon name="empty" /></span><h2>Você ainda não possui carteiras cadastradas.</h2><p>Cadastre a primeira carteira para começar sua organização.</p><button *appAdmin mat-stroked-button type="button" (click)="openCreateDialog()">Cadastrar a primeira</button></div>
         } @else {
           <table class="collection-table" role="table">
             <caption>Carteiras cadastradas</caption>
@@ -58,11 +59,7 @@ import { CarteiraFormPageComponent } from './carteira-form-page.component';
       </div>
     </section>
   `,
-  styleUrl: '../../../shared/collection/refined-collection.scss',
-  styles: [`
-    .collection-page{height:calc(100dvh - 8rem);overflow:hidden;display:flex;flex-direction:column}.collection-region{min-height:0;overflow:auto;padding:.125rem .25rem .75rem 0;overscroll-behavior:contain;flex:1 1 auto}
-    @media(max-width:959.98px){.collection-page{height:calc(100dvh - 5.5rem)}}@media(max-width:36rem){.collection-page{height:auto;overflow:visible}.collection-region{overflow:visible;padding-right:0}}
-  `],
+  styleUrl: '../carteiras-list.scss',
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class CarteirasListPageComponent {

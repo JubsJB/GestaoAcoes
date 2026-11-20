@@ -4,6 +4,9 @@ import io.swagger.v3.oas.annotations.media.Schema;
 
 import java.io.Serializable;
 import java.util.Map;
+import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.Objects;
 
 @Schema(name = "StandardError", description = "Resposta pública padronizada de erro")
 public class StandardError implements Serializable {
@@ -48,7 +51,7 @@ public class StandardError implements Serializable {
         this.message = message;
         this.path = path;
         this.code = code;
-        this.details = details == null ? Map.of() : Map.copyOf(details);
+        this.details = copiarDetalhes(details);
     }
 
     public Long getTimeStamp() {
@@ -104,7 +107,16 @@ public class StandardError implements Serializable {
     }
 
     public void setDetails(Map<String, Object> details) {
-        this.details = details == null ? Map.of() : Map.copyOf(details);
+        this.details = copiarDetalhes(details);
+    }
+
+    private static Map<String, Object> copiarDetalhes(Map<String, Object> details) {
+        if (details == null) {
+            return Map.of();
+        }
+        Map<String, Object> copy = new LinkedHashMap<>();
+        details.forEach((key, value) -> copy.put(Objects.requireNonNull(key), value));
+        return Collections.unmodifiableMap(copy);
     }
 }
 

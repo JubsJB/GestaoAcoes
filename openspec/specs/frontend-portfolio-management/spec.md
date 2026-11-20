@@ -6,7 +6,7 @@ Disponibilizar o gerenciamento frontend básico e acessível de Carteiras sobre 
 ## Requirements
 
 ### Requirement: Contrato frontend mínimo de Carteiras
-A área de Carteiras SHALL consumir `POST /carteiras`, `GET /carteiras`, `GET /carteiras/{id}`, `PATCH /carteiras/{id}` e `DELETE /carteiras/{id}` pela configuração central da API. Para integrar o histórico contextual aprovado, o detalhe SHALL também consumir `GET /carteiras/{carteiraId}/operacoes` por meio da capability `frontend-operation-management` e `GET /carteiras/{id}/posicoes` pelo contrato existente de posições. O frontend SHALL representar `id`, `nome` e `dataCriacao` do `CarteiraResponse`, SHALL enviar somente `nome` nos requests de criação e edição e MUST NOT introduzir campos, endpoints ou dados derivados.
+A área SHALL manter contratos básicos de carteira e consultas financeiras existentes. Detalhe SHALL consumir histórico financeiro, posições abertas e distribuição separada sem calcular quantidades no navegador; SHALL também consumir rotas de movimentações/estornos de custódia aprovadas. DTO cadastral SHALL permanecer id/nome/dataCriacao e requests de carteira somente nome. Evolução do schema de evidências da distribuição SHALL ser coordenada; demais schemas financeiros não recebem campos de custódia.
 
 #### Scenario: Leitura do DTO básico
 - **WHEN** o backend devolve uma Carteira
@@ -18,7 +18,11 @@ A área de Carteiras SHALL consumir `POST /carteiras`, `GET /carteiras`, `GET /c
 
 #### Scenario: Limite funcional
 - **WHEN** a capability é apresentada
-- **THEN** ela consulta e exibe os dados básicos, histórico de Operações e posições abertas aprovadas, sem acrescentar resumo, patrimônio agregado, evolução, snapshots, gráficos ou conversão cambial
+- **THEN** ela consulta e exibe os dados básicos, histórico de Operações e posições abertas aprovadas, com distribuicao informativa separada,sem acrescentar resumo, patrimônio agregado, evolução, snapshots, gráficos ou conversão cambial
+
+#### Scenario: Limite de custódia
+- **WHEN** detalhe consulta movimentações e estornos
+- **THEN** histórico próprio é separado de operações e não adiciona gráficos, patrimônio, conversão ou redesign
 
 ### Requirement: Rotas funcionais e carregamento lazy
 A área SHALL substituir somente o placeholder de Carteiras e SHALL manter seu limite lazy. Ela SHALL oferecer `/carteiras` para listagem, `/carteiras/nova` para cadastro direto, `/carteiras/{id}` para detalhe e `/carteiras/{id}/editar` para edição direta, com as rotas estáticas resolvidas antes do parâmetro de identificador.
@@ -122,7 +126,7 @@ A aplicação SHALL apresentar em `/carteiras/{id}` nome, identificador e data d
 
 #### Scenario: Cadastro contextual
 - **WHEN** o usuário aciona “Registrar operação” no detalhe
-- **THEN** o mesmo formulário discriminado do fluxo global é aberto com a Carteira pré-selecionada e não editável, aplicando prévia somente leitura em COMPRA e sugestão editável em VENDA, sempre sem ordem manual e com os mesmos payloads do POST
+- **THEN** o mesmo formulário discriminado do fluxo global é aberto com a Carteira pré-selecionada e não editável, aplicando sugestão inicial editável em COMPRA e sugestão editável em VENDA, enviando o preço final do campo nos dois tipos, com Corretora opcional, sempre sem ordem manual e com os mesmos payloads vigentes do POST
 
 #### Scenario: Sucesso no cadastro contextual
 - **WHEN** uma criação contextual é concluída
@@ -225,7 +229,7 @@ O detalhe SHALL consumir `GET /carteiras/{id}/posicoes` pelo serviço e modelo e
 - **THEN** o histórico incorpora o DTO conforme contrato vigente e as posições são consultadas novamente no backend, sem cálculo local nem criação de snapshot
 
 ### Requirement: Detalhe reativo e seleção global
-O detalhe SHALL reagir a mudanças do identificador na mesma rota, validar a Carteira, selecionar e persistir a abertura válida, e invalidar imediatamente dados e requests do contexto anterior. Estado transitório SHALL ser aceito somente quando compatível com o ID atual. Trocar a Carteira no shell estando no detalhe SHALL navegar ao novo detalhe.
+Após autenticação e autorização, o detalhe SHALL reagir a mudanças do identificador na mesma rota, validar a Carteira, selecionar a abertura válida em memória da sessão autenticada, sem preferência global persistida entre identidades, e invalidar imediatamente dados e requests do contexto anterior. Estado transitório SHALL ser aceito somente quando compatível com o ID atual. Trocar a Carteira no shell estando no detalhe SHALL navegar ao novo detalhe.
 
 #### Scenario: Troca sem recriar componente
 - **WHEN** `/carteiras/{id}` muda para outro ID na mesma instância de página
@@ -234,6 +238,10 @@ O detalhe SHALL reagir a mudanças do identificador na mesma rota, validar a Car
 #### Scenario: Detalhe indisponível
 - **WHEN** o ID é malformado ou a Carteira não existe
 - **THEN** o detalhe mostra erro ou não encontrado, não ativa silenciosamente outra Carteira e oferece retorno à listagem
+
+#### Scenario: Reload do detalhe com cookie válido
+- **WHEN** detalhe é recarregado com sessão válida e ID na URL
+- **THEN** /me restaura identidade sem registrar atividade e o detalhe carrega carteira validada sem novo login ou restauração de dados financeiros não salvos
 
 ### Requirement: Sincronização de mutações de Carteira
 Criação e edição confirmadas SHALL incorporar o CarteiraResponse à coleção compartilhada; exclusão confirmada com 204 SHALL remover a Carteira. Cancelamento, erro e conflito MUST NOT alterar o contexto como se houvesse sucesso. A criação em dialog SHALL preservar seleção válida anterior; na ausência dela SHALL resolver o fallback. A criação direta SHALL selecionar a Carteira ao abrir seu detalhe. Edição SHALL atualizar o nome exibido sem trocar o ID ativo. Exclusão da ativa SHALL limpar sua preferência, resolver a primeira restante por id ASC ou estado vazio e preservar retorno a `/carteiras`.
@@ -253,3 +261,95 @@ Criação e edição confirmadas SHALL incorporar o CarteiraResponse à coleçã
 #### Scenario: Mutação não confirmada
 - **WHEN** a ação é cancelada ou o backend retorna erro, incluindo 409 por operações ou snapshots
 - **THEN** a Carteira e a seleção permanecem preservadas e a mensagem normalizada é apresentada
+
+### Requirement: Distribuicao informativa no detalhe da Carteira
+Detalhe -> posições abertas SHALL apresentar distribuição autoritativa de operações e custódias efetivas, sem comprovar custódia externa nem calcular saldos/financeiro. SHALL manter decimal lossless, linhas não zero, negativos, avisos efetivos e reconciliação. SHALL interpretar identidade de evento discriminada e evidência genérica, inclusive desaparecimento de aviso após retroatividade válida. Dados consolidados SHALL permanecer independentes em falha. SHALL recarregar distribuição no contexto correto após operação, movimentação ou estorno; nenhuma atualização de leitura repetirá escrita.
+
+#### Scenario: Dados e aviso de corretora zero
+- **WHEN** resposta inclui varias corretoras,categoria nula e aviso historico de grupo zerado
+- **THEN** exibe todas linhas nao zero com quantidades exatas e aviso identificavel separado,sem linha zero e sem ocultar negativos
+
+#### Scenario: Loading vazio e erro independentes
+- **WHEN** consulta esta carregando,retorna vazio ou falha
+- **THEN** anuncia loading,explica ausencia de posicoes abertas ou oferece retry manual respectivamente,sem apagar posicoes consolidadas validas nem afirmar distribuicao sem problemas
+
+#### Scenario: Troca de Carteira e nova operacao
+- **WHEN** selecao muda durante consulta ou operacao e registrada no detalhe
+- **THEN** nao mostra distribuicao antiga como atual,e recarrega o contexto correto apos operacao,sem polling ou mutacao adicional
+
+#### Scenario: Divergencia de quantidades
+- **WHEN** backend sinaliza reconciliacao divergente
+- **THEN** mostra aviso e quantidades autoritativas sem recalcular,corrigir ou apresentar distribuicao como reconciliada
+
+#### Scenario: Acessibilidade e responsividade
+- **WHEN** usuario navega por teclado/leitor de tela ou viewport360px
+- **THEN** controles tem nome/foco,loading e avisos sao anunciados sem concorrencia desnecessaria,quantidades e corretoras permanecem legiveis,e problemas nao dependem somente de cor
+
+#### Scenario: Contratos e superficies anteriores
+- **WHEN** nova consulta falha ou nao e utilizada
+- **THEN** listagem de Carteiras,historico,formulario de operacoes e Dashboard preservam contratos e calculos existentes
+
+#### Scenario: Diagnostico unico sem recalc
+- **WHEN** mesmo agrupamento possui flags de saldo negativo atual e deficit historico ou finalzero
+- **THEN** renderiza no maximo um aviso por grupo inconsistente,com nome e primeira evidencia recebidos,nao alerta grupos saudaveis e nao cria linha quantitativa zero;divergencia da posicao e aviso distinto sem corretora ficticia
+
+#### Scenario: Snapshots independentes
+- **WHEN** GET de distribuicao e GET de posicoes retornam quantidades diferentes por aquisicao em instantes distintos
+- **THEN** apresenta dados da propria resposta identificada,nao compara/soma no navegador,nem cria falso diagnostico ou sobrescreve tabela consolidada;usa apenas reconciliada/diagnosticoReconciliacao autoritativos
+
+#### Scenario: Sem graficos de participacao
+- **WHEN** distribuicao apresenta positivos,negativos ou divergencia
+- **THEN** nao apresenta percentuais,roscas,graficos de participacao,modulo de negativos ou normalizacao de subconjuntos;preserva valores textuais e todos os avisos pertinentes
+
+#### Scenario: Atualização após estorno
+- **WHEN** estorno conclui e distribuição é recarregada
+- **THEN** mostra neutralização efetiva sem ocultar histórico original
+
+### Requirement: Formulário contextual de transferência e atribuição
+Detalhe SHALL oferecer formulário próprio, carteira fixa do contexto, ação existente, natureza, origem/destino, quantidade textual exata e data efetiva. TRANSFERENCIA exige duas corretoras distintas; ATRIBUICAO fixa origem Sem corretora informada sem entidade fictícia. Saldo exibido SHALL ser auxiliar e identificado como atual, não disponibilidade garantida na data retroativa. Backend SHALL escolher posição e validar saldo. Não haverá preço, valor total, controle manual de posição, cadastro de referência ou transferência entre carteiras.
+
+#### Scenario: Transferência e atribuição no formulário
+- **WHEN** usuário alterna natureza
+- **THEN** origem é selecionável na transferência e categoria fixa na atribuição; destino sempre corretora cadastrada
+
+#### Scenario: Saldo auxiliar e retroatividade
+- **WHEN** painel mostra saldo atual e usuário informa data anterior
+- **THEN** interface informa que backend validará posição/histórico, sem usar saldo atual como garantia
+
+#### Scenario: Precisão e validação estrutural
+- **WHEN** quantidade/data/direção são inválidas
+- **THEN** identifica campos, conserva strings lossless e não envia request estruturalmente inválido
+
+#### Scenario: Troca de contexto
+- **WHEN** carteira muda durante consulta ou abertura de dialog
+- **THEN** respostas antigas não atualizam nova carteira e escrita permanece vinculada ao contexto capturado
+
+### Requirement: Histórico e confirmação de estorno acessíveis
+Detalhe SHALL exibir histórico unificado de custódia separado do financeiro, natureza, situação, ativo, quantidade, origem/destino, datas e vínculos. SHALL ordenar por registro decrescente e aplicar filtros do contrato. Original SHALL ter ATIVA/ESTORNADA; estorno terá ESTORNO e situação null. Confirmação SHALL explicar neutralização retroativa, preservar original, oferecer motivo opcional e não efetuar POST por abertura/cancelamento. SHALL comunicar conflitos específicos e duplicidade, com acessibilidade, responsividade e estados loading/vazio/erro/retry próprios.
+
+#### Scenario: Original e estorno vinculados
+- **WHEN** histórico contém original estornada
+- **THEN** mostra duas linhas auditáveis, vínculo visual e explicação de neutralização, sem transferência inversa
+
+#### Scenario: Filtros no frontend
+- **WHEN** usuário escolhe natureza/situação
+- **THEN** envia filtros do contrato, exibe situações de originais e estornos somente conforme política especificada
+
+#### Scenario: Confirmação ou cancelamento
+- **WHEN** usuário abre confirmação e cancela
+- **THEN** não há POST; confirmação explícita envia somente motivo opcional
+
+#### Scenario: Conflito no estorno
+- **WHEN** backend informa duplicidade, déficit ou custódia invalidada
+- **THEN** explica conflito e mantém estado sem estorno fictício ou cascata
+
+### Requirement: Sucesso de escrita separado da falha de recarga
+Após movimentação/estorno confirmado a interface SHALL atualizar histórico e solicitar distribuição atualizada, com cancelamento/geração de respostas obsoletas. Se leitura falhar após sucesso, SHALL informar registro concluído e falha de atualização separadamente, oferecendo retry de GET. MUST NOT repetir POST, apagar dados financeiros válidos ou afirmar falha do cadastro confirmado.
+
+#### Scenario: Falha de recarga após escrita concluída
+- **WHEN** POST retorna201 e GET seguinte falha
+- **THEN** mostra sucesso de cadastro/estorno e erro de leitura; retry repete apenas GET
+
+#### Scenario: Respostas atrasadas
+- **WHEN** consulta anterior retorna após troca de carteira ou nova recarga
+- **THEN** não sobrescreve contexto ou geração atual

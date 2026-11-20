@@ -1,3 +1,4 @@
+import { authenticatedModule } from '../../../../../test-support/authenticated-module';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { signal } from '@angular/core';
 import { CarteiraContextService } from '../../../core/carteira/carteira-context.service';
@@ -28,7 +29,7 @@ describe('CarteirasListPageComponent', () => {
     activeId.set(null);
     for (const fn of [context.initialize, context.select, context.resolveUrl, context.upsert]) fn.mockClear();
     service = { listar: vi.fn().mockReturnValue(of([CARTEIRA])) }; closed = new Subject(); dialog = { open: vi.fn().mockReturnValue({ afterClosed: () => closed }) }; toast = { show: vi.fn() };
-    await TestBed.configureTestingModule({ imports: [CarteirasListPageComponent], providers: [provideRouter([]), { provide: CarteiraContextService, useValue: context }, { provide: CarteirasService, useValue: service }, { provide: MatDialog, useValue: dialog }, { provide: SuccessToastService, useValue: toast }] }).compileComponents();
+    await authenticatedModule({ imports: [CarteirasListPageComponent], providers: [provideRouter([]), { provide: CarteiraContextService, useValue: context }, { provide: CarteirasService, useValue: service }, { provide: MatDialog, useValue: dialog }, { provide: SuccessToastService, useValue: toast }] }).compileComponents();
     fixture = TestBed.createComponent(CarteirasListPageComponent); fixture.detectChanges();
   });
 

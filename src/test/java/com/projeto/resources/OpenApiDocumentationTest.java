@@ -22,6 +22,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @SpringBootTest(classes = GestaoacoesApplication.class)
+@org.springframework.context.annotation.Import(com.projeto.autenticacao.FinanceiroAutenticadoFixture.class)
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
 class OpenApiDocumentationTest {
@@ -41,8 +42,13 @@ class OpenApiDocumentationTest {
             Map.entry("/carteiras", Set.of("get", "post")),
             Map.entry("/carteiras/{id}", Set.of("get", "patch", "delete")),
             Map.entry("/carteiras/{carteiraId}/operacoes", Set.of("get")),
+            Map.entry("/carteiras/{carteiraId}/movimentacoes-custodia", Set.of("get", "post")),
+            Map.entry("/carteiras/{carteiraId}/movimentacoes-custodia/{movimentacaoId}", Set.of("get")),
+            Map.entry("/carteiras/{carteiraId}/movimentacoes-custodia/{movimentacaoId}/estornos", Set.of("post")),
             Map.entry("/carteiras/{carteiraId}/operacoes/sugestao-preco-venda", Set.of("get")),
             Map.entry("/carteiras/{carteiraId}/posicoes", Set.of("get")),
+            Map.entry("/carteiras/{carteiraId}/posicoes/distribuicao-corretoras", Set.of("get")),
+            Map.entry("/carteiras/{carteiraId}/atualizacoes-cotacoes", Set.of("post")),
             Map.entry("/carteiras/{carteiraId}/resultados-realizados", Set.of("get")),
             Map.entry("/carteiras/{carteiraId}/patrimonio", Set.of("get")),
             Map.entry("/carteiras/{carteiraId}/resumo", Set.of("get")),
@@ -50,11 +56,49 @@ class OpenApiDocumentationTest {
             Map.entry("/carteiras/{carteiraId}/evolucao-patrimonial", Set.of("get")),
             Map.entry("/operacoes", Set.of("get", "post")),
             Map.entry("/operacoes/previa-compra", Set.of("get")),
-            Map.entry("/operacoes/{id}", Set.of("get"))
+            Map.entry("/operacoes/{id}", Set.of("get")),
+            Map.entry("/auth/csrf", Set.of("get")),
+            Map.entry("/auth/login", Set.of("post")),
+            Map.entry("/auth/me", Set.of("get")),
+            Map.entry("/auth/logout", Set.of("post")),
+            Map.entry("/auth/atividade", Set.of("post")),
+            Map.entry("/usuarios", Set.of("get", "post")),
+            Map.entry("/usuarios/{id}/redefinicoes", Set.of("post")),
+            Map.entry("/auth/redefinicoes/confirmar", Set.of("post")),
+            Map.entry("/usuarios/{id}", Set.of("get")),
+            Map.entry("/usuarios/{id}/perfil", Set.of("patch")),
+            Map.entry("/usuarios/{id}/situacao", Set.of("patch"))
     );
 
     @Autowired
     private MockMvc mockMvc;
+
+    @Test
+    void documentsBrokerDistributionWithRequiredFieldsAndFiveExamples() throws Exception {
+        JsonNode document = openApiDocument();
+        JsonNode operation = document.path("paths")
+                .path("/carteiras/{carteiraId}/posicoes/distribuicao-corretoras").path("get");
+        assertThat(operation.has("requestBody")).isFalse();
+        assertThat(operation.path("responses").fieldNames()).toIterable()
+                .containsExactlyInAnyOrder("200", "400", "401", "403", "404", "409", "500", "503");
+        assertThat(operation.at("/responses/200/content/application~1json/examples").size()).isEqualTo(5);
+        JsonNode schemas = document.at("/components/schemas");
+        for (String name : List.of("DistribuicaoCarteiraResponse", "PosicaoDistribuicaoResponse",
+                "QuantidadeCorretoraResponse", "DiagnosticoCorretoraResponse", "PrimeiroDeficitResponse",
+                "DiagnosticoReconciliacaoResponse")) {
+            JsonNode schema = schemas.path(name);
+            assertThat(schema.has("properties")).as(name).isTrue();
+            Set<String> required = new HashSet<>();
+            schema.path("required").forEach(field -> required.add(field.asText()));
+            Set<String> properties = new HashSet<>();
+            schema.path("properties").fieldNames().forEachRemaining(properties::add);
+            assertThat(required).as(name).isEqualTo(properties);
+        }
+        assertThat(schemas.at("/PosicaoDistribuicaoResponse/properties/quantidadeConsolidada/type").asText())
+                .isEqualTo("number");
+        assertThat(schemas.at("/PrimeiroDeficitResponse/properties/dataEfetiva/format").asText()).isEqualTo("date");
+        assertThat(schemas.path("DiagnosticoReconciliacaoResponse").path("properties").has("corretoraId")).isFalse();
+    }
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -77,13 +121,16 @@ class OpenApiDocumentationTest {
     }
 
     @Test
-    void documentsExactlyTwentyFunctionalPathsAndTwentySixOperations() throws Exception {
+    void documentsImplementedFunctionalPathsAndOperations() throws Exception {
         JsonNode paths = openApiDocument().path("paths");
         Map<String, Set<String>> functionalOperations = collectFunctionalOperations(paths);
 
         assertThat(functionalOperations).isEqualTo(EXPECTED_OPERATIONS);
-        assertThat(functionalOperations).hasSize(20);
-        assertThat(functionalOperations.values().stream().mapToInt(Set::size).sum()).isEqualTo(26);
+        assertThat(functionalOperations).hasSize(EXPECTED_OPERATIONS.size());
+        assertThat(functionalOperations.values().stream().mapToInt(Set::size).sum())
+                .isEqualTo(EXPECTED_OPERATIONS.values().stream().mapToInt(Set::size).sum());
+        assertThat(paths.path("/carteiras/{carteiraId}/atualizacoes-cotacoes").path("post").has("requestBody"))
+                .isFalse();
     }
 
     @Test
@@ -117,6 +164,141 @@ class OpenApiDocumentationTest {
         assertThat(paths.path("/acoes/{id}/cotacao").path("patch").path("responses").has("504")).isTrue();
         assertThat(paths.path("/carteiras/{id}").path("delete").path("responses").has("204")).isTrue();
         assertThat(paths.path("/operacoes").path("post").path("responses").has("422")).isFalse();
+    }
+
+    @Test
+    void documentsCustodyReadsAndRegistrationWithCompleteResponseAndTextualFractions() throws Exception {
+        JsonNode document=openApiDocument();
+        String historico="/carteiras/{carteiraId}/movimentacoes-custodia";
+        String detalhe=historico+"/{movimentacaoId}";
+        var cadastro=document.path("paths").path(historico).path("post");
+        assertThat(cadastro.path("requestBody").path("required").asBoolean()).isTrue();
+        assertThat(cadastro.at("/requestBody/content/application~1json/schema/$ref").asText())
+                .isEqualTo("#/components/schemas/CustodiaCadastroSchema");
+        for(String codigo:List.of("201","400","404","409"))assertThat(cadastro.path("responses").has(codigo)).isTrue();
+        assertThat(cadastro.at("/responses/201/headers/Location/schema/type").asText()).isEqualTo("string");
+        assertThat(cadastro.at("/responses/201/content/application~1json/schema/$ref").asText())
+                .isEqualTo("#/components/schemas/RegistroCustodiaResponse");
+        assertParameter(document.path("paths"),historico,"get","natureza","query");
+        assertParameter(document.path("paths"),historico,"get","situacao","query");
+        assertParameter(document.path("paths"),detalhe,"get","movimentacaoId","path");
+        assertThat(document.path("paths").has(detalhe+"/estornos")).isTrue();
+        for(String path:List.of(historico,detalhe)){
+            var operation=document.path("paths").path(path).path("get");
+            assertThat(operation.has("requestBody")).isFalse();
+            for(String status:List.of("200","400","404"))assertThat(operation.path("responses").has(status)).isTrue();
+        }
+        var schemas=document.at("/components/schemas");
+        var entrada=schemas.path("CustodiaCadastroSchema");
+        assertThat(entrada.path("discriminator").path("propertyName").asText()).isEqualTo("natureza");
+        assertThat(entrada.path("oneOf").size()).isEqualTo(2);
+        for(String variante:List.of("CadastroTransferenciaCustodia","CadastroAtribuicaoCustodia")){
+            var request=schemas.path(variante);
+            assertThat(request.path("additionalProperties").asBoolean(true)).isFalse();
+            assertThat(request.path("properties").size()).isEqualTo(7);
+            assertThat(request.at("/properties/quantidade/type")).extracting(JsonNode::asText).containsExactlyInAnyOrder("number","string");
+            for(String campo:List.of("id","carteiraId","acaoId","dataRegistro","posicaoCronologica","precoUnitario","valorTotal"))
+                assertThat(request.path("properties").has(campo)).isFalse();
+        }
+        var origemType=schemas.at("/CadastroAtribuicaoCustodia/properties/corretoraOrigemId/type");
+        assertThat(origemType.isArray()?java.util.stream.StreamSupport.stream(origemType.spliterator(),false).map(JsonNode::asText).toList()
+                :List.of(origemType.asText())).containsExactly("null");
+        var registro=schemas.path("RegistroCustodiaResponse");
+        assertThat(registro.path("properties").size()).isEqualTo(17);
+        assertThat(registro.path("required").size()).isEqualTo(17);
+        assertThat(registro.at("/properties/quantidade/type").asText()).isEqualTo("number");
+        for(String campo:List.of("numerador","denominador"))
+            assertThat(schemas.path("PosicaoCustodiaResponse").path("properties").path(campo).path("type").asText()).isEqualTo("string");
+    }
+
+    @Test
+    void documentsOptionalStrictCustodyReversalAndOriginalLocation()throws Exception{
+        var document=openApiDocument();
+        String rota="/carteiras/{carteiraId}/movimentacoes-custodia/{movimentacaoId}/estornos";
+        var operation=document.path("paths").path(rota).path("post");
+        assertThat(operation.path("requestBody").path("required").asBoolean(false)).isFalse();
+        assertThat(operation.at("/requestBody/content/application~1json/schema/$ref").asText())
+                .isEqualTo("#/components/schemas/EstornoCustodiaCreateRequest");
+        assertParameter(document.path("paths"),rota,"post","carteiraId","path");
+        assertParameter(document.path("paths"),rota,"post","movimentacaoId","path");
+        for(String codigo:List.of("201","400","404","409"))assertThat(operation.path("responses").has(codigo)).isTrue();
+        assertThat(operation.at("/responses/201/headers/Location/schema/type").asText()).isEqualTo("string");
+        assertThat(operation.at("/responses/201/content/application~1json/schema/$ref").asText())
+                .isEqualTo("#/components/schemas/DetalheCustodiaResponse");
+        var schema=document.at("/components/schemas/EstornoCustodiaCreateRequest");
+        assertThat(schema.path("additionalProperties").asBoolean(true)).isFalse();
+        assertThat(schema.path("properties").size()).isEqualTo(1);
+        assertThat(schema.path("required").size()).isZero();
+        assertNullableString(schema.path("properties").path("motivo"),"");
+        assertThat(schema.at("/properties/motivo/maxLength").asInt()).isEqualTo(1000);
+        assertThat(document.path("paths").has(rota+"/{estornoId}")).isFalse();
+    }
+    @Test
+    void validatesPublishedCustodyRequestAndResponseExamples()throws Exception{
+        var document=openApiDocument();var schemas=document.at("/components/schemas");
+        String base="/carteiras/{carteiraId}/movimentacoes-custodia";
+        var create=document.path("paths").path(base).path("post").at("/requestBody/content/application~1json");
+        assertThat(create.path("examples").size()).isEqualTo(2);
+        for(var example:create.path("examples")){
+            var value=example.path("value");assertExample(value,create.path("schema"),schemas);
+            var numeric=value.deepCopy();((com.fasterxml.jackson.databind.node.ObjectNode)numeric).put("quantidade",new java.math.BigDecimal(value.path("quantidade").asText()));
+            assertExample(numeric,create.path("schema"),schemas);
+            var forbidden=value.deepCopy();((com.fasterxml.jackson.databind.node.ObjectNode)forbidden).put("id",99);
+            org.junit.jupiter.api.Assertions.assertThrows(AssertionError.class,()->assertExample(forbidden,create.path("schema"),schemas));
+            var invalidNature=value.deepCopy();((com.fasterxml.jackson.databind.node.ObjectNode)invalidNature).put("natureza","ESTORNO");
+            org.junit.jupiter.api.Assertions.assertThrows(AssertionError.class,()->assertExample(invalidNature,create.path("schema"),schemas));
+            var semOrigem=value.deepCopy();((com.fasterxml.jackson.databind.node.ObjectNode)semOrigem).remove("corretoraOrigemId");
+            if(value.path("natureza").asText().equals("ATRIBUICAO")){
+                assertExample(semOrigem,create.path("schema"),schemas);
+                var origemProibida=value.deepCopy();((com.fasterxml.jackson.databind.node.ObjectNode)origemProibida).put("corretoraOrigemId",3);
+                org.junit.jupiter.api.Assertions.assertThrows(AssertionError.class,()->assertExample(origemProibida,create.path("schema"),schemas));
+            }else{
+                org.junit.jupiter.api.Assertions.assertThrows(AssertionError.class,()->assertExample(semOrigem,create.path("schema"),schemas));
+            }
+        }
+        for(var route:Map.of(base,"get",base+"/{movimentacaoId}","get",base+"/{movimentacaoId}/estornos","post").entrySet()){
+            var code=route.getValue().equals("post")?"201":"200";
+            var content=document.path("paths").path(route.getKey()).path(route.getValue()).path("responses").path(code).at("/content/application~1json");
+            assertThat(content.path("examples").size()).as("Exemplos %s",route.getKey()).isGreaterThan(0);
+            for(var example:content.path("examples"))assertExample(example.path("value"),content.path("schema"),schemas);
+        }
+        var created=document.path("paths").path(base).path("post").at("/responses/201/content/application~1json");
+        assertThat(created.path("examples").has("ativa")).isTrue();
+        for(var example:created.path("examples"))assertExample(example.path("value"),created.path("schema"),schemas);
+        var history=document.path("paths").path(base).path("get").at("/responses/200/content/application~1json/examples");
+        assertThat(history.path("vazio").path("value").isArray()).isTrue();assertThat(history.path("vazio").path("value").size()).isZero();
+        var detail=document.path("paths").path(base+"/{movimentacaoId}").path("get").at("/responses/200/content/application~1json/examples");
+        assertThat(detail.path("estornada").at("/value/movimentacao/situacao").asText()).isEqualTo("ESTORNADA");
+        assertThat(detail.path("estornada").at("/value/estorno/movimentacaoOriginalId")).isEqualTo(detail.path("estornada").at("/value/movimentacao/id"));
+    }
+    @Test
+    void documentsFinancialAndCustodyConflictsWithoutPermittingNewLegacyDeficits()throws Exception{
+        var paths=openApiDocument().path("paths");
+        var finance=paths.path("/operacoes").path("post");
+        for(String code:List.of("POSICAO_INSUFICIENTE","SALDO_CORRETORA_INSUFICIENTE","MOVIMENTACAO_CUSTODIA_INVALIDADA","CONFLITO_HISTORICO_QUANTITATIVO","INTEGRIDADE_DADOS_VIOLADA","CONFLITO_TRANSACIONAL_TRANSITORIO"))
+            assertThat(finance.at("/responses/409/description").asText()).contains(code);
+        assertThat(finance.path("description").asText()).contains("legados","novas escritas deficitárias");
+        var custody=paths.path("/carteiras/{carteiraId}/movimentacoes-custodia").path("post");
+        for(String code:List.of("SALDO_ORIGEM_INSUFICIENTE","POSICAO_CUSTODIA_INDISPONIVEL","MOVIMENTACAO_CUSTODIA_INVALIDADA","CONFLITO_HISTORICO_QUANTITATIVO","LIMITE_POSICAO_CUSTODIA"))
+            assertThat(custody.at("/responses/409/description").asText()).contains(code);
+        assertThat(paths.path("/carteiras/{carteiraId}/posicoes/distribuicao-corretoras").path("get").path("description").asText()).contains("legados","novos POSTs");
+    }
+    @Test
+    void documentsGenericFirstDeficitWithExactFinancialAndCustodyPositions()throws Exception{
+        var document=openApiDocument();var schemas=document.at("/components/schemas");var d=schemas.path("PrimeiroDeficitResponse");
+        assertThat(d.path("properties").size()).isEqualTo(6);assertThat(d.path("required").size()).isEqualTo(6);
+        for(String campo:List.of("dominio","id","natureza","dataEfetiva","posicaoCronologica","saldoAposEvento"))
+            assertThat(d.path("properties").has(campo)).isTrue();
+        for(String campo:List.of("operacaoId","dataOperacao","ordemNoDia","saldoAposOperacao"))
+            assertThat(d.path("properties").has(campo)).isFalse();
+        assertThat(d.at("/properties/saldoAposEvento/type").asText()).isEqualTo("number");
+        var alternativas=d.at("/properties/posicaoCronologica/oneOf");assertThat(alternativas.size()).isEqualTo(2);
+        assertThat(alternativas).extracting(n->n.path("$ref").asText()).containsExactlyInAnyOrder(
+            "#/components/schemas/PosicaoFinanceiraDeficitResponse","#/components/schemas/PosicaoCustodiaResponse");
+        assertThat(schemas.at("/PosicaoFinanceiraDeficitResponse/properties").size()).isEqualTo(1);
+        for(String campo:List.of("numerador","denominador"))assertThat(schemas.path("PosicaoCustodiaResponse").path("properties").path(campo).path("type").asText()).isEqualTo("string");
+        assertThat(d.at("/example/dominio").asText()).isEqualTo("CUSTODIA");
+        assertThat(d.at("/example/posicaoCronologica/numerador").asText()).isEqualTo("9007199254740993");
     }
 
     @Test
@@ -176,6 +358,16 @@ class OpenApiDocumentationTest {
         assertThat(preview.path("description").asText())
                 .contains("fechamento histórico bruto", "data exata", "Consulta independente")
                 .contains("exige precoUnitario manual");
+        for (String description : List.of(
+                preview.path("description").asText(),
+                document.at("/components/schemas/PreviaPrecoCompraResponse/description").asText())) {
+            assertThat(description)
+                    .contains("informativa", "sugestão inicial editável", "sem efeitos colaterais")
+                    .containsIgnoringCase("não vinculante")
+                    .contains("preço final é informado pelo cliente", "independente da prévia", "não exige seu sucesso")
+                    .contains("não consulta", "provider histórico")
+                    .doesNotContain("consulta novamente o provider", "somente leitura");
+        }
         for (String status : List.of("200", "400", "404", "422", "429", "502", "503", "504")) {
             assertThat(preview.path("responses").has(status)).isTrue();
         }
@@ -195,11 +387,149 @@ class OpenApiDocumentationTest {
     }
 
     @Test
-    void doesNotDeclareFictitiousSecurityVersioningOrSecrets() throws Exception {
+    void jwtCookieIsOnlyASecuritySchemeNotAManualParameter() throws Exception {
+        JsonNode document = openApiDocument();
+        for (String path : List.of("/auth/logout", "/auth/atividade")) {
+            JsonNode operation = document.path("paths").path(path).path("post");
+            java.util.List<String> names = new java.util.ArrayList<>();
+            operation.path("parameters").forEach(parameter -> names.add(parameter.path("name").asText()));
+            assertThat(names).containsExactly("X-XSRF-TOKEN");
+            assertThat(operation.at("/security/0/cookieAuth").isArray()).isTrue();
+        }
+    }
+
+    @Test
+    void securityErrorExamplesMatchHttpStatusAndPublicFlowsDoNotInventErrors() throws Exception {
+        JsonNode document = openApiDocument();
+        JsonNode financial = document.path("paths").path("/carteiras").path("get").path("responses");
+        for (String status : List.of("401", "403", "503")) {
+            JsonNode example = financial.path(status).at("/content/application~1json/example");
+            assertThat(example.path("status").asInt()).isEqualTo(Integer.parseInt(status));
+            assertThat(example.path("path").asText()).isEqualTo("/carteiras");
+        }
+        JsonNode login = document.at("/paths/~1auth~1login/post/responses");
+        assertThat(login.fieldNames()).toIterable().containsExactlyInAnyOrder("200", "400", "401", "403", "429", "503");
+        JsonNode reset = document.at("/paths/~1auth~1redefinicoes~1confirmar/post/responses");
+        assertThat(reset.fieldNames()).toIterable().containsExactlyInAnyOrder("204", "400", "403", "429", "503");
+        assertThat(reset.at("/429/content/application~1json/example/status").asInt()).isEqualTo(429);
+        assertThat(reset.at("/400/content/application~1json/example/code").asText()).isEqualTo("REDEFINICAO_INVALIDA");
+    }
+
+    @Test
+    void csrfHandshakeDoesNotInventClientSuppliedQueryToken() throws Exception {
+        JsonNode operation = openApiDocument().path("paths").path("/auth/csrf").path("get");
+        assertThat(operation.path("parameters")).isEmpty();
+        mockMvc.perform(get("/auth/csrf")).andExpect(status().isNoContent());
+    }
+
+    @Test
+    void describesCredentialTransportWithoutExposingSecretsInResponseDtos() throws Exception {
+        JsonNode document = openApiDocument();
+        for (String schema : List.of("LoginRequest", "ConfirmacaoRequest")) {
+            JsonNode password = document.path("components").path("schemas").path(schema).path("properties").path("senha");
+            assertThat(password.path("writeOnly").asBoolean()).isTrue();
+            assertThat(password.path("format").asText()).isEqualTo("password");
+            assertThat(password.path("description").asText()).contains("72 bytes UTF-8", "sem trim");
+        }
+        JsonNode confirmation = document.at("/components/schemas/ConfirmacaoRequest/properties");
+        assertThat(confirmation.path("codigo").path("writeOnly").asBoolean()).isTrue();
+        assertThat(confirmation.path("confirmacao").path("writeOnly").asBoolean()).isTrue();
+        assertThat(document.at("/components/schemas/Autorizacao/properties/codigo/readOnly").asBoolean()).isTrue();
+        assertThat(document.at("/components/schemas/Autorizacao/properties/codigo").has("example")).isFalse();
+        assertThat(document.at("/components/schemas/UsuarioResponse/properties").fieldNames()).toIterable()
+                .containsExactlyInAnyOrder("id", "username", "papel", "ativo", "credencialDefinida", "criadaEm", "atualizadaEm", "versao");
+        assertThat(document.at("/paths/~1auth~1login/post/responses/200/headers/Set-Cookie/description").asText())
+                .contains("GESTAOACOES_AUTH", "HttpOnly", "SameSite=Lax", "Path=/", "Secure");
+    }
+
+    @Test
+    void servesEquivalentSecurityContractsInRealJsonAndYaml() throws Exception {
+        JsonNode json = openApiDocument();
+        String yaml = mockMvc.perform(get("/v3/api-docs.yaml")).andExpect(status().isOk()).andReturn().getResponse().getContentAsString(java.nio.charset.StandardCharsets.UTF_8);
+        java.nio.file.Files.writeString(java.nio.file.Path.of("target/openapi-seguranca.yaml"), yaml);
+        JsonNode parsed = new ObjectMapper(new com.fasterxml.jackson.dataformat.yaml.YAMLFactory()).readTree(yaml);
+        assertThat(parsed.path("components").path("securitySchemes")).isEqualTo(json.path("components").path("securitySchemes"));
+        assertThat(parsed.path("paths")).isEqualTo(json.path("paths"));
+        assertThat(parsed.path("components").path("schemas")).isEqualTo(json.path("components").path("schemas"));
+    }
+
+    @Test
+    void documentsSecurityResponsesAndActualSuccessStatusesWithoutReplacingFinancialErrors() throws Exception {
+        JsonNode document = openApiDocument();
+        for (var path : EXPECTED_OPERATIONS.entrySet()) for (String method : path.getValue()) {
+            JsonNode operation = document.path("paths").path(path.getKey()).path(method);
+            if (!path.getKey().equals("/auth/csrf") && !path.getKey().equals("/auth/login") && !path.getKey().equals("/auth/redefinicoes/confirmar")) {
+                for (String status : List.of("401", "403", "503")) assertThat(operation.path("responses").has(status)).as(status + " " + method + " " + path.getKey()).isTrue();
+            }
+        }
+        for (String path : List.of("/auth/csrf", "/auth/logout", "/auth/redefinicoes/confirmar")) {
+            JsonNode responses = document.path("paths").path(path).path(path.endsWith("csrf") ? "get" : "post").path("responses");
+            assertThat(responses.has("204")).isTrue(); assertThat(responses.has("200")).isFalse();
+            assertThat(responses.path("204").has("content")).isFalse();
+        }
+        JsonNode creation = document.path("paths").path("/usuarios").path("post").path("responses");
+        assertThat(creation.has("201")).isTrue(); assertThat(creation.has("200")).isFalse();
+        assertThat(creation.at("/201/headers/Location/schema/type").asText()).isEqualTo("string");
+        for (String path : List.of("/auth/login", "/auth/redefinicoes/confirmar")) {
+            JsonNode responses = document.path("paths").path(path).path("post").path("responses");
+            for (String status : List.of("400", "403", "429", "503")) assertThat(responses.has(status)).isTrue();
+            assertThat(responses.at("/429/headers/Retry-After/schema/type").asText()).isEqualTo("integer");
+        }
+        assertThat(document.at("/paths/~1usuarios~1{id}~1perfil/patch/responses/409/description").asText()).contains("ULTIMO_ADMIN_ATIVO", "VERSAO_USUARIO_OBSOLETA");
+    }
+
+    @Test
+    void requiresCsrfHeaderOnAllMutationsIncludingPublicLoginAndReset() throws Exception {
+        JsonNode document = openApiDocument();
+        for (var path : EXPECTED_OPERATIONS.entrySet()) {
+            for (String method : path.getValue()) {
+                JsonNode operation = document.path("paths").path(path.getKey()).path(method);
+                java.util.List<JsonNode> headers = new java.util.ArrayList<>();
+                operation.path("parameters").forEach(parameter -> { if (parameter.path("name").asText().equals("X-XSRF-TOKEN")) headers.add(parameter); });
+                if (method.equals("get")) assertThat(headers).isEmpty();
+                else {
+                    assertThat(headers).as(method + " " + path.getKey()).hasSize(1);
+                    assertThat(headers.get(0).path("in").asText()).isEqualTo("header");
+                    assertThat(headers.get(0).path("required").asBoolean()).isTrue();
+                    assertThat(headers.get(0).path("description").asText()).contains("/auth/csrf", "XSRF-TOKEN", "403");
+                }
+            }
+        }
+    }
+
+    @Test
+    void documentsAuthenticationAndRolesForEveryRealOperation() throws Exception {
+        JsonNode document = openApiDocument();
+        for (var path : EXPECTED_OPERATIONS.entrySet()) {
+            for (String method : path.getValue()) {
+                JsonNode operation = document.path("paths").path(path.getKey()).path(method);
+                boolean publicOperation = path.getKey().equals("/auth/csrf")
+                        || path.getKey().equals("/auth/login") || path.getKey().equals("/auth/redefinicoes/confirmar");
+                assertThat(operation.path("security").isArray()).as(method + " " + path.getKey()).isTrue();
+                if (publicOperation) {
+                    assertThat(operation.path("security")).isEmpty();
+                } else {
+                    assertThat(operation.path("security").size()).isEqualTo(1);
+                    assertThat(operation.at("/security/0/cookieAuth").isArray()).isTrue();
+                    boolean adminOnly = path.getKey().startsWith("/usuarios") || (!method.equals("get") && !path.getKey().startsWith("/auth/"));
+                    java.util.List<String> roles = new java.util.ArrayList<>();
+                    operation.path("x-roles").forEach(role -> roles.add(role.asText()));
+                    assertThat(roles).containsExactlyElementsOf(adminOnly ? List.of("ADMIN") : List.of("ADMIN", "USER"));
+                }
+            }
+        }
+    }
+
+    @Test
+    void declaresOnlyImplementedCookieSecurityWithoutVersioningOrSecrets() throws Exception {
         JsonNode document = openApiDocument();
         String serialized = objectMapper.writeValueAsString(document).toLowerCase();
 
-        assertThat(document.at("/components/securitySchemes").isMissingNode()).isTrue();
+        JsonNode schemes = document.at("/components/securitySchemes");
+        assertThat(schemes.fieldNames()).toIterable().containsExactly("cookieAuth");
+        assertThat(schemes.at("/cookieAuth/type").asText()).isEqualTo("apiKey");
+        assertThat(schemes.at("/cookieAuth/in").asText()).isEqualTo("cookie");
+        assertThat(schemes.at("/cookieAuth/name").asText()).isEqualTo("GESTAOACOES_AUTH");
         assertThat(document.path("security").isMissingNode()).isTrue();
         assertThat(document.path("paths").fieldNames()).toIterable().noneMatch(path -> path.startsWith("/v1"));
         assertThat(serialized)
@@ -219,6 +549,19 @@ class OpenApiDocumentationTest {
     }
 
     @Test
+    void swaggerInitializerUsesRealCsrfCookieWithoutCredentialStorage() throws Exception {
+        String json = mockMvc.perform(get("/v3/api-docs/swagger-config")).andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        java.nio.file.Files.writeString(java.nio.file.Path.of("target/swagger-config-fechamento.json"), json);
+        String initializer = mockMvc.perform(get("/swagger-ui/swagger-initializer.js")).andExpect(status().isOk()).andReturn().getResponse().getContentAsString(java.nio.charset.StandardCharsets.UTF_8);
+        java.nio.file.Files.writeString(java.nio.file.Path.of("target/swagger-initializer-fechamento.js"), initializer);
+        JsonNode config = objectMapper.readTree(json);
+        // springdoc 3.1.0 aplica CSRF no JS servido; não publica um objeto csrf no swagger-config.
+        assertThat(initializer).contains("requestInterceptor", "XSRF-TOKEN", "X-XSRF-TOKEN", "document.cookie", "isSameOrigin");
+        assertThat(initializer).doesNotContain("localStorage.getItem", "sessionStorage.getItem", "GESTAOACOES_AUTH");
+        assertThat(config.path("persistAuthorization").asBoolean()).isFalse();
+    }
+
+    @Test
     void exposesSwaggerUiEntryAndEffectiveResourceWithoutInspectingHtml() throws Exception {
         mockMvc.perform(get("/swagger-ui.html"))
                 .andExpect(status().is3xxRedirection())
@@ -234,7 +577,201 @@ class OpenApiDocumentationTest {
                 .andReturn()
                 .getResponse()
                 .getContentAsString();
+        java.nio.file.Files.writeString(java.nio.file.Path.of("target/openapi-b2.json"), json);
         return objectMapper.readTree(json);
+    }
+
+    @Test
+    void documentsBatchWithoutBodyAndWithOnlyApplicableGlobalResponses() throws Exception {
+        JsonNode document = openApiDocument();
+        JsonNode operation = document.path("paths").path("/carteiras/{carteiraId}/atualizacoes-cotacoes").path("post");
+        assertThat(operation.has("requestBody")).isFalse();
+        assertThat(operation.path("parameters").size()).isEqualTo(2);
+        JsonNode parameter = operation.path("parameters").get(0);
+        assertThat(parameter.path("name").asText()).isEqualTo("carteiraId");
+        assertThat(parameter.path("in").asText()).isEqualTo("path");
+        assertThat(parameter.path("required").asBoolean()).isTrue();
+        assertThat(parameter.at("/schema/type").asText()).isEqualTo("integer");
+        assertThat(parameter.at("/schema/format").asText()).isEqualTo("int64");
+        assertThat(operation.path("description").asText()).contains("{}", "400 REQUEST_INVALIDO", "sucesso parcial", "COOLDOWN_SUCESSO", "outra instância");
+        assertThat(operation.path("responses").fieldNames()).toIterable()
+                .containsExactlyInAnyOrder("200", "400", "401", "403", "404", "409", "422", "500", "503");
+        assertThat(operation.at("/responses/200/content/application~1json/schema/$ref").asText())
+                .isEqualTo("#/components/schemas/AtualizacaoCotacoesCarteiraResponse");
+        for (String code : List.of("400", "404", "409", "422", "500")) {
+            assertThat(operation.path("responses").path(code).at("/content/application~1json/schema/$ref").asText())
+                    .isEqualTo("#/components/schemas/StandardError");
+        }
+        assertThat(operation.at("/responses/409/description").asText()).contains("HISTORICO_OPERACOES_INCONSISTENTE");
+        assertThat(operation.at("/responses/422/description").asText()).contains("CALCULO_POSICAO_FORA_DA_PRECISAO");
+        JsonNode error = operation.at("/responses/500/content/application~1json/example");
+        assertThat(error.path("status").asInt()).isEqualTo(500);
+        assertThat(error.path("code").asText()).isEqualTo("FALHA_ATUALIZACAO_COTACOES");
+        assertThat(error.path("message").asText()).isEqualTo("Não foi possível concluir o lote. Atualizações já confirmadas podem ter sido preservadas.");
+        assertThat(error.path("details").size()).isZero();
+    }
+
+    @Test
+    void documentsCompleteBatchSchemasEnumsCountersAndSafeNullableError() throws Exception {
+        JsonNode schemas = openApiDocument().at("/components/schemas");
+        Map<String, List<String>> fields = Map.of(
+                "AtualizacaoCotacoesCarteiraResponse", List.of("carteiraId", "resumo", "resultados"),
+                "ResumoAtualizacaoCotacoesResponse", List.of("atualizadas", "semNovaCotacao", "falhas"),
+                "ResultadoAtualizacaoCotacaoResponse", List.of("acaoId", "ticker", "mercado", "resultado", "motivo", "cotacao", "erro"),
+                "EstadoCotacaoResponse", List.of("cotacaoAtual", "referenciaMercadoCotacao", "cotacaoObtidaEm", "dataHoraCotacao"),
+                "ReferenciaMercadoCotacaoResponse", List.of("tipo", "instante", "data"),
+                "ErroAtualizacaoCotacaoResponse", List.of("code", "message"));
+        for (var entry : fields.entrySet()) {
+            JsonNode schema = schemas.path(entry.getKey());
+            assertThat(schema.path("properties").fieldNames()).toIterable().containsExactlyInAnyOrderElementsOf(entry.getValue());
+            assertThat(schema.path("required")).extracting(JsonNode::asText).containsExactlyInAnyOrderElementsOf(entry.getValue());
+            schema.path("properties").forEach(property -> assertThat(property.path("description").asText()).isNotBlank());
+        }
+        JsonNode batch = schemas.path("AtualizacaoCotacoesCarteiraResponse").path("properties");
+        assertThat(batch.at("/carteiraId/type").asText()).isEqualTo("integer");
+        assertThat(batch.at("/resumo/$ref").asText()).endsWith("/ResumoAtualizacaoCotacoesResponse");
+        assertThat(batch.at("/resultados/type").asText()).isEqualTo("array");
+        assertThat(batch.at("/resultados/items/$ref").asText()).endsWith("/ResultadoAtualizacaoCotacaoResponse");
+        schemas.path("ResumoAtualizacaoCotacoesResponse").path("properties").forEach(counter -> {
+            assertThat(counter.path("type").asText()).isEqualTo("integer");
+            assertThat(counter.path("format").asText()).isEqualTo("int64");
+            assertThat(counter.path("minimum").asInt(-1)).isZero();
+        });
+        JsonNode item = schemas.path("ResultadoAtualizacaoCotacaoResponse").path("properties");
+        assertThat(item.at("/resultado/enum")).extracting(JsonNode::asText)
+                .containsExactlyInAnyOrder("ATUALIZADA", "SEM_NOVA_COTACAO", "FALHA");
+        assertThat(item.at("/motivo/description").asText()).contains("REFERENCIA_INICIAL_ESTABELECIDA", "REFERENCIA_POSTERIOR", "MESMA_OBSERVACAO", "REFERENCIA_ANTERIOR", "REUSO", "COOLDOWN_SUCESSO", "COOLDOWN_FALHA");
+        assertThat(item.path("motivo").has("enum")).isFalse();
+        assertThat(item.at("/cotacao/$ref").asText()).endsWith("/EstadoCotacaoResponse");
+        JsonNode errorAlternatives = item.at("/erro/anyOf");
+        assertThat(errorAlternatives.size()).isEqualTo(2);
+        assertThat(errorAlternatives.get(0).path("$ref").asText()).endsWith("/ErroAtualizacaoCotacaoResponse");
+        assertThat(errorAlternatives.get(1).path("type").asText()).isEqualTo("null");
+        assertThat(item.path("erro").has("$ref")).isFalse();
+        JsonNode reference = schemas.path("ReferenciaMercadoCotacaoResponse");
+        assertThat(reference.at("/properties/tipo/enum")).extracting(JsonNode::asText)
+                .containsExactlyInAnyOrder("DATA", "INSTANTE", "DESCONHECIDA");
+        assertNullableString(reference.at("/properties/data"), "date");
+        assertNullableString(reference.at("/properties/instante"), "date-time");
+        assertThat(reference.path("description").asText()).contains("DATA preenche somente data", "INSTANTE somente instante", "DESCONHECIDA");
+    }
+
+    @Test
+    void preservesActionPositionFieldsAndDocumentsSharedTemporalSemanticsAndPatch() throws Exception {
+        JsonNode document = openApiDocument();
+        JsonNode schemas = document.at("/components/schemas");
+        Map<String, List<String>> legacy = Map.of(
+                "AcaoResponse", List.of("id", "ticker", "nomeEmpresa", "mercado", "moeda", "cotacaoAtual", "dataHoraCotacao"),
+                "PosicaoResponse", List.of("acaoId", "ticker", "nomeEmpresa", "mercado", "moeda", "quantidadeAtual", "precoMedio", "custoPosicao", "cotacaoAtual", "dataHoraCotacao", "valorAtualPosicao", "resultadoNaoRealizado", "rentabilidadePercentual"));
+        for (var entry : legacy.entrySet()) {
+            assertThat(schemas.path(entry.getKey()).path("properties").fieldNames()).toIterable()
+                    .containsAll(entry.getValue()).hasSize(entry.getValue().size() + 2);
+        }
+        for (String name : List.of("AcaoResponse", "PosicaoResponse", "EstadoCotacaoResponse")) {
+            JsonNode properties = schemas.path(name).path("properties");
+            assertThat(properties.at("/cotacaoAtual/type").asText()).isEqualTo("number");
+            assertThat(properties.path("cotacaoAtual").has("format")).isFalse();
+            assertThat(properties.at("/dataHoraCotacao/format").asText()).isEqualTo("date-time");
+            assertThat(properties.at("/dataHoraCotacao/description").asText()).contains("legado", "compatibilidade");
+            assertThat(properties.at("/referenciaMercadoCotacao/$ref").asText()).endsWith("/ReferenciaMercadoCotacaoResponse");
+            assertNullableString(properties.path("cotacaoObtidaEm"), "date-time");
+            assertThat(properties.at("/cotacaoObtidaEm/description").asText()).contains("nulo no legado", "Não é referência de mercado", "monotonicidade global");
+        }
+        JsonNode patch = document.path("paths").path("/acoes/{id}/cotacao").path("patch");
+        assertThat(patch.has("requestBody")).isFalse();
+        assertThat(patch.path("description").asText()).contains("DESCONHECIDA", "DATA e INSTANTE são incomparáveis", "Sucesso HTTP não garante nova cotação");
+        assertThat(patch.at("/responses/422/description").asText()).contains("CONFLITO_NA_MESMA_REFERENCIA", "TIPO_REFERENCIA_INCOMPATIVEL", "REFERENCIA_TEMPORAL_INVALIDA");
+        for (String code : List.of("200", "400", "404", "409", "422", "429", "502", "503", "504")) {
+            assertThat(patch.path("responses").has(code)).isTrue();
+        }
+        assertThat(patch.at("/responses/200/content/*~1*/schema/$ref").asText()).endsWith("/AcaoResponse");
+        assertThat(schemas.fieldNames()).toIterable().doesNotContain("ResultadoAtualizacaoCotacao", "SnapshotCotacao", "CotacaoCandidata", "Decisao", "Acao", "HistoricoCotacao", "ApiException", "Throwable", "EstadoCotacao");
+    }
+
+    @Test
+    void batchExamplesConformToGeneratedSchemasAndTemporalShapes() throws Exception {
+        JsonNode document = openApiDocument();
+        JsonNode schemas = document.at("/components/schemas");
+        JsonNode examples = document.path("paths").path("/carteiras/{carteiraId}/atualizacoes-cotacoes")
+                .at("/post/responses/200/content/application~1json/examples");
+        assertThat(examples.fieldNames()).toIterable().containsExactlyInAnyOrder("atualizada", "semNovaCotacao", "parcial");
+        for (JsonNode example : examples) {
+            JsonNode value = example.path("value");
+            assertExample(value, schemas.path("AtualizacaoCotacoesCarteiraResponse"), schemas);
+            Map<String, Long> counts = new java.util.HashMap<>(Map.of("ATUALIZADA", 0L, "SEM_NOVA_COTACAO", 0L, "FALHA", 0L));
+            long previousId = -1;
+            for (JsonNode item : value.path("resultados")) {
+                String result = item.path("resultado").asText();
+                counts.compute(result, (key, count) -> count + 1);
+                assertThat(item.path("acaoId").asLong()).isGreaterThan(previousId);
+                previousId = item.path("acaoId").asLong();
+                assertThat(item.path("erro").isNull()).isEqualTo(!result.equals("FALHA"));
+                JsonNode reference = item.at("/cotacao/referenciaMercadoCotacao");
+                String type = reference.path("tipo").asText();
+                assertThat(reference.path("data").isNull()).isEqualTo(!type.equals("DATA"));
+                assertThat(reference.path("instante").isNull()).isEqualTo(!type.equals("INSTANTE"));
+            }
+            assertThat(value.at("/resumo/atualizadas").asLong()).isEqualTo(counts.get("ATUALIZADA"));
+            assertThat(value.at("/resumo/semNovaCotacao").asLong()).isEqualTo(counts.get("SEM_NOVA_COTACAO"));
+            assertThat(value.at("/resumo/falhas").asLong()).isEqualTo(counts.get("FALHA"));
+        }
+    }
+
+    private void assertNullableString(JsonNode property, String format) {
+        assertThat(property.path("type")).extracting(JsonNode::asText).containsExactlyInAnyOrder("string", "null");
+        assertThat(property.path("format").asText()).isEqualTo(format);
+    }
+
+    /** Valida as formas usadas nestes exemplos contra o documento gerado, incluindo $ref e null. */
+    private void assertExample(JsonNode value, JsonNode schema, JsonNode schemas) {
+        if (schema.has("$ref")) {
+            assertExample(value, schemas.path(schema.path("$ref").asText().substring("#/components/schemas/".length())), schemas);
+            return;
+        }
+        if (schema.has("anyOf")) {
+            assertThat(matchingAlternatives(value,schema.path("anyOf"),schemas)).isGreaterThan(0);return;
+        }
+        if(schema.has("oneOf")){
+            assertThat(matchingAlternatives(value,schema.path("oneOf"),schemas))
+                    .as("Correspondência exclusiva oneOf, valor=%s schema=%s",value,schema).isEqualTo(1);return;
+        }
+        if(schema.has("allOf")){
+            for(var part:schema.path("allOf"))assertExample(value,part,schemas);return;
+        }
+        Set<String> types = new HashSet<>();
+        if (schema.path("type").isArray()) schema.path("type").forEach(type -> types.add(type.asText()));
+        else types.add(schema.path("type").asText());
+        if (value.isNull()) {
+            assertThat(types).contains("null");
+            if(schema.has("enum"))assertThat(schema.path("enum")).anyMatch(JsonNode::isNull);
+            return;
+        }
+        if (value.isObject()) {
+            assertThat(types).contains("object");
+            for (JsonNode required : schema.path("required")) assertThat(value.has(required.asText())).isTrue();
+            value.fields().forEachRemaining(field -> {
+                assertThat(schema.path("properties").has(field.getKey())).isTrue();
+                assertExample(field.getValue(), schema.path("properties").path(field.getKey()), schemas);
+            });
+        } else if (value.isArray()) {
+            assertThat(types).contains("array");
+            value.forEach(item -> assertExample(item, schema.path("items"), schemas));
+        } else if (value.isNumber()) {
+            assertThat(types).contains(value.isIntegralNumber() && types.contains("integer") ? "integer" : "number");
+        } else if(value.isBoolean()){
+            assertThat(types).contains("boolean");
+        } else {
+            assertThat(types).contains("string");
+            if (schema.path("format").asText().equals("date")) java.time.LocalDate.parse(value.asText());
+            if (schema.path("format").asText().equals("date-time")) java.time.OffsetDateTime.parse(value.asText());
+            if (schema.has("enum")) assertThat(schema.path("enum")).extracting(JsonNode::asText).contains(value.asText());
+            if(schema.has("maxLength"))assertThat(value.asText().length()).isLessThanOrEqualTo(schema.path("maxLength").asInt());
+        }
+    }
+    private int matchingAlternatives(JsonNode value,JsonNode alternatives,JsonNode schemas){
+        int count=0;
+        for(var alternative:alternatives){try{assertExample(value,alternative,schemas);count++;}catch(AssertionError mismatch){/* outra variante deve corresponder */}}
+        return count;
     }
 
     private Map<String, Set<String>> collectFunctionalOperations(JsonNode paths) {

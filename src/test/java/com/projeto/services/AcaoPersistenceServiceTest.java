@@ -89,6 +89,30 @@ class AcaoPersistenceServiceTest {
                 () -> service().saveUnique(acao));
     }
 
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.EnumSource(com.projeto.entities.ReferenciaTipoCotacao.class)
+    void copiaMetadadosDaObservacaoPersistidaSemReinterpretarLegado(com.projeto.entities.ReferenciaTipoCotacao tipo) {
+        OffsetDateTime obtencao = OffsetDateTime.parse("2026-10-04T15:30:17Z");
+        OffsetDateTime instante = tipo == com.projeto.entities.ReferenciaTipoCotacao.INSTANTE
+                ? OffsetDateTime.parse("2026-10-02T15:30:00Z") : null;
+        java.time.LocalDate data = tipo == com.projeto.entities.ReferenciaTipoCotacao.DATA
+                ? java.time.LocalDate.of(2026, 10, 2) : null;
+        Acao acao = new Acao("CAD3", "Empresa", Mercado.BRASIL, Moeda.BRL,
+                new BigDecimal("1234567890123.123456"), instante == null ? obtencao : instante,
+                tipo, instante, data, obtencao);
+        when(repository.saveAndFlush(acao)).thenReturn(acao);
+        service().saveUnique(acao);
+        var captor = org.mockito.ArgumentCaptor.forClass(com.projeto.entities.HistoricoCotacao.class);
+        verify(historicoRepository).saveAndFlush(captor.capture());
+        assertEquals(acao, captor.getValue().getAcao());
+        assertEquals(acao.getCotacaoAtual(), captor.getValue().getCotacao());
+        assertEquals(acao.getDataHoraCotacao(), captor.getValue().getDataHoraCotacao());
+        assertEquals(tipo, captor.getValue().getReferenciaTipo());
+        assertEquals(instante, captor.getValue().getReferenciaInstante());
+        assertEquals(data, captor.getValue().getReferenciaData());
+        assertEquals(obtencao, captor.getValue().getCotacaoObtidaEm());
+    }
+
     @Test
     void propagatesUnknownOrUnnamedActionIntegrityViolation() {
         Acao acao = action("PETR4", Mercado.BRASIL, Moeda.BRL);

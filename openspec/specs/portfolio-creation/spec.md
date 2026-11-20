@@ -37,7 +37,7 @@ O sistema SHALL exigir `nome`, SHALL remover somente os espaços das extremidade
 - **THEN** o sistema cria outro recurso com identificador próprio, sem tratar o nome como chave única
 
 ### Requirement: Modelo persistido da Carteira
-O sistema SHALL persistir `id`, `nome` e `dataCriacao` para cada Carteira. O identificador SHALL ser gerado pelo banco, e a criação da Carteira MUST NOT exigir associação com usuário, ação, corretora, operação, posição, snapshot ou histórico.
+O sistema SHALL persistir `id`, `nome` e `dataCriacao` para cada Carteira. O identificador SHALL ser gerado pelo banco, e a criação da Carteira MUST NOT exigir associação com usuário, ação, corretora, operação, posição, snapshot ou histórico. As Carteiras SHALL permanecer compartilhadas entre usuários, sem proprietário individual. A criação SHALL exigir autenticação, autorização ADMIN e proteção CSRF válida; USER MUST NOT criar Carteiras.
 
 #### Scenario: Persistência da Carteira mínima
 - **WHEN** uma solicitação válida é concluída
@@ -45,7 +45,15 @@ O sistema SHALL persistir `id`, `nome` e `dataCriacao` para cada Carteira. O ide
 
 #### Scenario: Carteira independente de usuário no MVP
 - **WHEN** uma Carteira é criada
-- **THEN** sua criação não exige autenticação, usuário ou vínculo de propriedade
+- **THEN** sua criação exige ADMIN autenticado e CSRF válido, sem associação da Carteira a usuário ou vínculo de propriedade individual
+
+#### Scenario: USER não cria Carteira
+- **WHEN** USER autenticado envia `POST /carteiras` com CSRF válido
+- **THEN** o sistema responde `403 ACESSO_NEGADO` sem criar Carteira
+
+#### Scenario: Criação exige CSRF
+- **WHEN** ADMIN autenticado envia `POST /carteiras` sem CSRF válido
+- **THEN** o sistema responde `403 CSRF_INVALIDO` sem criar Carteira
 
 ### Requirement: Geração da data de criação
 O sistema SHALL representar `dataCriacao` como `OffsetDateTime`, gerar o valor pela aplicação no momento da persistência, normalizá-lo para UTC e serializá-lo em ISO-8601. `dataCriacao` MUST NOT ser aceita do cliente.

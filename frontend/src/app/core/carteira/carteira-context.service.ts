@@ -1,7 +1,7 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { computed, inject, Injectable, InjectionToken } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
-import { BehaviorSubject, catchError, finalize, map, Observable, of, shareReplay, tap } from 'rxjs';
+import { BehaviorSubject, catchError, finalize, map, Observable, of, shareReplay, Subject, takeUntil, tap } from 'rxjs';
 import { CarteirasService } from '../../features/carteiras/carteiras.service';
 import { CarteiraResponse } from '../../features/carteiras/models/carteira';
 import { NormalizedHttpError } from '../errors/normalized-http-error';
@@ -42,18 +42,27 @@ export class CarteiraContextService {
   readonly error = computed(() => this.state().error);
   readonly invalidSelection = computed(() => this.state().invalidSelection);
   private memoryId: number | null = null;
+  private preferenceId: number | null = null;
   private requestedUrl: string | null = null;
   private explicitUrl = true;
   private pending?: Observable<boolean>;
+  private epoch = 0;
+  private readonly cancelled = new Subject<void>();
   // Confirmed mutations overlay any older collection request still in flight.
   private readonly mutations = new Map<number, CarteiraResponse | null>();
+
+  constructor() {
+    try { this.storage?.removeItem(CARTEIRA_STORAGE_KEY); } catch { /* Preferência legada nunca será lida. */ }
+  }
 
   initialize(retry = false): Observable<boolean> {
     if (this.pending) return this.pending;
     if (!retry && this.state().status === 'ready') return of(true);
     if (!retry && this.state().status === 'error') return of(false);
     this.publish({ status: 'loading', error: null, activeId: null });
+    const epoch = this.epoch;
     const request = this.service.listar().pipe(
+      takeUntil(this.cancelled),
       tap(items => {
         if (!Array.isArray(items) || items.some(item => !item || typeof item.id !== 'number' || carteiraId(String(item.id)) === null || typeof item.nome !== 'string' || typeof item.dataCriacao !== 'string') || new Set(items.map(item => item.id)).size !== items.length) {
           throw new HttpErrorResponse({ status: 0, statusText: 'Resposta de carteiras inválida' });
@@ -69,11 +78,23 @@ export class CarteiraContextService {
         this.publish({ status: 'error', activeId: null, error: error instanceof HttpErrorResponse ? normalizeHttpError(error) : error });
         return of(false);
       }),
-      finalize(() => { this.pending = undefined; }),
+      finalize(() => { if (epoch === this.epoch) this.pending = undefined; }),
       shareReplay({ bufferSize: 1, refCount: false })
     );
     this.pending = request;
     return request;
+  }
+
+  reset(): void {
+    this.epoch++;
+    this.cancelled.next();
+    this.pending = undefined;
+    this.mutations.clear();
+    this.memoryId = null;
+    this.requestedUrl = null;
+    this.explicitUrl = true;
+    this.persist(null);
+    this.subject.next({ items: [], activeId: null, status: 'idle', error: null, invalidSelection: false });
   }
 
   resolveUrl(value: string | null, explicit = true): void {
@@ -130,15 +151,15 @@ export class CarteiraContextService {
   }
 
   private readPreference(): number | null {
-    try { return carteiraId(this.storage?.getItem(CARTEIRA_STORAGE_KEY) ?? null); } catch { return null; }
+    return this.preferenceId;
   }
   private identity(item: CarteiraResponse): CarteiraResponse {
     return { id: item.id, nome: item.nome, dataCriacao: item.dataCriacao };
   }
   private persist(id: number | null): void {
+    this.preferenceId = id;
     try {
-      if (id === null) this.storage?.removeItem(CARTEIRA_STORAGE_KEY);
-      else this.storage?.setItem(CARTEIRA_STORAGE_KEY, String(id));
+      this.storage?.removeItem(CARTEIRA_STORAGE_KEY);
     } catch { /* Selection remains available in memory. */ }
   }
   private publish(patch: Partial<ContextState>): void { this.subject.next({ ...this.subject.value, ...patch }); }

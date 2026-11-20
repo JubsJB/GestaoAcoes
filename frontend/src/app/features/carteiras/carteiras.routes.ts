@@ -1,3 +1,4 @@
+import { adminGuard } from '../../core/auth/auth.guards';
 import { Routes } from '@angular/router';
 
 export const CARTEIRAS_ROUTES: Routes = [
@@ -8,12 +9,14 @@ export const CARTEIRAS_ROUTES: Routes = [
   },
   {
     path: 'nova',
+    canActivate: [adminGuard],
     data: { mode: 'create' },
     loadComponent: () =>
       import('./pages/carteira-form-page.component').then((module) => module.CarteiraFormPageComponent)
   },
   {
     path: ':id/editar',
+    canActivate: [adminGuard],
     data: { mode: 'edit' },
     loadComponent: () =>
       import('./pages/carteira-form-page.component').then((module) => module.CarteiraFormPageComponent)

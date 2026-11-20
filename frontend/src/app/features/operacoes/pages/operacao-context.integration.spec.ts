@@ -51,7 +51,7 @@ describe('Operation origin through real Router and HTTP', () => {
       form.form.controls['precoUnitario'].setValue('12,30');
     }
     harness.detectChanges();
-    expect(harness.routeNativeElement?.querySelector('.context')?.textContent).toContain('A');
+    expect(harness.routeNativeElement?.querySelector('[aria-label="Carteira da operação"]')?.textContent).toContain('A · #1');
     expect(harness.routeNativeElement?.querySelector('[formcontrolname="carteiraId"]')).toBeNull();
     form.submit();
     const post = http.expectOne('/api/operacoes');
@@ -68,12 +68,28 @@ describe('Operation origin through real Router and HTTP', () => {
     await harness.navigateByUrl('/operacoes');
     TestBed.inject(CarteiraContextService).select(2);
     await harness.navigateByUrl('/operacoes/nova?carteiraId=1&origem=carteira');
-    expect(harness.routeNativeElement?.querySelector('.context')?.textContent).toContain('A');
+    expect(harness.routeNativeElement?.querySelector('[aria-label="Carteira da operação"]')?.textContent).toContain('A · #1');
     expect(harness.routeNativeElement?.querySelector('a.app-back-action')?.getAttribute('href')).toBe('/carteiras/1');
     await harness.navigateByUrl('/operacoes');
     await harness.navigateByUrl('/operacoes/nova'); await harness.fixture.whenStable();
     expect(TestBed.inject(Router).url).toBe('/operacoes/nova?carteiraId=1');
     expect(harness.routeNativeElement?.querySelector('a.app-back-action')?.getAttribute('href')).toBe('/operacoes');
+  });
+  it('keeps an operations-list origin fixed and returns to its contextual history', async () => {
+    const harness = await RouterTestingHarness.create();
+    const page = await harness.navigateByUrl('/operacoes/nova?carteiraId=1&origem=operacoes', OperacaoFormPageComponent);
+    const form = page as unknown as Form;
+    expect(harness.routeNativeElement?.querySelector('a.app-back-action')?.getAttribute('href')).toBe('/operacoes?carteiraId=1');
+    TestBed.inject(CarteiraNavigationService).select(2);
+    form.form.patchValue({ tipo: 'COMPRA', acaoKey: 'AAPL|EUA', quantidade: '1', dataOperacao: '2026-08-31' });
+    http.expectOne(request => request.url === '/api/operacoes/previa-compra').flush('{"ticker":"AAPL","mercado":"EUA","moeda":"USD","dataCotacao":"2026-08-31","precoUnitario":10}');
+    form.form.controls['precoUnitario'].setValue('11');
+    form.submit();
+    const post = http.expectOne('/api/operacoes');
+    expect(post.request.body.carteiraId).toBe(1);
+    post.flush('{"id":10,"carteiraId":1,"ticker":"AAPL","mercado":"EUA","tipo":"COMPRA","quantidade":1,"precoUnitario":11,"valorTotal":11,"dataOperacao":"2026-08-31","ordemNoDia":1}');
+    await harness.fixture.whenStable();
+    expect(TestBed.inject(Router).url).toBe('/operacoes?carteiraId=1');
   });
   it.each(['?carteiraId=99', '?carteiraId=bad&origem=carteira', '?origem=dashboard'])('blocks invalid origin %s without a fallback POST', async query => {
     const harness = await RouterTestingHarness.create();
@@ -89,5 +105,15 @@ describe('Operation origin through real Router and HTTP', () => {
     harness.detectChanges();
     expect(harness.routeNativeElement?.textContent).toContain('Carteira#1');
     expect(harness.routeNativeElement?.querySelector('a.app-back-action')?.getAttribute('href')).toBe('/operacoes');
+  });
+  it('rebuilds an operations-list detail origin after reload and ignores a global selector switch', async () => {
+    const harness = await RouterTestingHarness.create();
+    await harness.navigateByUrl('/operacoes/9?carteiraId=1&origem=operacoes');
+    http.expectOne('/api/operacoes/9').flush('{"id":9,"carteiraId":1,"ticker":"AAPL","mercado":"EUA","tipo":"COMPRA","quantidade":1,"precoUnitario":10,"valorTotal":10,"dataOperacao":"2026-08-31","ordemNoDia":1}');
+    harness.detectChanges();
+    TestBed.inject(CarteiraNavigationService).select(2); harness.detectChanges();
+    expect(harness.routeNativeElement?.textContent).toContain('Carteira#1');
+    expect(harness.routeNativeElement?.querySelector('a.app-back-action')?.getAttribute('href')).toBe('/operacoes?carteiraId=1');
+    expect(TestBed.inject(Router).url).toBe('/operacoes/9?carteiraId=1&origem=operacoes');
   });
 });

@@ -30,7 +30,10 @@ public class PosicaoMapper {
                 acao.getDataHoraCotacao(),
                 valorAtualPosicao,
                 resultadoNaoRealizado,
-                rentabilidadePercentual
+                rentabilidadePercentual,
+                new com.projeto.dto.ReferenciaMercadoCotacaoResponse(acao.getReferenciaTipo(),
+                        acao.getReferenciaInstante(), acao.getReferenciaData()),
+                acao.getCotacaoObtidaEm()
         );
     }
 }

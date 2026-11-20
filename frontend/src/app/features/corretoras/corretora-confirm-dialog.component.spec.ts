@@ -18,7 +18,8 @@ describe('CorretoraConfirmDialogComponent', () => {
     expect(fixture.nativeElement.querySelector('h2')?.textContent).toContain('Confirmar cadastro');
     expect(fixture.nativeElement.textContent).toContain('não é ATIVA');
     expect(fixture.nativeElement.textContent).toContain('SUSPENSA');
-    expect(fixture.nativeElement.textContent).toContain('Confirmação necessária');
+    expect(fixture.nativeElement.textContent).toContain('Deseja continuar com o cadastro desta instituição?');
+    expect(fixture.nativeElement.textContent).not.toContain('Confirmação necessária');
     expect(buttons.map((button) => button.textContent?.trim())).toEqual(['Cancelar', 'Confirmar cadastro']);
     expect(buttons[1].hasAttribute('cdkfocusinitial')).toBe(true);
   });

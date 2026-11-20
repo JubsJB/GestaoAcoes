@@ -1,0 +1,17 @@
+<h2 mat-dialog-title id="custodia-estorno-title">Confirmar estorno de custódia</h2>
+<mat-dialog-content>
+  <p id="custodia-estorno-description">O estorno neutraliza retroativamente a movimentação desde sua posição efetiva. O registro original permanece no histórico para auditoria. Não cria transferência inversa nem substituição automática.</p>
+  <p class="original">Movimentação #{{original.id}} · {{original.natureza}} · {{original.ticker}} · {{original.mercado}} · carteira #{{original.carteiraId}}</p>
+  <p>Quantidade: {{quantidade(original.quantidade,original.mercado)}} · data efetiva: {{dataCivil(original.dataEfetiva)}}</p>
+  <p class="original">Posição: âncora {{original.posicaoCronologica.ordemFinanceiraAncora}}, {{original.posicaoCronologica.numerador}}/{{original.posicaoCronologica.denominador}}.</p>
+  @if(!elegivel()){<app-feedback-alert variant="warning" message="Somente uma movimentação original ATIVA desta carteira pode ser estornada."/>}
+  @if(erro()){<app-feedback-alert variant="error" [message]="mensagemErro()" [details]="detalhesErro()"/>}
+  <form id="custodia-estorno-form" [formGroup]="form" (ngSubmit)="confirmar()" aria-describedby="custodia-estorno-description" novalidate>
+    <mat-form-field appearance="outline"><mat-label>Motivo do estorno (opcional)</mat-label><textarea matInput formControlName="motivo" maxlength="1000" rows="3" aria-describedby="custodia-estorno-hint"></textarea><mat-hint id="custodia-estorno-hint">Até 1.000 caracteres. O motivo não altera o efeito retroativo.</mat-hint>@if(form.controls.motivo.touched && form.controls.motivo.invalid){<mat-error>O motivo deve ter no máximo 1.000 caracteres.</mat-error>}</mat-form-field>
+  </form>
+  @if(enviando()){<p role="status" aria-live="polite">Confirmando estorno…</p>}
+</mat-dialog-content>
+<mat-dialog-actions align="end">
+  <button mat-button type="button" (click)="cancelar()" [disabled]="enviando()">Cancelar</button>
+  <button mat-flat-button type="submit" form="custodia-estorno-form" [disabled]="enviando() || !elegivel()" [attr.aria-busy]="enviando()">Confirmar estorno</button>
+</mat-dialog-actions>

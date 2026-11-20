@@ -140,15 +140,14 @@ Deverá contemplar:
 - integração com serviços externos;
 - interface Angular responsiva.
 
+Extensão explicitamente autorizada pela change adicionar-autenticacao-e-gestao-de-usuarios: autenticação, administração de usuários e autorização ADMIN/USER foram implementadas e aprovadas tecnicamente em ambiente local em 31/10/2026. Carteiras e dados financeiros são compartilhados, sem proprietário. USER consulta; ADMIN consulta e executa comandos existentes. As regras financeiras deste PRD permanecem preservadas. Integração HTTPS/runtime homologada localmente em 01/11/2026, exclusivamente em recursos descartáveis, aguardando revisão conforme operacional-https.md. A homologação PostgreSQL 10.4 foi aprovada tecnicamente. Não declarar produção pronta. Detalhes no [guia operacional de autenticação](AUTENTICACAO.md) e nos relatórios da change.
+
 ---
 
 ## 7. Fora do Escopo Inicial
 
 Não fazem parte obrigatoriamente do MVP:
 
-- autenticação;
-- gerenciamento de usuários;
-- autorização por perfil;
 - fundos imobiliários;
 - ETFs;
 - renda fixa;
@@ -414,6 +413,8 @@ O sistema deverá permitir buscar uma ação por ID ou ticker.
 
 O sistema deverá permitir solicitar uma nova consulta à API correspondente para atualizar a última cotação conhecida de uma ação cadastrada.
 
+A change `atualizar-cotacoes-da-carteira` acrescentou a atualização manual por carteira. No Dashboard, o ADMIN pode solicitar a atualização das cotações das posições abertas. O backend determina os ativos, aplica as regras de cada provedor e informa o resultado por ativo, com sucesso parcial e preservação da última cotação válida em caso de falha individual. **Atualizar dados** apenas relê os indicadores persistidos. O lote preserva os preços de operações, as fórmulas financeiras e os snapshots. Consulte a [especificação da atualização por carteira](../openspec/specs/portfolio-quote-refresh/spec.md).
+
 #### RF12 — Impedir duplicidade
 
 O sistema deverá impedir o cadastro duplicado da mesma combinação de ticker e mercado.
@@ -441,6 +442,20 @@ O sistema deverá permitir associar opcionalmente uma operação a uma corretora
 #### RF17 — Consultar posição consolidada
 
 O sistema deverá apresentar a posição consolidada de cada ação da carteira.
+
+##### Distribuição informativa por corretora
+
+No detalhe da Carteira, em Posições abertas, o sistema deverá apresentar uma seção expansível por ativo com a distribuição derivada das operações financeiras e das movimentações efetivas de custódia, agrupada por Carteira + Ação + Corretora. A corretora permanece opcional; operações sem identificação pertencem à categoria "Sem corretora informada", sem criar uma corretora fictícia.
+
+As quantidades líquidas atribuídas deverão refletir compras, vendas, transferências, atribuições e neutralizações por estorno, com precisão decimal exata e replay cronológico oficial. Saldos negativos atuais e déficits históricos legados deverão ser identificados, preservando a primeira ocorrência mesmo após regularização posterior no mesmo replay. Estorno ou entrada retroativa válida que elimine a ocorrência deverá remover o diagnóstico efetivo, sem apagar auditoria. Grupos zerados não deverão aparecer como linhas quantitativas, mas seus diagnósticos históricos permanecerão identificáveis enquanto a posição consolidada estiver aberta.
+
+A soma de todos os grupos, incluindo negativos e zerados, deverá ser reconciliada com a quantidade consolidada do mesmo conjunto consistente de operações. Divergências serão explícitas e não corrigidas automaticamente; reconciliação não implica ausência de déficit histórico.
+
+A consulta deverá utilizar `GET /carteiras/{carteiraId}/posicoes/distribuicao-corretoras`, separado dos contratos existentes, somente para posições consolidadas abertas. A interface deverá preservar os dados consolidados em caso de falha e oferecer estados acessíveis de carregamento, vazio, erro e retry manual.
+
+Esta visão é informativa e não comprova custódia externa nem realiza transferências institucionais, conciliação com extratos ou saneamento automático. As movimentações internas de custódia e a validação de saldo local descritas abaixo não introduzem cálculos financeiros por corretora. Preço médio, custo, resultados, rentabilidade, patrimônio e snapshots permanecem consolidados, com fórmulas inalteradas.
+
+O primeiro déficit deverá identificar `dominio` FINANCEIRO/CUSTODIA, `id`, `natureza`, `dataEfetiva`, `posicaoCronologica` e `saldoAposEvento`. A posição financeira contém `ordemNoDia`; a de custódia contém `ordemFinanceiraAncora`, `numerador` e `denominador` textuais. Não simular uma operação financeira para representar custódia.
 
 #### RF18 — Calcular quantidade atual
 
@@ -481,6 +496,32 @@ O sistema deverá permitir acompanhar a evolução do patrimônio da carteira ao
 #### RF26 — Calcular resultado realizado
 
 O sistema deverá calcular o lucro ou prejuízo realizado decorrente das operações de venda.
+
+---
+
+### 10.4 Movimentações internas de custódia
+
+#### RF27 — Transferir custódia entre corretoras
+
+O sistema deverá registrar TRANSFERENCIA de quantidade de uma ação entre duas corretoras existentes e distintas, dentro da mesma carteira. A carteira será identificada exclusivamente pelo path/contexto. Ação, mercado, origem, destino, quantidade e data efetiva serão informados; IDs de movimentação, posição racional, âncora e dados de auditoria não serão aceitos do cliente. Não haverá chamada a provedores nem transferência institucional real.
+
+#### RF28 — Atribuir posição sem corretora
+
+O sistema deverá registrar ATRIBUICAO de quantidade disponível no grupo "Sem corretora informada" para uma corretora existente, com origem omitida ou nula. Não alterar a corretora da compra original, fabricar entidade de corretora ou utilizar saldo de outro grupo.
+
+#### RF29 — Consultar histórico e detalhe de custódia
+
+O histórico deverá ser separado do financeiro, completo para os filtros, inclusive para posições encerradas, sem paginação ou truncamento oculto. A identidade é discriminada por `(tipoRegistro,id)`: MOVIMENTACAO para originais e ESTORNO para vínculos, cujos IDs podem coincidir. A ordem será `dataRegistro DESC`, originais antes de estornos no empate e `id DESC`. Ela é ordem de apresentação/auditoria, não a cronologia efetiva do replay.
+
+Originais têm natureza TRANSFERENCIA/ATRIBUICAO, situação ATIVA/ESTORNADA e `estornoId` nulo ou vinculado; `movimentacaoOriginalId` e `motivo` são nulos. Estornos têm natureza/tipo ESTORNO, situação nula, `movimentacaoOriginalId`, `estornoId` igual ao próprio ID e motivo opcional. Quantidade, referências e posição do estorno são derivadas da original. O detalhe retorna `{movimentacao, estorno}`, com estorno nulo quando ausente, sempre no contexto da carteira.
+
+Filtros: `natureza=TRANSFERENCIA|ATRIBUICAO|ESTORNO` e `situacao=ATIVA|ESTORNADA`. Situação restringe originais; ESTORNO explícito retorna estornos mesmo com situação selecionada. Sem natureza e com situação, retornam somente originais; sem situação, entram os estornos admitidos pela natureza. Histórico vazio retorna `[]`; carteira/original inexistente ou fora do contexto retorna 404.
+
+#### RF30 — Estornar preservando auditoria
+
+O estorno deverá neutralizar retroativamente o efeito da original desde sua posição efetiva, sem transferência inversa, alteração ou exclusão da original. Será único por original, protegido por lock e constraint, e rejeitado se invalidar custódia dependente ou criar, agravar ou prolongar déficit histórico. Não haverá cascata nem substituição automática. Motivo é string ou null, opcional, até 1.000 caracteres; branco normaliza para null e texto não branco é preservado. Aceitar ausência de corpo, `{}` ou corpo somente com motivo; rejeitar campos desconhecidos e tipos inválidos.
+
+O frontend deverá conservar a confirmação de escrita caso uma recarga posterior falhe, oferecendo retry exclusivamente da consulta afetada. Não repetir POST automaticamente nem apagar dados financeiros válidos. Carteiras com operações, snapshots ou histórico de custódia/estorno não poderão ser excluídas; os bloqueios manterão essa precedência, inclusive para originais estornadas. A exclusão retorna 409 com CARTEIRA_POSSUI_OPERACOES, CARTEIRA_POSSUI_SNAPSHOTS ou CARTEIRA_POSSUI_MOVIMENTACOES_CUSTODIA conforme o primeiro bloqueio.
 
 ---
 
@@ -568,6 +609,8 @@ O lucro ou prejuízo realizado deverá ser calculado considerando:
 
 Não será permitida uma venda cuja quantidade seja superior à quantidade disponível do ativo na carteira.
 
+Novas vendas também deverão possuir saldo cronológico suficiente na corretora informada ou no grupo sem corretora. Quantidade consolidada positiva não autoriza consumir outro grupo. Compras e vendas, inclusive retroativas, deverão simular o histórico completo antes da escrita, preservando custódias ativas e rejeitando novos déficits, agravamento ou prolongamento em qualquer checkpoint. Vendas legadas deficitárias não serão revalidadas como novas nem editadas; operações independentes compatíveis poderão ser aceitas sem saneamento automático do legado. Consolidado estruturalmente inválido continua erro.
+
 **RN18 — Quantidade atual**
 
 A quantidade atual deverá refletir todas as operações registradas:
@@ -597,6 +640,22 @@ Toda operação deverá possuir um tipo válido:
 COMPRA
 VENDA
 ```
+
+TRANSFERENCIA e ATRIBUICAO pertencem ao registro separado de custódia; ESTORNO é vínculo auditável próprio e não integra esse enum financeiro. Nenhum deles cria operação financeira ou altera as fórmulas de quantidade consolidada, custo, preço médio, resultados, rentabilidade ou patrimônio para as mesmas operações e cotações.
+
+**Precisão e cronologia da custódia**
+
+Quantidade positiva deverá caber em NUMERIC(19,6): até 13 dígitos inteiros e seis decimais, sem arredondamento; BRASIL exige valor inteiro e EUA admite até seis casas. A API aceita número JSON ou string decimal na entrada e responde com número JSON. Clientes devem preservar precisão por parsing exato, sem `double`/`Number` para valores exatos. A data efetiva é civil, não futura em America/Sao_Paulo (BRASIL) ou America/New_York (EUA).
+
+O backend escolhe o primeiro espaço cronológico válido na data, sem mover a candidata para outra data. A ordem financeira permanece `(dataOperacao,ordemNoDia)`, gerada por MAX+1 sem renumerar dados. Custódia usa data efetiva, âncora financeira não negativa e fração racional canônica estritamente entre 0 e 1, com componentes textuais de até 512 dígitos. Comparar frações matematicamente, não lexicalmente; não mover originais existentes. Sem espaço representável, retornar LIMITE_POSICAO_CUSTODIA, sem escrita parcial ou retries de outro espaço após exceder o limite. `dataRegistro` é instante do servidor; a resposta reflete o valor fisicamente persistido, que pode ter precisão inferior ao Clock.
+
+**Transações e diagnósticos de custódia**
+
+Todas as escritas quantitativas e a exclusão deverão adquirir primeiro o lock da carteira, em transação REQUIRED de escrita READ_COMMITTED, e ler/revalidar o histórico após eventual espera. Não usar consultas públicas em transações independentes para validar candidatas; rejeitar contexto externo incompatível. Flush ou confirmação rejeitada deverá reverter integralmente, sem retry automático e sem expor SQL, credenciais ou stack traces.
+
+Estrutura inválida retorna 400 REQUEST_INVALIDO; data futura de custódia retorna 400 DATA_EFETIVA_FUTURA; referências ausentes/incompatíveis retornam 404. Conflitos retornam 409 com códigos existentes: POSICAO_INSUFICIENTE, SALDO_CORRETORA_INSUFICIENTE (venda), SALDO_ORIGEM_INSUFICIENTE, POSICAO_CUSTODIA_INDISPONIVEL, MOVIMENTACAO_CUSTODIA_INVALIDADA, CONFLITO_HISTORICO_QUANTITATIVO, ESTORNO_DUPLICADO, LIMITE_POSICAO_CUSTODIA, INTEGRIDADE_DADOS_VIOLADA ou CONFLITO_TRANSACIONAL_TRANSITORIO, conforme a operação. No cadastro, POSICAO_CUSTODIA_INDISPONIVEL pode conter causa representativa em `details.motivo`, sem substituir o código externo. Detalhes de evento/grupo/data podem conter null e decimais exatos.
+
+Preservar precedência: estrutura, referências/contexto, duplicidade de estorno confirmada, consolidado, saldo local da candidata quando aplicável, custódia ativa invalidada e comparação diferencial. A busca de espaço de custódia segue a seleção de causas específica do design. Falhas reconhecidas de lock, deadlock ou serialização retornam o código transitório; falhas desconhecidas não serão presumidas transitórias. O chamador controla o COMMIT final de uma transação externa válida.
 
 ---
 
@@ -966,7 +1025,7 @@ dto
 Deverão ser utilizados:
 
 - PostgreSQL como banco relacional principal;
-- H2 para desenvolvimento e/ou testes quando necessário.
+- H2 exclusivamente para testes automatizados, em bancos efêmeros e recriáveis.
 
 ### RNF05 — Comunicação
 
@@ -1066,7 +1125,7 @@ Detalhes adicionais deverão preferencialmente ficar disponíveis em uma página
 POST /corretoras
 GET  /corretoras
 GET  /corretoras/{id}
-GET  /corretoras/cnpj/{cnpj}
+GET  /corretoras/por-cnpj?cnpj={cnpj}
 ```
 
 ### Ações
@@ -1075,8 +1134,8 @@ GET  /corretoras/cnpj/{cnpj}
 POST /acoes
 GET  /acoes
 GET  /acoes/{id}
-GET  /acoes/ticker/{ticker}
-PUT  /acoes/{id}/atualizar-cotacao
+GET  /acoes/por-ticker?ticker={ticker}&mercado={mercado}
+PATCH /acoes/{id}/cotacao
 ```
 
 ### Carteiras
@@ -1085,22 +1144,43 @@ PUT  /acoes/{id}/atualizar-cotacao
 POST /carteiras
 GET  /carteiras
 GET  /carteiras/{id}
+PATCH /carteiras/{id}
+DELETE /carteiras/{id}
 GET  /carteiras/{id}/posicoes
+GET  /carteiras/{id}/posicoes/distribuicao-corretoras
+GET  /carteiras/{id}/resultados-realizados
+GET  /carteiras/{id}/patrimonio
 GET  /carteiras/{id}/resumo
-GET  /carteiras/{id}/evolucao
+GET  /carteiras/{id}/evolucao-patrimonial
+POST /carteiras/{id}/snapshots
+POST /carteiras/{id}/atualizacoes-cotacoes
 ```
 
 ### Operações
 
 ```text
-POST /carteiras/{carteiraId}/operacoes
+POST /operacoes
+GET  /operacoes
+GET  /operacoes/{id}
+GET  /operacoes/previa-compra?ticker={ticker}&mercado={mercado}&dataOperacao={dataOperacao}
 GET  /carteiras/{carteiraId}/operacoes
-GET  /carteiras/{carteiraId}/operacoes/{id}
+GET  /carteiras/{carteiraId}/operacoes/sugestao-preco-venda?ticker={ticker}&mercado={mercado}&dataOperacao={dataOperacao}
 ```
 
-Os endpoints poderão ser refinados durante a modelagem da API.
+`POST /carteiras/{id}/atualizacoes-cotacoes` exige ADMIN e não recebe corpo de requisição. As rotas acima refletem os controllers atuais. Carteira no cadastro financeiro continua no corpo; no cadastro de custódia vem exclusivamente do path. Exemplos completos e contratos publicados estão na coleção Postman e no OpenAPI; não há GET individual de snapshot ou de operação sob `/carteiras/{carteiraId}/operacoes/{id}`.
 
 ---
+
+### Custódia
+
+```text
+POST /carteiras/{carteiraId}/movimentacoes-custodia
+GET  /carteiras/{carteiraId}/movimentacoes-custodia
+GET  /carteiras/{carteiraId}/movimentacoes-custodia/{movimentacaoId}
+POST /carteiras/{carteiraId}/movimentacoes-custodia/{movimentacaoId}/estornos
+```
+
+O POST de cadastro recebe natureza TRANSFERENCIA/ATRIBUICAO, ticker, mercado, corretoraOrigemId quando aplicável, corretoraDestinoId, quantidade e dataEfetiva; não recebe carteira no body. Retorna 201 com a original e Location do seu detalhe. Estorno retorna 201 com `{movimentacao, estorno}` e o mesmo destino de Location; a resposta é montada na transação de escrita, sem GET independente após o COMMIT. Não existe consulta individual de estorno por seu próprio ID, edição ou exclusão de movimentações.
 
 ## 20. Tratamento de Falhas
 
@@ -1147,7 +1227,7 @@ As respostas da API deverão possuir formato de erro padronizado.
 ### Banco de Dados
 
 - PostgreSQL;
-- H2.
+- H2 exclusivamente nos testes automatizados.
 
 ### APIs Externas
 
@@ -1249,7 +1329,7 @@ Poderão ser implementados:
 - Validar CEP.
 - Não permitir venda superior à quantidade disponível.
 - Não depender exclusivamente de uma API externa para informações históricas já persistidas.
-- Autenticação não fará parte do MVP inicial.
+- A autenticação ficou fora do escopo do MVP inicial. Foi incorporada posteriormente pela change `adicionar-autenticacao-e-gestao-de-usuarios`, conforme as seções 6 e 27.1.
 
 ---
 
@@ -1271,15 +1351,11 @@ Poderão ser implementados:
 
 ### 27.1 Usuários e autenticação
 
-Em uma versão posterior:
+A change adicionar-autenticacao-e-gestao-de-usuarios estendeu o escopo original com Spring Security, login por username/senha BCrypt, JWT somente em cookie HttpOnly, CSRF, sessões persistidas/revogáveis, administração e definição/redefinição de senha por código. Backend e Angular foram aprovados localmente; o guia [AUTENTICACAO.md](AUTENTICACAO.md) consolida contratos, matriz de permissões, bootstrap seguro e limites. HTTPS/runtime foi homologado localmente em recursos descartáveis, aguardando revisão conforme operacional-https.md; PostgreSQL 10.4 foi aprovado tecnicamente. Não há declaração de prontidão de produção. Consulte [OPERACIONAL-HTTPS.md](OPERACIONAL-HTTPS.md).
 
-- cadastro de usuários;
-- login;
-- Spring Security;
-- autenticação;
-- autorização;
-- associação das carteiras ao usuário;
-- múltiplas carteiras por usuário.
+ADMIN pode cadastrar sem escolher a senha do titular, consultar, alterar perfil, bloquear/habilitar e emitir código. USER só consulta dados financeiros compartilhados. Último ADMIN operacional é preservado sob concorrência. Código é de uso único, expira em quinze minutos e só é exibido na emissão; consumo exige senha/confirmacao, invalida sessões antigas e não autentica automaticamente. Sessões expiram na igualdade de dez minutos sem atividade real ou quatro horas absolutas; leituras/polling não renovam. Revogação vale para novas decisões após commit, sem cancelar automaticamente operações já autorizadas.
+
+Associação de carteiras a proprietários e isolamento por usuário continuam **evoluções futuras**, dependentes de nova especificação/aprovação. Não interpretar o login atual como isolamento patrimonial nem modificar regras financeiras para antecipá-lo.
 
 ### 27.2 Outros investimentos
 

@@ -37,6 +37,8 @@ public class CorretoraResource {
         this.service = service;
     }
 
+    // D6: escrita financeira somente ADMIN, antes do serviço/transação de negócio.
+    @org.springframework.security.access.prepost.PreAuthorize("hasRole('ADMIN')")
     @PostMapping
     @Operation(summary = "Cadastrar corretora", description = "Valida CNPJ e CEP nos providers configurados e persiste a corretora.")
     @ApiResponses({

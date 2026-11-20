@@ -2,10 +2,10 @@ import { PosicaoResponse } from '../models/dashboard';
 
 // Deliberately independent fields: chart tests must not derive money from quantity/quotes.
 export function positionFixture(overrides: Partial<PosicaoResponse> = {}): Readonly<PosicaoResponse> {
-  return Object.freeze({
+  return Object.freeze<PosicaoResponse>({
     acaoId: 9, ticker: 'PETR4', nomeEmpresa: 'Petrobras', mercado: 'BRASIL', moeda: 'BRL',
     quantidadeAtual: '0.123456', precoMedio: '777.99', custoPosicao: '100.00',
-    cotacaoAtual: '999.99', dataHoraCotacao: '2026-09-08T10:20:30.123456-03:00',
+    cotacaoAtual: '999.99', dataHoraCotacao: '2026-09-08T10:20:30.123456-03:00', referenciaMercadoCotacao: { tipo: 'DESCONHECIDA', data: null, instante: null }, cotacaoObtidaEm: null,
     valorAtualPosicao: '120.00', resultadoNaoRealizado: '-3.123456', rentabilidadePercentual: '81.000001',
     ...overrides
   });

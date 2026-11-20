@@ -40,7 +40,7 @@ class HistoricoCotacaoAtomicityTest {
     private AcaoPersistenceService acaoPersistenceService;
 
     @Autowired
-    private AcaoCotacaoPersistenceService cotacaoPersistenceService;
+    private AplicacaoCotacaoService cotacaoPersistenceService;
 
     @Test
     void falhaDoHistoricoReverteCadastroIntegralmente() {
@@ -63,13 +63,20 @@ class HistoricoCotacaoAtomicityTest {
         doThrow(new DataIntegrityViolationException("history"))
                 .when(historicoRepository).saveAndFlush(any(HistoricoCotacao.class));
 
-        assertThrows(DataIntegrityViolationException.class, () -> cotacaoPersistenceService.atualizarSePosterior(
-                salva.getId(), new BigDecimal("40.000000"), posterior));
+        assertThrows(DataIntegrityViolationException.class, () -> cotacaoPersistenceService.aplicar(
+                salva.getId(), new com.projeto.integrations.cotacao.CotacaoCandidata(
+                        salva.getTicker(), salva.getNomeEmpresa(), salva.getMoeda(), new BigDecimal("40.000000"),
+                        com.projeto.entities.ReferenciaTipoCotacao.INSTANTE, posterior, null, posterior)));
 
         reset(historicoRepository);
         Acao preservada = acaoRepository.findById(salva.getId()).orElseThrow();
         assertEquals(new BigDecimal("30.000000"), preservada.getCotacaoAtual());
         assertEquals(atual.toInstant(), preservada.getDataHoraCotacao().toInstant());
+        assertEquals(com.projeto.entities.ReferenciaTipoCotacao.DESCONHECIDA, preservada.getReferenciaTipo());
+        org.junit.jupiter.api.Assertions.assertNull(preservada.getCotacaoObtidaEm());
+        org.junit.jupiter.api.Assertions.assertNull(preservada.getReferenciaInstante());
+        org.junit.jupiter.api.Assertions.assertNull(preservada.getReferenciaData());
+        org.junit.jupiter.api.Assertions.assertTrue(historicoRepository.findByAcaoIdOrderByDataHoraCotacaoAsc(salva.getId()).isEmpty());
     }
 
     private Acao acao(String ticker, OffsetDateTime timestamp) {

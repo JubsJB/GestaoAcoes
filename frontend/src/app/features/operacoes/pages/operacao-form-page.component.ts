@@ -1,4 +1,5 @@
-import { ChangeDetectionStrategy, Component, DestroyRef, inject, signal } from '@angular/core';
+import { afterNextRender, ChangeDetectionStrategy, Component, DestroyRef, ElementRef, inject, signal } from '@angular/core';
+import { BreakpointObserver } from '@angular/cdk/layout';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
@@ -11,6 +12,7 @@ import { ActivatedRoute, convertToParamMap, ParamMap, Router, RouterLink } from 
 import { catchError, combineLatest, distinctUntilChanged, finalize, map, of, startWith, switchMap, tap, Subscription } from 'rxjs';
 
 import { NormalizedHttpError } from '../../../core/errors/normalized-http-error';
+import { detalhesQuantitativos, mensagemQuantitativa } from '../../../core/errors/quantitative-errors';
 import { FeedbackAlertComponent } from '../../../shared/feedback-alert/feedback-alert.component';
 import { PageHeaderComponent } from '../../../shared/page-header/page-header.component';
 import { StickyBackComponent } from '../../../shared/sticky-back/sticky-back.component';
@@ -31,39 +33,8 @@ export interface OperacaoFormDialogData { carteira: CarteiraResponse; }
 @Component({
   selector: 'app-operacao-form-page',
   imports: [FeedbackAlertComponent, MatButtonModule, MatFormFieldModule, MatInputModule, MatProgressSpinnerModule, MatSelectModule, PageHeaderComponent, ReactiveFormsModule, RouterLink, StickyBackComponent],
-  template: `
-    <section class="app-page" [class.app-dialog-page]="isDialog" aria-labelledby="operacao-form-title" aria-describedby="operacao-form-description">
-      @if (!isDialog) { <app-sticky-back [route]="returnUrl()" label="Voltar" /> }
-      <app-page-header headingId="operacao-form-title" eyebrow="Operações" title="Nova operação" [description]="contextPortfolio() ? 'Registre a movimentação na carteira ' + contextPortfolio()!.nome + '.' : 'Registre uma compra ou venda com os dados efetivamente negociados.'" />
-      <p id="operacao-form-description" class="sr-only">Formulário de cadastro de operação financeira.</p>
-      @if (error()) { <app-feedback-alert variant="error" [message]="errorMessage()" [details]="error()!.details" /> }
-      @if (referencesLoading() || portfolioLoading()) { <div class="app-state" role="status" aria-live="polite"><mat-spinner diameter="36" /> Carregando opções…</div> }
-      @else {
-        @if (referenceError()) { <app-feedback-alert variant="error" [message]="referenceError()!.message" [details]="referenceError()!.details" /> }
-        @if (!contextPortfolio()) { <app-feedback-alert variant="warning" message="A carteira de origem não está disponível. Selecione uma carteira válida e reabra o cadastro." /><a mat-stroked-button routerLink="/carteiras">Ir para carteiras</a> }
-        @if (acoes().length === 0) { <app-feedback-alert variant="warning" message="Cadastre uma ação antes de registrar uma operação." /><a mat-stroked-button routerLink="/acoes">Ir para ações</a> }
-        <form class="operation-form app-form-surface app-surface" [formGroup]="form" (ngSubmit)="submit()" novalidate>
-          @if (contextPortfolio(); as carteira) { <div class="context"><strong>Carteira</strong><span>{{ carteira.nome }}</span><small>Esta operação será registrada nesta carteira.</small></div> }
-
-          <mat-form-field appearance="outline" subscriptSizing="dynamic"><mat-label>Tipo</mat-label><mat-select formControlName="tipo"><mat-option value="COMPRA">Compra</mat-option><mat-option value="VENDA">Venda</mat-option></mat-select>@if(touchedInvalid('tipo')){<mat-error>Selecione COMPRA ou VENDA.</mat-error>}</mat-form-field>
-          <mat-form-field appearance="outline" subscriptSizing="dynamic"><mat-label>Data da operação</mat-label><input matInput type="date" formControlName="dataOperacao"/>@if(touchedInvalid('dataOperacao')){<mat-error>Informe uma data válida, não futura no mercado.</mat-error>}</mat-form-field>
-          <mat-form-field class="wide-field" appearance="outline" subscriptSizing="dynamic"><mat-label>Ação</mat-label><mat-select formControlName="acaoKey" (selectionChange)="marketChanged()">@for(item of acoes();track item.id){<mat-option [value]="actionKey(item)">{{item.ticker}} · {{item.mercado}}</mat-option>}</mat-select>@if(touchedInvalid('acaoKey')){<mat-error>Selecione uma ação.</mat-error>}</mat-form-field>
-          <mat-form-field appearance="outline" subscriptSizing="dynamic"><mat-label>Quantidade</mat-label><input matInput inputmode="decimal" formControlName="quantidade" aria-describedby="quantity-hint"/><mat-hint id="quantity-hint">{{ selectedMarket() === 'BRASIL' ? 'Brasil: somente unidades inteiras.' : 'EUA: até 6 casas decimais.' }}</mat-hint>@if(touchedInvalid('quantidade')){<mat-error>{{quantityError()}}</mat-error>}</mat-form-field>
-          <mat-form-field appearance="outline" subscriptSizing="dynamic"><mat-label>Preço unitário</mat-label><span matTextPrefix>{{ estimatedCurrency() === 'BRL' ? 'R$' : 'US$' }}&nbsp;</span><input matInput inputmode="decimal" formControlName="precoUnitario" aria-describedby="price-hint"/><mat-hint id="price-hint">Valor negociado; até 13 inteiros e 6 decimais.</mat-hint>@if(touchedInvalid('precoUnitario')){<mat-error>Informe um preço positivo com até 13 inteiros e 6 decimais.</mat-error>}</mat-form-field>
-          <mat-form-field class="wide-field" appearance="outline" subscriptSizing="dynamic"><mat-label>Corretora</mat-label><mat-select formControlName="corretoraId"><mat-option [value]="null">Sem corretora</mat-option>@for(item of corretoras();track item.id){<mat-option [value]="item.id">{{brokerName(item)}}</mat-option>}</mat-select><mat-hint>A corretora é opcional.</mat-hint></mat-form-field>
-          @if(form.controls.tipo.value){<div class="estimated-total" aria-live="polite" aria-atomic="true"><span>Valor estimado da {{form.controls.tipo.value === 'COMPRA' ? 'compra' : 'venda'}}</span><strong data-testid="estimated-total">{{estimatedTotal() ?? '—'}}</strong></div>}
-          <div id="price-status" class="price-status" aria-live="polite">@if(priceLoading()){<span role="status">Consultando preço…</span>}@if(priceError()){<app-feedback-alert variant="error" [message]="priceErrorMessage()" [details]="priceError()!.details" />}</div>
-          @if (corretoras().length === 0) { <p class="optional-note">Nenhuma corretora cadastrada. Você pode continuar sem corretora.</p> }
-          <div class="app-actions app-actions--stack-compact"><button mat-flat-button type="submit" [disabled]="submitBlocked()" [attr.aria-busy]="submitting()">Registrar operação</button>@if(isDialog){<button mat-button type="button" [disabled]="submitting()" (click)="cancel()">Cancelar</button>}@else{<a mat-button [routerLink]="returnUrl()">Cancelar</a>}</div>
-          @if(submitting()){<div class="progress" role="status" aria-live="polite"><mat-spinner diameter="28"/> Registrando operação…</div>}
-        </form>
-      }
-    </section>`,
-  styles: [`
-    .app-dialog-page .context{grid-template-columns:auto minmax(0,1fr);gap:.15rem .75rem;padding:.5rem .75rem}.app-dialog-page .context small{grid-column:1/-1}.app-dialog-page .estimated-total{padding:.5rem .75rem}
-
-    .operation-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1.1rem;max-width:56rem}.operation-form>*{min-width:0}.wide-field,.context,.optional-note,.price-status,.estimated-total,.app-actions,.progress{grid-column:1/-1}.context{display:grid;gap:.25rem;padding:1rem;border-radius:.75rem;background:var(--app-surface-selected)}.context small,.optional-note,.price-status,.estimated-total span{color:var(--app-text-secondary)}.price-status:empty{display:none}.estimated-total{display:flex;align-items:baseline;justify-content:space-between;gap:1rem;padding:1rem;border:1px solid var(--app-border-subtle);border-radius:.75rem}.estimated-total strong{font-size:1.25rem;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}.context span{font-weight:650;overflow-wrap:anywhere}.progress{display:flex;align-items:center;gap:.75rem}.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0)}@media(max-width:42rem){.operation-form{grid-template-columns:1fr}.context,.optional-note,.price-status,.estimated-total,.app-actions,.progress{grid-column:auto}}
-  `],
+  templateUrl: './operacao-form-page.component.html',
+  styleUrl: '../operacao-form.scss',
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class OperacaoFormPageComponent {
@@ -107,6 +78,24 @@ export class OperacaoFormPageComponent {
   });
 
   constructor() {
+    if (this.dialogRef) {
+      const dialog = this.dialogRef;
+      const host = inject<ElementRef<HTMLElement>>(ElementRef);
+      const viewport = inject(BreakpointObserver);
+      afterNextRender(() => {
+        const pane = host.nativeElement.closest<HTMLElement>('.cdk-overlay-pane');
+        if (!pane) return;
+        const originalMinWidth = pane.style.minWidth;
+        this.destroyRef.onDestroy(() => { pane.style.minWidth = originalMinWidth; });
+        viewport.observe('(max-width: 36rem)').pipe(
+          map(state => state.matches), distinctUntilChanged(), takeUntilDestroyed(this.destroyRef)
+        ).subscribe(mobile => {
+          // Material's 280px minimum would otherwise defeat 24px gutters at 320px.
+          dialog.updateSize(mobile ? 'calc(100vw - 3rem)' : '');
+          pane.style.minWidth = mobile ? '0px' : originalMinWidth;
+        });
+      });
+    }
     this.form.controls.tipo.valueChanges.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => this.typeChanged());
     this.form.controls.precoUnitario.valueChanges.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => {
       this.manualPriceVersion++;
@@ -190,7 +179,7 @@ export class OperacaoFormPageComponent {
     this.originParams = params;
     this.returnUrl.set(operationReturnUrl(this.router, params));
     this.portfolioLoading.set(true);
-    const contextual = params.get('origem') === 'dashboard' || params.get('origem') === 'carteira';
+    const contextual = params.get('origem') === 'dashboard' || params.get('origem') === 'carteira' || params.get('origem') === 'operacoes';
     this.context.resolveUrl(raw === null && contextual ? '' : raw);
     this.captureRequest = this.context.initialize().pipe(takeUntilDestroyed(this.destroyRef)).subscribe(ready => {
       if (generation !== this.generation) return;
@@ -244,7 +233,10 @@ export class OperacaoFormPageComponent {
   protected errorMessage(): string {
     return this.messageForError(this.error()!);
   }
+  protected detalhesErro(): Record<string, unknown> { return detalhesQuantitativos(this.error()); }
   private messageForError(current: NormalizedHttpError): string {
+    const quantitativa = mensagemQuantitativa(current);
+    if (quantitativa) return quantitativa;
     const guidance: Record<string, string> = {
       POSICAO_INSUFICIENTE: 'A quantidade excede a posição disponível nesse ponto cronológico.',
       COTACAO_HISTORICA_INDISPONIVEL: 'Não foi encontrado fechamento para a data informada. Escolha uma data em que tenha ocorrido pregão.',
@@ -282,7 +274,10 @@ export class OperacaoFormPageComponent {
     const generation = this.generation;
     this.postRequest = this.service.cadastrar(request).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: item => { if (generation === this.generation) this.complete(item); },
-      error: (error: NormalizedHttpError) => { this.error.set(error); this.submitting.set(false); if (this.dialogRef) this.dialogRef.disableClose = false; }
+      error: (error: NormalizedHttpError) => {
+        if (generation !== this.generation) return;
+        this.error.set(error); this.submitting.set(false); if (this.dialogRef) this.dialogRef.disableClose = false;
+      }
     });
   }
 

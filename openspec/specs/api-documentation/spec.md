@@ -7,19 +7,23 @@ Disponibilizar uma descrição OpenAPI navegável, segura e fiel aos contratos R
 ## Requirements
 
 ### Requirement: Documento OpenAPI derivado da API real
-O sistema SHALL disponibilizar, por integração code-first com springdoc, uma descrição OpenAPI gerada a partir das 24 operações REST implementadas em 18 paths funcionais distintos. A descrição MUST refletir métodos, paths, parâmetros, request bodies, respostas, status de sucesso e schemas públicos reais, e MUST NOT declarar endpoints ou comportamentos inexistentes. Endpoints e assets técnicos do springdoc MUST NOT integrar essa contagem funcional.
+O sistema SHALL disponibilizar documento code-first springdoc refletindo exatamente métodos, paths, parâmetros, bodies, respostas e schemas públicos implementados. SHALL incluir o POST de atualização das cotações da Carteira, extensões temporais e autenticação/administração somente quando implementados. Contagem SHALL corresponder à API real, sem perpetuar contagem histórica fixa nem contabilizar assets técnicos. MUST NOT declarar comportamentos inexistentes. Após implementação desta change SHALL documentar JWT em cookie e seus prazos de dez minutos ociosos/quatro horas absolutas configuráveis, handshake CSRF e sessão compartilhada, matriz de papéis e exceções públicas, sem alterar paths financeiros ou introduzir /v1.
 
 #### Scenario: Consulta da descrição JSON
-- **WHEN** um consumidor acessa `/v3/api-docs` em qualquer profile do MVP
-- **THEN** o sistema responde com um documento OpenAPI válido que contém as 24 operações públicas nos 18 paths funcionais implementados
+- **WHEN** consumidor acessa /v3/api-docs em qualquer profile
+- **THEN** recebe documento válido com operações e paths realmente implementados, incluindo segurança e lote quando entregues
 
 #### Scenario: Consulta da descrição YAML
-- **WHEN** um consumidor acessa `/v3/api-docs.yaml` em qualquer profile do MVP
-- **THEN** o sistema responde com a representação YAML da mesma descrição OpenAPI
+- **WHEN** consumidor acessa /v3/api-docs.yaml em qualquer profile do MVP
+- **THEN** recebe representação YAML da mesma descrição OpenAPI
 
 #### Scenario: Ausência de contrato fictício
-- **WHEN** o documento OpenAPI é inspecionado
-- **THEN** ele não contém autenticação, versionamento `/v1`, filtros, paginação ou endpoints que não existam no backend
+- **WHEN** documento é inspecionado
+- **THEN** não contém /v1, filtros, paginação, endpoints ou mecanismos de autenticação não implementados
+
+#### Scenario: Cookie e exceções explícitas
+- **WHEN** cliente inspeciona contrato depois de implementar autenticação
+- **THEN** operações financeiras e administrativas exigem cookieAuth; /auth/csrf, login e confirmação de redefinição não exigem autenticação, mas todos os POSTs exigem CSRF; /me, atividade e logout são autenticados
 
 ### Requirement: Swagger UI navegável
 O sistema SHALL disponibilizar Swagger UI em todos os profiles do MVP por `/swagger-ui.html` e pelo recurso efetivo `/swagger-ui/index.html`, para permitir navegação pelos domínios, inspeção dos schemas e execução manual dos endpoints documentados.
@@ -89,7 +93,7 @@ O OpenAPI SHALL documentar erros de validacao, referencias, posicao e integridad
 - **THEN** o POST nao consulta fechamento historico nem depende do provider
 
 ### Requirement: Compatibilidade sem mudança funcional
-A documentação SHALL descrever o preco manual em COMPRA e VENDA e a geração backend de `ordemNoDia`, sem alterar contratos de consulta de Operações ou demais endpoints. A mudança MUST NOT documentar preço médio acumulado, endpoint público de candles ou migration inexistente.
+A documentação SHALL preservar preço manual de COMPRA/VENDA, ordem financeira gerada e contratos de consulta financeira. SHALL descrever mudanças funcionais aprovadas nesta change: escrita de custódia, validação local/diferencial das operações e evolução coordenada da distribuição. Demais endpoints/cálculos MUST NOT ser alterados por documentação. MUST NOT expor preço médio por corretora, candles públicos, migration inexistente ou credenciais.
 
 #### Scenario: Backend após habilitar documentação
 - **WHEN** a descrição OpenAPI é regenerada após a evolução
@@ -104,11 +108,11 @@ A documentação SHALL descrever o preco manual em COMPRA e VENDA e a geração 
 - **THEN** contrato e formulario sao coerentes quanto ao preco manual, sem alterar formulas contabeis
 
 ### Requirement: Documentação das consultas de apoio à criação de Operações
-O OpenAPI SHALL documentar os endpoints de prévia de COMPRA e sugestão de VENDA com parâmetros, formatos, DTOs e respostas. A documentação SHALL declarar que a previa usa fechamento historico exato em consulta independente e nao participa do POST manual, e que a sugestão de VENDA é editável, não vinculante, limitada à última COMPRA cronologicamente aplicável e não constitui preço médio, cotação atual ou recomendação financeira.
+A descrição do endpoint e o schema de resposta da prévia SHALL declarar consulta independente, informativa, não vinculante e sem efeitos colaterais, utilizável como sugestão inicial editável. MUST NOT afirmar que o POST reconsulta provider ou exige sucesso da prévia; preço final válido e demais validações SHALL continuar obrigatórios. O OpenAPI SHALL documentar os endpoints de prévia de COMPRA e sugestão de VENDA com parâmetros, formatos, DTOs e respostas. A documentação SHALL declarar que a previa usa fechamento historico exato em consulta independente e nao participa do POST manual, e que a sugestão de VENDA é editável, não vinculante, limitada à última COMPRA cronologicamente aplicável e não constitui preço médio, cotação atual ou recomendação financeira.
 
 #### Scenario: Contrato documentado da prévia
 - **WHEN** um consumidor consulta o OpenAPI de `GET /operacoes/previa-compra`
-- **THEN** encontra os parâmetros obrigatórios, `PreviaPrecoCompraResponse`, `200`, `400`, `404`, `422`, `429`, `502`, `503` e `504`, incluindo os códigos padronizados aplicáveis
+- **THEN** encontra os parâmetros obrigatórios, `PreviaPrecoCompraResponse`, `200`, `400`, `404`, `422`, `429`, `502`, `503` e `504`, incluindo os códigos padronizados aplicáveis, e encontra no endpoint e no schema a semântica de sugestão editável sem reconsulta histórica pelo POST
 
 #### Scenario: Contrato documentado da sugestão
 - **WHEN** um consumidor consulta o OpenAPI de `GET /carteiras/{carteiraId}/operacoes/sugestao-preco-venda`
@@ -117,3 +121,62 @@ O OpenAPI SHALL documentar os endpoints de prévia de COMPRA e sugestão de VEND
 #### Scenario: Separação do POST documentada
 - **WHEN** um consumidor compara as consultas com `POST /operacoes`
 - **THEN** a documentação mantém COMPRA e VENDA com `precoUnitario` obrigatorio e ambas sem `ordemNoDia`
+
+### Requirement: Documentação do lote e precisão temporal de cotação
+OpenAPI SHALL documentar POST /carteiras/{carteiraId}/atualizacoes-cotacoes sem lista arbitrária de Ações, 200 com resultados individuais e contadores, vazio e erros globais padronizados. SHALL documentar ATUALIZADA, SEM_NOVA_COTACAO, FALHA, motivos públicos, referência tipada e nullability legada, mantendo dataHoraCotacao como compatibilidade. PATCH individual SHALL manter path/response e erros externos, acrescentando erros temporais 422. MUST NOT prometer tempo real, classificação de defasagem, rollback global de sucesso parcial ou alteração de preços de operações.
+
+#### Scenario: Resultado parcial documentado
+- **WHEN** o consumidor inspeciona o lote
+- **THEN** encontra 200 inclusive parcial, contadores e estados por ativo
+
+#### Scenario: Schemas temporais
+- **WHEN** inspeciona Ação e posição
+- **THEN** encontra INSTANTE/DATA/DESCONHECIDA, precisão e campos legados preservados
+
+#### Scenario: Falha temporal individual
+- **WHEN** PATCH recebe tipos incompatíveis ou referência inválida
+- **THEN** OpenAPI documenta erro padronizado temporal sem alteração da cotação
+
+### Requirement: Documentação dos contratos internos de custódia
+OpenAPI SHALL documentar rotas, requests discriminados, respostas, filtros de natureza/situação, ordenação de registro, corpo opcional de motivo no estorno e Location do detalhe original. SHALL identificar controle interno, ausência de preços, posição gerada, precisão BR/EUA, políticas de datas, legado e neutralização retroativa. SHALL incluir exemplos de transferência, atribuição, estorno, original ativa/estornada e coleção vazia. MUST NOT documentar endpoint individual de estorno não implementado, paginação inexistente ou transferência institucional.
+
+#### Scenario: Contratos navegáveis
+- **WHEN** documentação é gerada após implementação autorizada
+- **THEN** schemas e exemplos correspondem às rotas reais e às variantes, com campos controlados proibidos no request
+
+#### Scenario: Consulta do estorno
+- **WHEN** POST de estorno retorna201
+- **THEN** Location aponta ao detalhe original consultável que contém o novo registro
+
+### Requirement: Documentação da validação quantitativa e evidências genéricas
+OpenAPI SHALL refletir nova validação local de vendas e comparação histórica, códigos de erro estáveis, schema discriminado de primeiroDeficit e posições exatas. Exemplos de legado SHALL explicitar que negativos são preexistentes, não registros novos aceitos por POST. Documentação SHALL ser atualizada junto a backend/parser, sem versão paralela, segredos ou alteração de fórmulas.
+
+#### Scenario: Schema do primeiro déficit
+- **WHEN** OpenAPI e exemplos da distribuição são consultados
+- **THEN** dominio/id/natureza/dataEfetiva/posicaoCronologica/saldoAposEvento substituem campos exclusivos de operação
+
+#### Scenario: Erros e legado
+- **WHEN** exemplo contém déficit histórico e contrato de nova venda
+- **THEN** documenta preservação do legado e rejeição de novo déficit, sem contradição
+
+### Requirement: Contratos de segurança documentados e sem segredos
+O OpenAPI SHALL descrever DTOs seguros de usuário, login, sessão e código temporário, respostas 200/201/204, validação, 401, 403, 409, 429 e indisponibilidade onde aplicáveis, com matriz ADMIN/USER. MUST NOT expor hashes, senhas reais, códigos utilizáveis ou bearer real em exemplos. Swagger SHALL permanecer acessível publicamente nos profiles atuais, mas suas chamadas protegidas SHALL exigir cookie JWT válido e CSRF nas mutações, sem fallback de autenticação por header.
+
+#### Scenario: Inspeção de usuários e reset
+- **WHEN** documento efetivamente servido é consultado
+- **THEN** respostas comuns de usuário omitem senha/hash/código e somente emissão administrativa declara o código de exibição única, com senha nova recebida apenas no fluxo público de confirmação
+
+#### Scenario: Try it out sem token
+- **WHEN** visitante executa consulta financeira pela Swagger UI sem cookie de autenticação válido
+- **THEN** recebe 401 apesar de poder ler a documentação
+
+### Requirement: Ferramentas seguem cookie e CSRF
+O documento SHALL declarar autenticação cookieAuth apiKey in:cookie GESTAOACOES_AUTH, sem esquema Bearer alternativo, e X-XSRF-TOKEN nas mutações, inclusive públicas. SHALL documentar Set-Cookie seguro, /auth/csrf sem atividade, identidade sem JWT e limites iguais de JWT/sessão. Postman SHALL usar cookie jar e handshake CSRF; Swagger same-origin SHALL usar cookies do navegador e integração CSRF suportada, sem tentar escrever manualmente header Cookie. Limitação de Try it out SHALL ser informada com alternativa Postman, nunca por bypass da segurança.
+
+#### Scenario: Contrato e cliente seguros
+- **WHEN** consumidor segue documentação para login e escrita
+- **THEN** obtém CSRF, recebe cookie JWT no login e obtém CSRF atual antes de escrever; nenhum JWT é devolvido em JSON ou exigido em JavaScript
+
+#### Scenario: UI sem suporte ao fluxo completo
+- **WHEN** versão real de Swagger UI não executa cookie/CSRF com segurança
+- **THEN** documentação permanece navegável e execução é orientada ao Postman com mesma proteção, sem liberar endpoint alternativo

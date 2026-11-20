@@ -42,6 +42,7 @@ O sistema SHALL validar a existência da Carteira antes da consolidação. Carte
 
 ### Requirement: Representação contábil e de mercado da posição
 Cada posição SHALL conter `acaoId`, `ticker`, `nomeEmpresa`, `mercado`, `moeda`, `quantidadeAtual`, `precoMedio`, `custoPosicao`, `cotacaoAtual`, `dataHoraCotacao`, `valorAtualPosicao`, `resultadoNaoRealizado` e `rentabilidadePercentual`. Os identificadores, dados descritivos, moeda, `cotacaoAtual` e `dataHoraCotacao` da Ação SHALL refletir exatamente o relacionamento e o estado persistidos. `valorAtualPosicao`, `resultadoNaoRealizado` e `rentabilidadePercentual` SHALL ser derivados conforme as regras desta capability. A resposta MUST NOT incluir resultado realizado, patrimônio ou snapshot.
+ Cada posição SHALL incluir também referenciaMercadoCotacao {tipo, instante, data} e cotacaoObtidaEm conforme Ação persistida, admitindo DESCONHECIDA e obtenção nula no legado; dataHoraCotacao SHALL permanecer legado obrigatório.
 
 #### Scenario: Posição brasileira com cotação
 - **WHEN** uma posição aberta referencia Ação de `mercado=BRASIL`, `moeda=BRL` e cotação persistida válida
@@ -90,7 +91,7 @@ Para cada posição aberta, o sistema SHALL calcular `valorAtualPosicao = quanti
 - **THEN** cada `valorAtualPosicao` permanece expresso na `moeda` da própria Ação, sem soma ou conversão cambial
 
 ### Requirement: Cotação persistida e referência temporal preservada
-`cotacaoAtual` e `dataHoraCotacao` SHALL ser obtidas exatamente da Ação persistida associada à posição. A consulta MUST NOT gerar nova data/hora, usar `Clock` para substituir `dataHoraCotacao`, obter nova cotação, atualizar a Ação ou persistir qualquer alteração. No schema suportado, ambos os campos SHALL ser obrigatórios e `cotacaoAtual` SHALL ser estritamente positiva; portanto, esta capability MUST NOT criar fallback, valor sintético ou contrato anulável para estados proibidos pelo modelo.
+Cotação, referência tipada, obtenção e dataHoraCotacao legado SHALL refletir exatamente a Ação persistida. GET MUST NOT consultar providers, usar Clock para substituir referências, classificar defasagem por calendário, atualizar a Ação ou escrever. Cotação positiva e campo legado SHALL permanecer obrigatórios; somente os novos campos seguem a nullability da transição. Nenhum fallback de referência SHALL ser fabricado.
 
 #### Scenario: Data e hora persistidas
 - **WHEN** a Ação associada possui `dataHoraCotacao` persistida
@@ -352,18 +353,16 @@ Esta capability MUST NOT calcular resultado realizado, patrimônio, rentabilidad
 - **THEN** a consolidação calcula rentabilidade somente sobre resultado não realizado e custo remanescentes, sem expor ou persistir resultado realizado
 
 ### Requirement: Compatibilidade sem persistência adicional
-A capability SHALL operar sobre as entidades e o schema vigentes, MUST NOT criar entidade ou tabela de posição, migration, snapshot ou campo consolidado e SHALL preservar `POST /operacoes`, as consultas de Operação, o replay de validação de VENDA, a atualização dedicada de cotação da Ação, a proteção de DELETE de Carteira e os demais endpoints promovidos.
+A posição SHALL continuar derivada sem tabela, entidade persistida ou campo financeiro consolidado. A migration temporal pertence a Ação/histórico, não ao estado contábil de posição. SHALL preservar POST /operacoes, replay, consultas, DELETE de Carteira e fórmulas. PATCH individual e POST do lote SHALL ser responsáveis pela atualização; GET de posições MUST NOT consultar provider.
 
 #### Scenario: Inicialização com schema vigente
-- **WHEN** PostgreSQL ou H2 inicia com os changeSets 001 a 004
-- **THEN** Liquibase e Hibernate continuam validando o mesmo schema sem migration de posição ou cotação
+- **WHEN** PostgreSQL ou H2 executa o changelog completo
+- **THEN** valida o modelo temporal aditivo sem tabela ou migration de posição
 
 #### Scenario: Regressão das Operações
 - **WHEN** os dados de mercado são acrescentados à consulta de posição
 - **THEN** registro, consulta, cronologia, concorrência e proteção do histórico de Operações preservam seus contratos atuais
 
 #### Scenario: Atualização dedicada preservada
-- **WHEN** a atualização externa de cotação está disponível por `PATCH /acoes/{id}/cotacao` conforme a capability promovida de Ação
-- **THEN** o PATCH permanece responsável por consultar o provider e persistir `cotacaoAtual` e `dataHoraCotacao`, sem transferir essa responsabilidade para `GET /carteiras/{carteiraId}/posicoes`
-
-
+- **WHEN** PATCH individual ou POST de atualização da carteira é acionado
+- **THEN** usa regra compartilhada e preserva GET de posições sem efeitos colaterais

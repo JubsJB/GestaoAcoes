@@ -82,6 +82,8 @@ public class CarteiraResource {
         this.precoOperacaoService = precoOperacaoService;
     }
 
+    // D6: escrita financeira somente ADMIN, antes do serviço/transação de negócio.
+    @org.springframework.security.access.prepost.PreAuthorize("hasRole('ADMIN')")
     @PostMapping
     @Operation(summary = "Criar carteira", tags = "Carteiras")
     @ApiResponses({
@@ -204,6 +206,8 @@ public class CarteiraResource {
         return ResponseEntity.ok(resumoCarteiraService.consultar(carteiraId));
     }
 
+    // D6: escrita financeira somente ADMIN, antes do serviço/transação de negócio.
+    @org.springframework.security.access.prepost.PreAuthorize("hasRole('ADMIN')")
     @PostMapping("/{carteiraId}/snapshots")
     @Operation(summary = "Criar snapshot da carteira", description = "Persiste explicitamente o patrimônio atual separado por moeda.", tags = "Indicadores da Carteira")
     @ApiResponses({
@@ -235,6 +239,8 @@ public class CarteiraResource {
         return ResponseEntity.ok(evolucaoPatrimonialService.consultar(carteiraId));
     }
 
+    // D6: escrita financeira somente ADMIN, antes do serviço/transação de negócio.
+    @org.springframework.security.access.prepost.PreAuthorize("hasRole('ADMIN')")
     @PatchMapping("/{id}")
     @Operation(summary = "Atualizar nome da carteira", tags = "Carteiras")
     @ApiResponses({
@@ -249,6 +255,8 @@ public class CarteiraResource {
         return ResponseEntity.ok(service.atualizar(id, request));
     }
 
+    // D6: escrita financeira somente ADMIN, antes do serviço/transação de negócio.
+    @org.springframework.security.access.prepost.PreAuthorize("hasRole('ADMIN')")
     @DeleteMapping("/{id}")
     @Operation(summary = "Excluir carteira", description = "Exclui somente carteiras sem operações e sem snapshots.", tags = "Carteiras")
     @ApiResponses({

@@ -20,7 +20,7 @@ import java.time.format.DateTimeParseException;
 import java.util.*;
 
 @Component
-@Profile("!test")
+@Profile("!test & !dados-demonstracao")
 public class AlphaVantageCotacaoHistoricaAdapter implements CotacaoHistoricaProvider {
     private static final String PROVIDER = "Alpha Vantage";
     private final RestClient restClient;

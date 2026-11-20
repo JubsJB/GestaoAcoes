@@ -1,0 +1,23 @@
+@use '../../../styles/visual-foundation' as visual;
+@use 'corretoras-typography' as typography;
+:host { @include visual.blue-scope; @include typography.page-scale; display: block; min-width: 0; }
+.app-page { gap: 1.25rem; }
+.broker-panel { min-width: 0; height: fit-content; border: 1px solid var(--app-border-subtle); border-radius: .875rem; background: var(--app-surface-card); box-shadow: none; }
+.broker-panel mat-card-content { padding: 1.5rem; }
+.broker-panel h2 { margin: 0 0 .875rem; color: var(--app-brand-primary); font-size: 1.125rem; line-height: 1.4; font-weight: 650; overflow-wrap: anywhere; }
+.broker-identity h2 { max-width: 47rem; font-size: 1.25rem; font-weight: 600; }
+.broker-eyebrow { margin: 0 0 .25rem; color: var(--app-text-secondary); font-size: .75rem; }
+.broker-detail-grid { display: grid; grid-template-columns: minmax(0,1.15fr) minmax(0,1fr); align-items: start; gap: 1.25rem; }
+.data-list { grid-template-columns: repeat(2,minmax(0,1fr)); gap: 1rem; }
+.data-list dt { font-size: .8125rem; }
+.data-list dd { font-size: .875rem; font-weight: 400; line-height: 1.5; }
+.identity-facts { display: flex; flex-wrap: wrap; gap: .75rem 2rem; }
+.full-width { grid-column: 1/-1; }
+.status-badge { font-size: .75rem; }
+@media (max-width: 48rem) {
+ .broker-detail-grid,.contact-facts { grid-template-columns: minmax(0,1fr); }
+ .broker-detail-grid { gap: 1rem; }
+ .broker-panel mat-card-content { padding: 1.125rem; }
+ .broker-identity h2 { font-size: 1.125rem; }
+ .identity-facts { display: grid; grid-template-columns: minmax(0,1fr); }
+}

@@ -1,5 +1,5 @@
 <section aria-labelledby="composition-title">
-  <header><h3 id="composition-title">Composição da carteira</h3><p>Em quais ativos está concentrado o valor das suas posições?</p></header>
+  <header class="sr-only"><h3 id="composition-title">Composição da carteira</h3><p>Em quais ativos está concentrado o valor das suas posições?</p></header>
   @if (groups().length === 0) { <p>Nenhuma posição aberta para distribuir.</p> }
   <div class="composition-groups">
     @for (group of groups(); track group.currency) {
@@ -16,15 +16,15 @@
                 </defs>
                 @for (row of group.rows; track row.position.acaoId; let i = $index) {
                   @if (row.sweep > 0) {
-                    <circle class="slice" cx="120" cy="120" r="83" pathLength="1" fill="none" stroke-width="34"
+                    <circle class="slice" cx="120" cy="120" r="83" pathLength="1" fill="none" stroke-width="30"
                       [attr.stroke]="colors[i % colors.length]" [attr.stroke-dasharray]="row.sweep + ' ' + (1 - row.sweep)"
                       [attr.stroke-dashoffset]="-row.start" transform="rotate(-90 120 120)" />
                     @if (i % 2 === 1) {
-                      <circle cx="120" cy="120" r="83" pathLength="1" fill="none" stroke-width="34"
+                      <circle cx="120" cy="120" r="83" pathLength="1" fill="none" stroke-width="30"
                         [attr.stroke]="'url(#texture-' + group.currency + ')'" [attr.stroke-dasharray]="row.sweep + ' ' + (1 - row.sweep)"
                         [attr.stroke-dashoffset]="-row.start" transform="rotate(-90 120 120)" />
                     }
-                    @if (!row.small) { <text class="slice-number" [attr.x]="row.x" [attr.y]="row.y">{{ i + 1 }}</text> }
+                    @if (!row.small) { <text class="slice-number" [style.fill]="labelColors[i % colors.length]" [style.stroke]="colors[i % colors.length]" [attr.x]="row.x" [attr.y]="row.y">{{ i + 1 }}</text> }
                   }
                 }
                 <text class="ring-currency" x="120" y="117">{{ group.currency }}</text>
@@ -37,7 +37,7 @@
           <ol class="composition-legend">
             @for (row of group.rows; track row.position.acaoId; let i = $index) {
               <li [attr.data-asset-id]="row.position.acaoId">
-                <span class="legend-number" [style.background-color]="colors[i % colors.length]" [class.textured]="i % 2 === 1">{{ i + 1 }}</span>
+                <span class="legend-number" [style.background-color]="colors[i % colors.length]" [style.color]="labelColors[i % colors.length]" [class.textured]="i % 2 === 1">{{ i + 1 }}</span>
                 <div class="identity"><strong>{{ row.position.ticker }}</strong><span>{{ row.position.nomeEmpresa }}</span></div>
                 <div class="amount"><strong>{{ row.formatted }}</strong>
                   @if (row.complete) { <small>Valor completo: {{ row.exact }} {{ group.currency }}</small> }
