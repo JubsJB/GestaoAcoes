@@ -1,0 +1,49 @@
+@use '../../../styles/visual-foundation' as visual;
+@use 'acoes-typography' as typography;
+
+:host { @include visual.blue-scope; @include typography.page-scale; display: block; min-width: 0; container: ativos / inline-size; }
+.collection-page { gap: 0; }
+app-page-header { margin-bottom: 1.5rem; }
+.actions-collection { min-width: 0; border: 1px solid var(--app-border-subtle); border-radius: .75rem; background: var(--app-surface-card); }
+.search { display: grid; gap: 1rem; padding: 1.5rem; border: 0; border-bottom: 1px solid var(--app-border-subtle); border-radius: .75rem .75rem 0 0; box-shadow: none; }
+.search-heading h2 { margin: 0 0 .375rem; color: var(--app-brand-primary); font-size: 1rem; }
+.search-heading p { margin: 0; color: var(--app-text-secondary); font-size: .875rem; }
+.search-fields { display: grid; grid-template-columns: minmax(0,1.2fr) minmax(0,.8fr) auto; gap: 1rem; align-items: start; }
+.search .app-actions { display: flex; flex-direction: row; align-items: center; gap: .625rem; padding: 0; }
+.search .app-actions > * { width: auto; min-height: 3.5rem; }
+mat-form-field { width: 100%; min-width: 0; }
+.search-progress { margin: .75rem 1.5rem; }
+.collection-region { min-width: 0; }
+.collection-table { width: 100%; table-layout: fixed; border-spacing: 0; border-radius: 0 0 .75rem .75rem; background: var(--app-surface-card); font-size: .875rem; font-variant-numeric: tabular-nums; }
+caption { padding: 1rem 1.5rem; color: var(--app-brand-primary); text-align: left; font-size: 1rem; font-weight: 650; }
+th,td { padding: .875rem 1.125rem; border-top: 1px solid var(--app-border-subtle); text-align: left; vertical-align: middle; overflow-wrap: anywhere; }
+thead th { padding-block: .6875rem; color: var(--app-text-secondary); background: var(--app-surface-muted); font-size: .75rem; font-weight: 600; vertical-align: bottom; }
+th:first-child { width: 29%; }
+.asset-name { display: block; color: var(--app-brand-primary); font-size: 1rem; font-weight: 600; }
+.status-badge { font-size: .75rem; }
+.primary-value { font-weight: 600; }
+small { display: block; margin-top: .25rem; color: var(--app-text-secondary); font-size: .8125rem; font-weight: 400; }
+.numeric,.actions-cell,thead th:last-child { text-align: right; }
+.details-link { display: inline-flex; align-items: center; justify-content: center; min-height: 2.75rem; max-width: 100%; padding: .5rem .625rem; border: 1px solid var(--app-border-subtle); border-radius: .5rem; color: var(--app-action-primary); text-decoration: none; font-size: .8125rem; font-weight: 600; }
+.cell-label { display: none; }
+@container ativos (max-width: 52rem) {
+  .collection-table,tbody { display: block; border: 0; background: transparent; }
+  caption { display: block; padding: 1rem 1.125rem .75rem; }
+  tbody { padding-inline: .75rem; }
+  thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  tbody tr { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1.1fr); gap: .75rem; padding: .875rem; margin-bottom: .75rem; border: 1px solid var(--app-border-subtle); border-radius: .75rem; background: var(--app-surface-card); }
+  th,td { display: block; min-width: 0; width: auto !important; padding: 0; border: 0; }
+  tbody th,td:nth-child(4),.actions-cell { grid-column: 1/-1; }
+  .numeric { text-align: left; }
+  .cell-label { display: block; margin-bottom: .25rem; color: var(--app-text-secondary); font-size: .75rem; font-weight: 400; }
+  .actions-cell { padding-top: .5rem; border-top: 1px solid var(--app-border-subtle); }
+  .details-link { border-color: transparent; }
+  .search-fields { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  .search .app-actions { grid-column: 1/-1; justify-content: flex-end; }
+}
+@container ativos (max-width: 36rem) {
+  .search { padding: 1.125rem; }
+  .search-fields { grid-template-columns: minmax(0,1fr); gap: .75rem; }
+  .search .app-actions { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); }
+  .search .app-actions > * { width: 100%; min-height: 2.75rem; height: auto; white-space: normal; }
+}

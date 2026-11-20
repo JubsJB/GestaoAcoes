@@ -1,0 +1,34 @@
+// Opt-in foundation approved in sample A. Never apply to :root or the workspace.
+@mixin blue-scope {
+  --app-brand-primary: #16324f;
+  --app-action-primary: #1d4ed8;
+  --app-primary-hover: #1e40af;
+  --app-focus: #1d4ed8;
+  --app-surface-app: #f5f7fa;
+  --app-surface-card: #fff;
+  --app-surface-selected: #eff6ff;
+  --app-surface-muted: #f1f5f9;
+  --app-text-primary: #172b3a;
+  --app-text-secondary: #526273;
+  --app-border-subtle: #d8e1ea;
+  --app-border-control: #64748b;
+  --app-success: #166534;
+  --app-financial-positive: #166534;
+  --app-negative: #b42318;
+  --app-error: #b42318;
+  --app-info: #1d4ed8;
+  --app-surface-success: #f0fdf4;
+  --app-surface-error: #fff1f2;
+  --mat-sys-primary: var(--app-action-primary);
+  --mat-sys-on-primary: #fff;
+  --mat-sys-secondary: var(--app-brand-primary);
+  --mat-sys-secondary-container: var(--app-surface-selected);
+  --mat-sys-on-secondary-container: var(--app-brand-primary);
+  --mat-sys-surface: var(--app-surface-card);
+  --mat-sys-surface-container-highest: var(--app-surface-muted);
+  --mat-sys-on-surface: var(--app-text-primary);
+  --mat-sys-on-surface-variant: var(--app-text-secondary);
+  --mat-sys-outline: var(--app-border-control);
+  --mat-sys-outline-variant: var(--app-border-subtle);
+  --mat-sys-error: var(--app-error);
+}

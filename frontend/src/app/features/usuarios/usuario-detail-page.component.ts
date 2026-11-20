@@ -1,4 +1,5 @@
-import { ChangeDetectionStrategy, Component, DestroyRef, inject, signal } from '@angular/core';
+import { afterNextRender, ChangeDetectionStrategy, Component, DestroyRef, inject, Injector, signal } from '@angular/core';
+import { DOCUMENT } from '@angular/common';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
@@ -9,6 +10,7 @@ import { ActivatedRoute, RouterLink } from '@angular/router';
 import { catchError, EMPTY, finalize, Observable, switchMap } from 'rxjs';
 import { SessionService } from '../../core/auth/session.service';
 import { PageHeaderComponent } from '../../shared/page-header/page-header.component';
+import { AppIconComponent } from '../../shared/app-icon/app-icon.component';
 import { AdminConfirmDialogComponent } from './admin-confirm-dialog.component';
 import { OneTimeCodeDialogComponent } from './one-time-code-dialog.component';
 import { EmissaoAutorizacao, Papel, Usuario } from './usuario.model';
@@ -16,25 +18,27 @@ import { UsuariosApi } from './usuarios-api.service';
 
 type Action = 'perfil' | 'situacao' | 'codigo';
 
-@Component({ selector: 'app-usuario-detail-page', changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ReactiveFormsModule, MatButtonModule, MatFormFieldModule, MatSelectModule, RouterLink, PageHeaderComponent], styleUrl: './usuarios-page.scss',
-  template: `<section><app-page-header title="Consultar usuário" icon="identity" /><a mat-button routerLink="/usuarios">Voltar à lista</a>
+@Component({ host: { class: 'app-blue-scope' }, selector: 'app-usuario-detail-page', changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [ReactiveFormsModule, MatButtonModule, MatFormFieldModule, MatSelectModule, RouterLink, PageHeaderComponent, AppIconComponent], styleUrl: './usuarios-page.scss',
+  template: `<section class="admin-page"><a class="back-link" routerLink="/usuarios">← Voltar à lista</a><header class="admin-header"><app-page-header title="Consultar usuário" eyebrow="Administração de acesso" description="Consulte a conta e gerencie as permissões existentes."><button page-header-action mat-stroked-button (click)="reload()" [disabled]="busy()">Atualizar dados</button></app-page-header></header>
     @if (error()) { <p role="alert">{{ error() }}</p> }
     @if (notice()) { <p role="status">{{ notice() }}</p> }
-    <button mat-button (click)="reload()" [disabled]="busy()">Atualizar dados</button>
     @if (loading()) { <p role="status">Carregando usuário…</p> }
     @if (user(); as user) {
-      <h2>{{ user.username }}</h2><dl><dt>Situação</dt><dd>{{ user.ativo ? 'Ativo' : 'Bloqueado' }}</dd><dt>Credencial</dt><dd>{{ user.credencialDefinida ? 'Senha definida' : 'Definição inicial pendente' }}</dd><dt>Versão</dt><dd>{{ user.versao }}</dd></dl>
-      <form (submit)="$event.preventDefault(); confirm('perfil')" [attr.aria-busy]="busy()">
-        <mat-form-field><mat-label>Perfil</mat-label><mat-select [formControl]="role"><mat-option value="USER">USER — somente consulta</mat-option><mat-option value="ADMIN">ADMIN — administração e alterações</mat-option></mat-select></mat-form-field>
+      <div class="admin-card account-overview"><div class="account-identity"><span class="account-avatar account-avatar--large" aria-hidden="true"><app-icon name="identity" /></span><div><span class="card-eyebrow">Conta de usuário</span><h2>{{ user.username }}</h2><span class="role-badge" [class.role-badge--admin]="user.papel === 'ADMIN'">{{ user.papel }}</span></div></div><dl class="account-facts"><div><dt>Situação</dt><dd><span class="status-badge" [class.status-badge--positive]="user.ativo" [class.status-badge--error]="!user.ativo">{{ user.ativo ? 'Ativo' : 'Bloqueado' }}</span></dd></div><div><dt>Credencial</dt><dd>{{ user.credencialDefinida ? 'Senha definida' : 'Definição inicial pendente' }}</dd></div><div><dt>Versão</dt><dd>{{ user.versao }}</dd></div></dl></div>
+      <div class="editor-grid"><form class="admin-card" (submit)="$event.preventDefault(); confirm('perfil')" [attr.aria-busy]="busy()">
+        <div class="card-heading"><h2>Permissões de acesso</h2><p>Defina o perfil de acesso desta conta.</p></div>
+        <mat-form-field appearance="outline" subscriptSizing="dynamic"><mat-label>Perfil</mat-label><mat-select panelClass="app-blue-scope" [formControl]="role"><mat-option value="USER">USER — somente consulta</mat-option><mat-option value="ADMIN">ADMIN — administração e alterações</mat-option></mat-select></mat-form-field>
         <button mat-flat-button type="submit" data-testid="save-role" [disabled]="busy() || uncertain() || loading()">Salvar perfil</button>
       </form>
-      <div class="actions"><button mat-stroked-button data-testid="toggle-status" (click)="confirm('situacao')" [disabled]="busy() || uncertain() || loading()">{{ user.ativo ? 'Bloquear' : 'Habilitar' }}</button>
+      <div class="admin-card"><div class="card-heading"><h2>Segurança da conta</h2><p>Gerencie a situação e o acesso por senha.</p></div><div class="actions"><button mat-stroked-button data-testid="toggle-status" (click)="confirm('situacao')" [disabled]="busy() || uncertain() || loading()">{{ user.ativo ? 'Bloquear' : 'Habilitar' }}</button>
       <button mat-stroked-button data-testid="issue-code" (click)="confirm('codigo')" [disabled]="!user.ativo || busy() || uncertain() || loading()">{{ user.credencialDefinida ? 'Autorizar redefinição' : 'Gerar código inicial' }}</button></div>
-      <p>Alterações efetivas de perfil ou bloqueio encerram as sessões anteriores. Habilitar não restaura sessões ou códigos antigos.</p>
+      <p class="support-note">Alterações efetivas de perfil ou bloqueio encerram as sessões anteriores. Habilitar não restaura sessões ou códigos antigos.</p></div></div>
     }
   </section>` })
 export class UsuarioDetailPageComponent {
+  private readonly document = inject(DOCUMENT);
+  private readonly injector = inject(Injector);
   private readonly api = inject(UsuariosApi); private readonly session = inject(SessionService);
   private readonly dialog = inject(MatDialog); private readonly destroy = inject(DestroyRef); private readonly route = inject(ActivatedRoute);
   private id = 0; private revision = 0;
@@ -57,20 +61,27 @@ export class UsuarioDetailPageComponent {
   private accept(user: Usuario): void { this.user.set(user); this.role.setValue(user.papel); this.uncertain.set(false); }
   protected confirm(action: Action): void {
     const before = this.user(); if (!before || this.busy() || this.loading() || this.uncertain()) return;
+    const trigger = this.document.activeElement as HTMLElement | null;
+    const restoreFocus = () => {
+      if (this.destroy.destroyed) return;
+      afterNextRender(() => {
+        if (revision === this.revision && generation === this.session.generation && !this.dialog.openDialogs.length && trigger?.isConnected && !trigger.hasAttribute('disabled')) trigger.focus();
+      }, { injector: this.injector });
+    };
     const papel = this.role.value; const revision = this.revision; const generation = this.session.generation;
     this.busy.set(true); this.error.set(''); this.notice.set('');
     const title = action === 'perfil' ? 'Confirmar perfil' : action === 'codigo' ? 'Emitir novo código' : before.ativo ? 'Bloquear usuário' : 'Habilitar usuário';
     const message = action === 'codigo' ? `Gerar um código para ${before.username}? O anterior será invalidado e o novo será exibido somente uma vez.` : `${title}: ${before.username}. Alterações efetivas de perfil ou bloqueio invalidam as sessões antigas. Habilitar não recupera códigos ou sessões.`;
-    this.dialog.open(AdminConfirmDialogComponent, { data: { title, message }, closeOnNavigation: true }).afterClosed().pipe(takeUntilDestroyed(this.destroy)).subscribe(confirmed => {
+    this.dialog.open(AdminConfirmDialogComponent, { data: { title, message }, restoreFocus: false, panelClass: 'app-blue-scope', closeOnNavigation: true }).afterClosed().pipe(takeUntilDestroyed(this.destroy)).subscribe(confirmed => {
       if (revision !== this.revision || generation !== this.session.generation || !this.session.admin()) { this.busy.set(false); return; }
-      if (!confirmed) { this.busy.set(false); return; }
+      if (!confirmed) { this.busy.set(false); restoreFocus(); return; }
       const request: Observable<Usuario | EmissaoAutorizacao> = action === 'codigo' ? this.api.autorizar(before.id, before.versao) : action === 'perfil' ? this.api.perfil(before.id, papel, before.versao) : this.api.situacao(before.id, !before.ativo, before.versao);
-      request.pipe(takeUntilDestroyed(this.destroy), finalize(() => { if (revision === this.revision) this.busy.set(false); })).subscribe({
+      request.pipe(takeUntilDestroyed(this.destroy), finalize(() => { if (revision === this.revision) { this.busy.set(false); restoreFocus(); } })).subscribe({
         next: response => {
           if (revision !== this.revision || generation !== this.session.generation) return;
           const updated = 'usuario' in response ? response.usuario : response;
           this.accept(updated); this.notice.set('Operação concluída.');
-          if ('autorizacao' in response) this.dialog.open(OneTimeCodeDialogComponent, { data: { username: updated.username, ...response.autorizacao }, closeOnNavigation: true, width: '36rem', maxWidth: '95vw' });
+          if ('autorizacao' in response) this.dialog.open(OneTimeCodeDialogComponent, { data: { username: updated.username, ...response.autorizacao }, restoreFocus: false, panelClass: 'app-blue-scope', closeOnNavigation: true, width: '36rem', maxWidth: '95vw' }).afterClosed().pipe(takeUntilDestroyed(this.destroy)).subscribe(restoreFocus);
           if ((before.papel !== updated.papel || before.ativo !== updated.ativo) && updated.id === this.session.identity()?.id) this.session.passwordConfirmed();
         }, error: error => { if (revision === this.revision) this.failure(error); }
       });

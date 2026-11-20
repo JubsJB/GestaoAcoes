@@ -19,6 +19,31 @@ import { sessionFixture } from '../../../../test-support/session-fixture';
 
 describe('Login público', () => {
   beforeEach(() => TestBed.configureTestingModule({ providers: [{ provide: RETURN_STORAGE, useValue: null }] }));
+  it('limpa a senha sem marcar campos vazios como inválidos durante a autenticação e mantém validação real', () => {
+    TestBed.configureTestingModule({ providers: [provideHttpClient(), provideHttpClientTesting(), provideApiConfig(), provideRouter([])] });
+    const fixture = TestBed.createComponent(LoginPageComponent); fixture.detectChanges();
+    const element: HTMLElement = fixture.nativeElement;
+    const form = element.querySelector('form')!;
+    form.dispatchEvent(new Event('submit')); fixture.detectChanges();
+    expect(element.querySelectorAll('mat-error').length).toBe(2);
+    for (const [name, value] of Object.entries({ username: 'admin', senha: 'senha de fixture' })) {
+      const input = element.querySelector<HTMLInputElement>(`[name=${name}]`)!;
+      input.value = value; input.dispatchEvent(new Event('input'));
+    }
+    form.dispatchEvent(new Event('submit')); fixture.detectChanges();
+    expect(element.querySelector<HTMLInputElement>('[name=senha]')!.value).toBe('');
+    expect(form.getAttribute('aria-busy')).toBe('true');
+    expect(element.querySelectorAll('.mat-form-field-invalid').length).toBe(0);
+    const http = TestBed.inject(HttpTestingController);
+    http.expectOne('/api/auth/csrf').flush(null);
+    http.expectOne('/api/auth/login').flush({}, { status: 401, statusText: 'Unauthorized' });
+    fixture.detectChanges();
+    expect(element.querySelector('[role=alert]')?.textContent).toContain('Usuário ou senha inválidos');
+    expect(element.querySelector<HTMLButtonElement>('button[type=submit]')!.disabled).toBe(false);
+    form.dispatchEvent(new Event('submit')); fixture.detectChanges();
+    expect(element.querySelectorAll('mat-error').length).toBe(2);
+    http.verify();
+  });
   it('continuar por interação confiável comunica atividade após validar a mesma sessão', async () => {
     TestBed.configureTestingModule({ providers: [provideHttpClient(), provideHttpClientTesting(), provideApiConfig(), provideRouter([{ path: 'dashboard', component: AuthorizedDestination }]), { provide: AUTH_BROWSER, useValue: new BrowserFixture() }] });
     const http = TestBed.inject(HttpTestingController);
@@ -29,6 +54,41 @@ describe('Login público', () => {
     http.expectOne('/api/auth/me').flush(identity); http.expectOne('/api/auth/csrf').flush(null);
     http.expectOne('/api/auth/atividade').flush(identity);
     await fixture.whenStable(); expect(TestBed.inject(Router).url).toBe('/dashboard');
+    http.expectNone('/api/auth/login'); http.verify();
+  });
+  it.each(['cancelada', 'rejeitada'])('informa navegação %s sem encerrar a sessão e permite continuar sem novo login', async outcome => {
+    TestBed.configureTestingModule({ providers: [provideHttpClient(), provideHttpClientTesting(), provideApiConfig(), provideRouter([{ path: 'dashboard', component: AuthorizedDestination }])] });
+    const fixture = TestBed.createComponent(LoginPageComponent); fixture.detectChanges();
+    const router = TestBed.inject(Router);
+    const navigation = vi.spyOn(router, 'navigateByUrl');
+    if (outcome === 'cancelada') navigation.mockResolvedValueOnce(false);
+    else navigation.mockRejectedValueOnce(new Error('Destino indisponível'));
+    const element: HTMLElement = fixture.nativeElement;
+    for (const [name, value] of Object.entries({ username: 'admin', senha: 'senha de fixture' })) {
+      const input = element.querySelector<HTMLInputElement>(`[name=${name}]`)!;
+      input.value = value; input.dispatchEvent(new Event('input'));
+    }
+    element.querySelector('form')!.dispatchEvent(new Event('submit'));
+    const http = TestBed.inject(HttpTestingController);
+    const session = TestBed.inject(SessionService);
+    const generation = session.generation;
+    const identity = sessionFixture({ id: 7, username: 'admin', papel: 'ADMIN' });
+    http.expectOne('/api/auth/csrf').flush(null);
+    http.expectOne('/api/auth/login').flush(identity);
+    http.expectOne('/api/auth/csrf').flush(null);
+    http.expectOne('/api/auth/me').flush(identity);
+    http.expectOne('/api/auth/csrf').flush(null);
+    await fixture.whenStable(); fixture.detectChanges();
+    expect(session.authenticated()).toBe(true);
+    expect(session.generation).toBe(generation);
+    expect(element.querySelector('[role=alert]')?.textContent).toContain('Não foi possível abrir a página');
+    const button = element.querySelector<HTMLButtonElement>('[data-testid=continue-session]')!;
+    expect(button.disabled).toBe(false);
+    button.click();
+    http.expectOne('/api/auth/me').flush(identity);
+    http.expectOne('/api/auth/csrf').flush(null);
+    await fixture.whenStable();
+    expect(router.url).toBe('/dashboard');
     http.expectNone('/api/auth/login'); http.verify();
   });
   it('429 respeita Retry-After preservado pelo normalizador sem repetir login', () => {

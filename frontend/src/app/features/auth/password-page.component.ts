@@ -1,3 +1,4 @@
+import { AuthLayoutComponent } from '../../shared/auth-layout/auth-layout.component';
 import { ChangeDetectionStrategy, Component, DestroyRef, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
@@ -15,10 +16,10 @@ import { RetryAfterState } from '../../core/http/retry-after-state';
 @Component({
   selector: 'app-password-page',
   providers: [RetryAfterState],
-  imports: [ReactiveFormsModule, MatButtonModule, MatFormFieldModule, MatInputModule, RouterLink],
+  imports: [AuthLayoutComponent, ReactiveFormsModule, MatButtonModule, MatFormFieldModule, MatInputModule, RouterLink],
   styleUrl: './auth-page.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `<section aria-labelledby="password-title">
+  template: `<app-auth-layout><section aria-labelledby="password-title">
     <p>Gestão de Ações</p><h1 id="password-title">{{ initial ? 'Definir senha' : 'Redefinir senha' }}</h1>
     @if (success()) {
       <h2 role="status">Senha definida com sucesso</h2><p>Entre com sua senha para continuar. Esta confirmação não inicia uma sessão.</p><a mat-flat-button routerLink="/login">Entrar</a>
@@ -27,15 +28,15 @@ import { RetryAfterState } from '../../core/http/retry-after-state';
       @if (error()) { <p role="alert">{{ error() }}</p> }
       @if (retry.remaining()) { <p role="status">Tente novamente em {{ retry.remaining() }} segundos.</p> }
       <form [formGroup]="form" (ngSubmit)="submit()" [attr.aria-busy]="busy()">
-        <mat-form-field><mat-label>Nome de usuário</mat-label><input matInput name="username" formControlName="username" autocomplete="username" required><mat-error>Informe seu nome de usuário.</mat-error></mat-form-field>
-        <mat-form-field><mat-label>Código autorizado</mat-label><input matInput name="codigo" formControlName="codigo" autocomplete="one-time-code" spellcheck="false" required><mat-error>Informe o código recebido.</mat-error></mat-form-field>
-        <mat-form-field><mat-label>Nova senha</mat-label><input matInput name="senha" formControlName="senha" type="password" autocomplete="new-password" required><mat-hint>No mínimo 8 caracteres; até 72 bytes UTF-8, sem remover espaços.</mat-hint><mat-error>Use no mínimo 8 caracteres e no máximo 72 bytes UTF-8.</mat-error></mat-form-field>
-        <mat-form-field><mat-label>Confirme a nova senha</mat-label><input matInput name="confirmacao" formControlName="confirmacao" type="password" autocomplete="new-password" [errorStateMatcher]="confirmationMatcher" required><mat-error>A confirmação deve corresponder exatamente à nova senha.</mat-error></mat-form-field>
+        <mat-form-field appearance="outline" subscriptSizing="dynamic"><mat-label>Nome de usuário</mat-label><input matInput name="username" formControlName="username" autocomplete="username" required><mat-error>Informe seu nome de usuário.</mat-error></mat-form-field>
+        <mat-form-field appearance="outline" subscriptSizing="dynamic"><mat-label>Código autorizado</mat-label><input matInput name="codigo" formControlName="codigo" autocomplete="one-time-code" spellcheck="false" required><mat-error>Informe o código recebido.</mat-error></mat-form-field>
+        <mat-form-field appearance="outline" subscriptSizing="dynamic"><mat-label>Nova senha</mat-label><input matInput name="senha" formControlName="senha" type="password" autocomplete="new-password" required><mat-hint>No mínimo 8 caracteres; até 72 bytes UTF-8, sem remover espaços.</mat-hint><mat-error>Use no mínimo 8 caracteres e no máximo 72 bytes UTF-8.</mat-error></mat-form-field>
+        <mat-form-field appearance="outline" subscriptSizing="dynamic"><mat-label>Confirme a nova senha</mat-label><input matInput name="confirmacao" formControlName="confirmacao" type="password" autocomplete="new-password" [errorStateMatcher]="confirmationMatcher" required><mat-error>A confirmação deve corresponder exatamente à nova senha.</mat-error></mat-form-field>
         <button mat-flat-button type="submit" [disabled]="busy() || retry.remaining() > 0">{{ busy() ? 'Confirmando…' : 'Definir senha' }}</button>
       </form>
       <nav aria-label="Voltar ao acesso"><a routerLink="/login">Voltar ao login</a></nav>
     }
-  </section>`
+  </section></app-auth-layout>`
 })
 export class PasswordPageComponent {
   private readonly api = inject(AuthApi);

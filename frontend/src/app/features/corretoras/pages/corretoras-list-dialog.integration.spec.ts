@@ -27,7 +27,37 @@ describe('CorretorasListPageComponent com MatDialog real', () => {
     fixture.detectChanges();
   });
 
-  afterEach(() => overlay.getContainerElement().replaceChildren());
+  afterEach(() => { overlay.getContainerElement().replaceChildren(); vi.restoreAllMocks(); });
+
+  it('returns USER from absence with Escape and restores the query focus without registration', async () => {
+    fixture.destroy();
+    TestBed.resetTestingModule();
+    service.listar.mockClear();
+    await authenticatedModule({ imports: [CorretorasListPageComponent], providers: [provideRouter([]), {provide:CorretorasService,useValue:service}] }, 'USER').compileComponents();
+    overlay = TestBed.inject(OverlayContainer);
+    fixture = TestBed.createComponent(CorretorasListPageComponent);
+    fixture.detectChanges();
+    const input = fixture.nativeElement.querySelector('input') as HTMLInputElement;
+    input.value = '11.222.333/0001-81';
+    input.dispatchEvent(new Event('input'));
+    input.focus();
+    // jsdom has no layout; visibility geometry lets CDK exercise its real focus trap.
+    vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(100);
+    vi.spyOn(HTMLElement.prototype, 'offsetHeight', 'get').mockReturnValue(44);
+    (fixture.nativeElement.querySelector('form') as HTMLFormElement).dispatchEvent(new Event('submit', {bubbles:true,cancelable:true}));
+    fixture.detectChanges(); await fixture.whenStable();
+    const buttons = [...overlay.getContainerElement().querySelectorAll('button')] as HTMLButtonElement[];
+    expect(buttons.map(button => button.textContent?.trim())).toEqual(['Voltar à listagem']);
+    await vi.waitFor(() => expect(document.activeElement).toBe(buttons[0]));
+    overlay.getContainerElement().querySelector('mat-dialog-container')!
+      .dispatchEvent(new KeyboardEvent('keydown', {key:'Escape',keyCode:27,bubbles:true}));
+    fixture.detectChanges(); await fixture.whenStable();
+    await vi.waitFor(() => expect(overlay.getContainerElement().querySelector('mat-dialog-container')).toBeNull());
+    await vi.waitFor(() => expect(document.activeElement).toBe(input));
+    expect(service.cadastrar).not.toHaveBeenCalled();
+    expect(service.buscarPorCnpj).toHaveBeenCalledTimes(1);
+    expect(service.listar).toHaveBeenCalledTimes(1);
+  });
 
   it('encadeia o CTA real para o cadastro preenchido sem POST ou overlay órfão', async () => {
     const open = vi.spyOn(TestBed.inject(MatDialog), 'open');

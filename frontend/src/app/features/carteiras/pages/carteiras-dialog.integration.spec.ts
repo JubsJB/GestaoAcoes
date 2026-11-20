@@ -32,6 +32,9 @@ describe('Carteiras com MatDialog real', () => {
     await authenticatedModule({ imports: [CarteirasListPageComponent], providers: [{ provide: CARTEIRA_STORAGE, useValue: null }, { provide: DashboardService, useValue: { listarPosicoes: () => of([]) } },provideRouter([]), { provide: CarteirasService, useValue: service }] }).compileComponents();
     overlay = TestBed.inject(OverlayContainer); const fixture = TestBed.createComponent(CarteirasListPageComponent); fixture.detectChanges();
     const create = [...fixture.nativeElement.querySelectorAll('button')].find((button: HTMLButtonElement) => button.textContent?.includes('Nova carteira')) as HTMLButtonElement; create.click(); fixture.detectChanges();
+    expect(overlay.getContainerElement().querySelector('h1')).toBeNull();
+    expect(overlay.getContainerElement().querySelector('#carteira-form-title')?.textContent).toBe('Nova carteira');
+    expect(overlay.getContainerElement().querySelector('mat-dialog-container')?.getAttribute('aria-labelledby')).toBe('carteira-form-title');
     const input = overlay.getContainerElement().querySelector('input') as HTMLInputElement; input.value = 'Inicial'; input.dispatchEvent(new Event('input')); (overlay.getContainerElement().querySelector('form') as HTMLFormElement).dispatchEvent(new Event('submit')); await waitForDialogClose(); fixture.detectChanges();
     expect(service.cadastrar).toHaveBeenCalledOnce(); expect(service.cadastrar).toHaveBeenCalledWith({ nome: 'Inicial' }); expect(service.listar).toHaveBeenCalledTimes(1); expect(fixture.nativeElement.textContent).toContain('Inicial');
   });
@@ -43,8 +46,8 @@ describe('Carteiras com MatDialog real', () => {
     TestBed.overrideProvider(DistribuicaoCorretorasService, { useValue: { consultar: (id: number) => of({ carteiraId: id, posicoes: [] }) } });
     overlay = TestBed.inject(OverlayContainer); const router = TestBed.inject(Router); vi.spyOn(router, 'currentNavigation').mockReturnValue({ extras: { info: { carteira: CARTEIRA } } } as never); vi.spyOn(router, 'navigate').mockResolvedValue(true);
     const fixture: ComponentFixture<CarteiraDetailPageComponent> = TestBed.createComponent(CarteiraDetailPageComponent); fixture.detectChanges();
-    (fixture.nativeElement.querySelectorAll('button')[0] as HTMLButtonElement).click(); fixture.detectChanges(); const cancel = [...overlay.getContainerElement().querySelectorAll('button')].find((button) => button.textContent?.trim() === 'Cancelar') as HTMLButtonElement; cancel.click(); await waitForDialogClose(); expect(service.atualizar).not.toHaveBeenCalled();
-    (fixture.nativeElement.querySelectorAll('button')[1] as HTMLButtonElement).click(); fixture.detectChanges(); const exclude = [...overlay.getContainerElement().querySelectorAll('button')].find((button) => button.textContent?.trim() === 'Excluir') as HTMLButtonElement; exclude.click(); await waitForDialogClose();
+    (fixture.nativeElement.querySelectorAll('button')[0] as HTMLButtonElement).click(); fixture.detectChanges(); expect(overlay.getContainerElement().querySelector('#carteira-form-title')?.textContent).toBe('Editar carteira'); expect(overlay.getContainerElement().querySelector('input')?.value).toBe(CARTEIRA.nome); const cancel = [...overlay.getContainerElement().querySelectorAll('button')].find((button) => button.textContent?.trim() === 'Cancelar') as HTMLButtonElement; cancel.click(); await waitForDialogClose(); expect(service.atualizar).not.toHaveBeenCalled();
+    (fixture.nativeElement.querySelectorAll('button')[1] as HTMLButtonElement).click(); fixture.detectChanges(); const exclude = [...overlay.getContainerElement().querySelectorAll('button')].find((button) => button.textContent?.trim() === 'Excluir carteira') as HTMLButtonElement; exclude.click(); await waitForDialogClose();
     expect(service.excluir).toHaveBeenCalledOnce(); expect(service.excluir).toHaveBeenCalledWith(6); expect(router.navigate).toHaveBeenCalledWith(['/carteiras']);
   });
 

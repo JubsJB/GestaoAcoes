@@ -1,0 +1,9 @@
+@use '../../../styles/visual-foundation' as visual;
+@use 'operacoes-typography' as typography;
+:host { @include visual.blue-scope; @include typography.page-scale; display: block; min-width: 0; container: operations / inline-size; }
+.app-page { gap: 1.25rem; }
+.portfolio-context { margin: 0; color: var(--app-text-primary); font-size: .875rem; overflow-wrap: anywhere; }
+.portfolio-context span { color: var(--app-text-secondary); margin-right: .5rem; }
+.portfolio-context strong { font-weight: 600; }
+.portfolio-context small { display: inline; font-weight: 400; }
+@container operations (max-width:20rem) { .portfolio-context span { display: block; } }

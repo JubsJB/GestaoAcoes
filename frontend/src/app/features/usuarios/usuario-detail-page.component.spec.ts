@@ -56,6 +56,18 @@ describe('Consulta e alterações administrativas', () => {
     context.overlay.querySelector<HTMLButtonElement>('button[mat-dialog-close]')!.click(); await Promise.resolve();
     context.http.expectNone(request => request.method !== 'GET'); context.http.verify();
   });
+  it('restaura foco ao comando de origem após cancelar a confirmação', async () => {
+    const context = await open();
+    const trigger = context.element.querySelector<HTMLButtonElement>('[data-testid=toggle-status]')!;
+    trigger.focus();
+    trigger.click(); context.harness.detectChanges();
+    context.overlay.querySelector<HTMLButtonElement>('button[mat-dialog-close]')!.click();
+    await vi.waitFor(() => {
+      context.harness.detectChanges();
+      expect(document.activeElement).toBe(trigger);
+    });
+    context.http.expectNone(request => request.method !== 'GET'); context.http.verify();
+  });
   it.each([false, true])('autoalteração de perfil encerra a sessão apenas quando efetiva=%s', async effective => {
     const context = await open({ papel: 'ADMIN' }, true);
     const session = TestBed.inject(SessionService);

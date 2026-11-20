@@ -14,16 +14,17 @@ import { Papel } from './usuario.model';
 import { UsuariosApi } from './usuarios-api.service';
 import { OneTimeCodeDialogComponent } from './one-time-code-dialog.component';
 
-@Component({
+@Component({ host: { class: 'app-blue-scope' },
   selector: 'app-usuario-create-page', changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [ReactiveFormsModule, MatButtonModule, MatFormFieldModule, MatInputModule, MatSelectModule, RouterLink, PageHeaderComponent], styleUrl: './usuarios-page.scss',
-  template: `<section><app-page-header title="Cadastrar usuário" icon="identity" description="O próprio usuário define sua senha com um código de uso único." />
+  template: `<section class="admin-page"><a class="back-link" routerLink="/usuarios">← Voltar à lista</a><header class="admin-header"><app-page-header title="Cadastrar usuário" eyebrow="Administração de acesso" description="Crie uma conta e defina suas permissões de acesso." /></header>
     @if (error()) { <p role="alert">{{ error() }}</p> }
-    <form [formGroup]="form" (ngSubmit)="submit()" [attr.aria-busy]="busy()">
-      <mat-form-field><mat-label>Nome de usuário</mat-label><input matInput name="username" formControlName="username" autocomplete="off" required><mat-hint>3 a 100 letras, números, pontos, hífens ou sublinhados.</mat-hint><mat-error>{{ form.controls.username.hasError('duplicate') ? 'Nome de usuário já utilizado.' : 'Informe um nome de usuário válido.' }}</mat-error></mat-form-field>
-      <mat-form-field><mat-label>Perfil</mat-label><mat-select formControlName="papel"><mat-option value="USER">USER — somente consulta</mat-option><mat-option value="ADMIN">ADMIN — administração e alterações</mat-option></mat-select></mat-form-field>
+    <div class="editor-grid"><form class="admin-card" [formGroup]="form" (ngSubmit)="submit()" [attr.aria-busy]="busy()">
+      <div class="card-heading"><h2>Dados da conta</h2><p>Informe a identificação e o perfil do usuário.</p></div>
+      <mat-form-field appearance="outline" subscriptSizing="dynamic"><mat-label>Nome de usuário</mat-label><input matInput name="username" formControlName="username" autocomplete="off" required><mat-hint>3 a 100 letras, números, pontos, hífens ou sublinhados.</mat-hint><mat-error>{{ form.controls.username.hasError('duplicate') ? 'Nome de usuário já utilizado.' : 'Informe um nome de usuário válido.' }}</mat-error></mat-form-field>
+      <mat-form-field appearance="outline" subscriptSizing="dynamic"><mat-label>Perfil</mat-label><mat-select panelClass="app-blue-scope" formControlName="papel"><mat-option value="USER">USER — somente consulta</mat-option><mat-option value="ADMIN">ADMIN — administração e alterações</mat-option></mat-select></mat-form-field>
       <div class="actions"><a mat-button routerLink="/usuarios">Cancelar</a><button mat-flat-button type="submit" [disabled]="busy()">{{ busy() ? 'Cadastrando…' : 'Cadastrar e gerar código' }}</button></div>
-    </form></section>`
+    </form><aside class="admin-card support-card"><span class="card-eyebrow">Primeiro acesso</span><h2>A senha é pessoal</h2><p>O próprio usuário define sua senha com um código de uso único.</p><p>Após o cadastro, o código será exibido somente uma vez. Entregue-o ao titular por um canal seguro.</p></aside></div></section>`
 })
 export class UsuarioCreatePageComponent {
   private readonly api = inject(UsuariosApi); private readonly session = inject(SessionService);
@@ -40,7 +41,7 @@ export class UsuarioCreatePageComponent {
         if (generation !== this.session.generation || !this.session.admin()) return;
         const id = emission.usuario.id;
         this.form.reset();
-        this.dialog.open(OneTimeCodeDialogComponent, { data: { username: emission.usuario.username, ...emission.autorizacao }, closeOnNavigation: true, width: '36rem', maxWidth: '95vw' }).afterClosed().pipe(takeUntilDestroyed(this.destroy)).subscribe(() => {
+        this.dialog.open(OneTimeCodeDialogComponent, { data: { username: emission.usuario.username, ...emission.autorizacao }, panelClass: 'app-blue-scope', closeOnNavigation: true, width: '36rem', maxWidth: '95vw' }).afterClosed().pipe(takeUntilDestroyed(this.destroy)).subscribe(() => {
           if (this.session.generation === generation && this.session.admin()) void this.router.navigate(['/usuarios', id]);
         });
       },

@@ -1,0 +1,38 @@
+@use '../../../styles/visual-foundation' as visual;
+@use 'carteiras-typography' as typography;
+
+:host { @include visual.blue-scope; @include typography.page-scale; display: block; min-width: 0; container: carteiras / inline-size; }
+.collection-page { gap: 1.25rem; }
+.collection-region { min-width: 0; }
+.collection-table { width: 100%; table-layout: fixed; border-spacing: 0; border: 1px solid var(--app-border-subtle); border-radius: .75rem; background: var(--app-surface-card); font-size: .875rem; font-variant-numeric: tabular-nums; }
+caption { padding: 1rem 1.25rem; border: 1px solid var(--app-border-subtle); border-bottom: 0; border-radius: .75rem .75rem 0 0; background: var(--app-surface-card); color: var(--app-brand-primary); text-align: left; font-size: 1rem; font-weight: 650; }
+th, td { padding: .875rem 1.125rem; border-bottom: 1px solid var(--app-border-subtle); text-align: left; vertical-align: middle; overflow-wrap: anywhere; word-break: normal; }
+thead th { padding-block: .6875rem; background: #f8faff; color: var(--app-text-secondary); font-size: .75rem; font-weight: 600; }
+th:first-child { width: 43%; }
+th:nth-child(2) { width: 23%; }
+th:nth-child(3) { width: 13%; }
+tbody th { color: var(--app-brand-primary); font-weight: 600; line-height: 1.45; }
+.status-badge { font-size: .75rem; }
+tbody tr:last-child > * { border-bottom: 0; }
+.actions-cell, thead th:last-child { text-align: right; }
+.details-link { display: inline-flex; align-items: center; justify-content: center; min-height: 2.75rem; max-width: 100%; padding: .5rem .875rem; border: 1px solid var(--app-border-subtle); border-radius: .5rem; color: var(--app-action-primary); font-size: .8125rem; font-weight: 600; text-decoration: none; }
+.details-link:hover { background: var(--app-surface-selected); }
+.details-link:focus-visible { outline: 2px solid var(--app-focus); outline-offset: 3px; }
+.cell-label { display: none; }
+@container carteiras (max-width: 48rem) {
+  .collection-table, tbody { display: block; border: 0; background: transparent; }
+  caption { display: block; padding: 0 0 .75rem; border: 0; background: transparent; }
+  thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  tbody tr { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); gap: .625rem .75rem; margin-bottom: .75rem; padding: .875rem 1rem 0; border: 1px solid var(--app-border-subtle); border-radius: .75rem; background: var(--app-surface-card); }
+  th, td { display: block; width: auto !important; min-width: 0; padding: 0; border: 0; }
+  tbody th { grid-column: 1 / -1; }
+  .cell-label { display: block; margin-bottom: .25rem; color: var(--app-text-secondary); font-size: .75rem; font-weight: 400; }
+  tbody th .cell-label, .actions-cell .cell-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  .actions-cell { grid-column: 1 / -1; margin-inline: -1rem; padding: .25rem .75rem; border-top: 1px solid var(--app-border-subtle); }
+  .details-link { border-color: transparent; }
+}
+@container carteiras (max-width: 18rem) {
+  tbody tr { grid-template-columns: minmax(0, 1fr); }
+  td:nth-child(3) { display: flex; align-items: center; gap: .5rem; }
+  td:nth-child(3) .cell-label { margin: 0; }
+}

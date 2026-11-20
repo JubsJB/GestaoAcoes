@@ -43,6 +43,24 @@ describe('PortfolioEvolutionComponent', () => {
     return fixture;
   }
 
+  it('usa somente registros existentes nas referências monetárias e preserva as coordenadas e o histórico', async () => {
+    const fixture = await create(DATA);
+    const root = fixture.nativeElement as HTMLElement;
+    const labels = Array.from(root.querySelectorAll<HTMLElement>('.value-axis [data-value-y]'));
+    expect(labels).toHaveLength(3);
+    const before = JSON.stringify(DATA);
+    for (const currency of ['BRL', 'USD'] as const) {
+      const geometry = buildEvolutionGeometry(DATA.pontos, currency)!;
+      const chart = root.querySelector(`#chart-title-${currency}`)!.closest('.chart')!;
+      const refs = Array.from(chart.querySelectorAll<HTMLElement>('.value-axis [data-value-y]'));
+      expect(refs.map(label => label.dataset['valueY'])).toEqual(geometry.points.map(point => String(point.y)));
+      expect(chart.querySelectorAll('.point')).toHaveLength(geometry.points.length);
+    }
+    expect(root.querySelector('.value-axis')?.getAttribute('aria-hidden')).toBe('true');
+    expect(root.querySelectorAll('.history li')).toHaveLength(4);
+    expect(JSON.stringify(DATA)).toBe(before);
+  });
+
   it('decorates only existing segments without bridging gaps or moving financial points', async () => {
     const data: EvolucaoPatrimonialResponse = { carteiraId: 1, pontos: [
       ...[1, 2, 3, 4, 5, 6].map(id => ({ snapshotId: id, dataHoraSnapshot: `2026-09-0${id}T10:00:00Z`,
@@ -228,8 +246,9 @@ describe('PortfolioEvolutionComponent', () => {
   it('suprime somente labels sobrepostos após resize e mantém pontos, registros e consulta', async () => {
     let resize = () => {};
     vi.stubGlobal('ResizeObserver', class {
-      constructor(callback: () => void) { resize = callback; }
-      observe() {} disconnect() {}
+      constructor(private readonly callback: () => void) {}
+      observe(target: HTMLElement) { if (target.classList.contains('axis-labels')) resize = this.callback; }
+      disconnect() {}
     });
     try {
       const data: EvolucaoPatrimonialResponse = { carteiraId: 1, pontos: [1, 2, 3].map(snapshotId => ({

@@ -1,5 +1,5 @@
 <section class="app-page dashboard" aria-labelledby="dashboard-title">
-  <app-page-header headingId="dashboard-title" eyebrow="Visão geral" icon="dashboard" title="Dashboard" description="Acompanhe seu patrimônio e suas posições, sempre separados por moeda." />
+  <app-page-header headingId="dashboard-title" eyebrow="Visão geral" title="Dashboard" description="Acompanhe seu patrimônio e suas posições, sempre separados por moeda." />
 
   @if (quoteFeedback(); as feedback) {
     <app-feedback-alert class="quote-update-feedback" [variant]="feedback.variant" [message]="feedback.message" [urgent]="false" />
@@ -22,7 +22,8 @@
       <div class="app-state app-surface"><h2>Selecione uma carteira</h2><p>Os indicadores são sempre apresentados no contexto de uma única carteira.</p></div>
     } @else {
       <div class="dashboard-actions app-actions app-actions--stack-compact">
-        <p class="portfolio-context">Carteira: <strong>{{ selected()!.nome }}</strong></p>
+        <p class="portfolio-context"><span>Carteira selecionada</span><strong>{{ selected()!.nome }}</strong></p>
+        <div class="dashboard-commands">
         <a mat-stroked-button [routerLink]="['/carteiras', selected()!.id]">Ver carteira</a>
         <button *appAdmin mat-flat-button type="button" (click)="openOperationDialog()">Registrar operação</button>
         <button mat-button type="button" (click)="reload()" [disabled]="financialLoading()">Atualizar dados</button>
@@ -31,6 +32,7 @@
           [attr.aria-describedby]="quoteDisabledReason() ? 'quote-update-status' : null">
           {{ quoteUpdating() ? 'Atualizando cotações' : 'Atualizar cotações' }}
         </button>
+        </div>
         <span id="quote-update-status" role="status" aria-live="polite">{{ quoteDisabledReason() }}</span>
       </div>
 

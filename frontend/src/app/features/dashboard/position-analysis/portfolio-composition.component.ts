@@ -11,7 +11,10 @@ import { groupPositions, moneyPresentation } from './position-chart-presentation
 })
 export class PortfolioCompositionComponent {
   readonly positions = input.required<readonly PosicaoResponse[]>();
-  protected readonly colors = ['#246650', '#548777', '#394e49', '#76998d', '#456966', '#63756b'];
+  // Approved categories, followed by darker companions for portfolios above six assets.
+  // Numbers and textures continue to distinguish categories when the palette repeats.
+  protected readonly colors = ['#315EAB', '#D39A64', '#478F89', '#8875AD', '#C87986', '#8A98A7', '#21437C', '#986139', '#27615D', '#5E4B82', '#914855', '#536475'];
+  protected readonly labelColors = ['#fff', '#0b1220', '#0b1220', '#0b1220', '#0b1220', '#0b1220', '#fff', '#fff', '#fff', '#fff', '#fff', '#fff'];
   protected readonly groups = computed(() => groupPositions(this.positions()).map(group => {
     const geometry = compositionGeometry(group.positions.map(p => p.valorAtualPosicao));
     return { currency: group.currency, state: geometry.state,

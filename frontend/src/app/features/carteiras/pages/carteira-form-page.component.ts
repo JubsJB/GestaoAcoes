@@ -32,9 +32,13 @@ function nonBlank(control: AbstractControl<string>): ValidationErrors | null {
   selector: 'app-carteira-form-page',
   imports: [AppIconComponent, FeedbackAlertComponent, MatButtonModule, MatFormFieldModule, MatInputModule, MatProgressSpinnerModule, PageHeaderComponent, ReactiveFormsModule, RouterLink, StickyBackComponent],
   template: `
-    <section class="app-page" [class.app-dialog-page]="isDialog" aria-labelledby="carteira-form-title" aria-describedby="carteira-form-description">
+    <section class="app-page" [class.wallet-dialog-page]="isDialog" aria-labelledby="carteira-form-title" aria-describedby="carteira-form-description">
       @if (!isDialog) { <app-sticky-back route="/carteiras" label="Voltar para carteiras" /> }
-      <app-page-header headingId="carteira-form-title" eyebrow="Carteiras" icon="portfolio" [title]="isEdit ? 'Editar carteira' : 'Nova carteira'" [description]="isEdit ? 'Altere somente o nome da carteira.' : 'Crie uma carteira para organizar seus investimentos.'" />
+      @if (isDialog) {
+        <header class="wallet-dialog-heading"><h2 id="carteira-form-title">{{ isEdit ? 'Editar carteira' : 'Nova carteira' }}</h2><p>{{ isEdit ? 'Altere somente o nome da carteira.' : 'Crie uma carteira para organizar seus investimentos.' }}</p></header>
+      } @else {
+        <app-page-header headingId="carteira-form-title" eyebrow="Carteiras" [title]="isEdit ? 'Editar carteira' : 'Nova carteira'" [description]="isEdit ? 'Altere somente o nome da carteira.' : 'Crie uma carteira para organizar seus investimentos.'" />
+      }
       <p id="carteira-form-description" class="sr-only">{{ isEdit ? 'Formulário para editar o nome da carteira.' : 'Formulário para cadastrar uma carteira.' }}</p>
 
       @if (error()) { <app-feedback-alert variant="error" [message]="error()!.message" [details]="error()!.details" /> }
@@ -42,24 +46,24 @@ function nonBlank(control: AbstractControl<string>): ValidationErrors | null {
         <div class="app-state" role="status" aria-live="polite"><mat-spinner diameter="36" /> Carregando carteira…</div>
       } @else {
         <form class="app-form-surface app-surface" [formGroup]="form" (ngSubmit)="submit()" novalidate>
-          <div class="surface-heading"><app-icon name="identity" aria-hidden="true" /><div><h2>Identificação</h2><p>O nome pode ser alterado depois.</p></div></div>
-          <mat-form-field appearance="outline">
+          @if (!isDialog) { <div class="surface-heading"><app-icon name="identity" aria-hidden="true" /><div><h2>Identificação</h2><p>O nome pode ser alterado depois.</p></div></div> }
+          <mat-form-field appearance="outline" subscriptSizing="dynamic">
             <mat-label>Nome</mat-label>
             <input matInput formControlName="nome" maxlength="255" autocomplete="off" aria-describedby="carteira-name-hint" />
             <mat-hint id="carteira-name-hint">Até 255 caracteres.</mat-hint>
             @if (form.controls.nome.invalid && form.controls.nome.touched) { <mat-error>Informe um nome não vazio com até 255 caracteres.</mat-error> }
           </mat-form-field>
           <div class="app-actions app-actions--stack-compact">
-            <button mat-flat-button type="submit" [disabled]="submitting()" [attr.aria-busy]="submitting()">{{ isEdit ? 'Salvar alterações' : 'Cadastrar' }}</button>
             @if (isDialog) { <button mat-button type="button" (click)="cancel()">Cancelar</button> }
-            @else { <a mat-button routerLink="/carteiras">Cancelar</a> }
+            <button mat-flat-button type="submit" [disabled]="submitting()" [attr.aria-busy]="submitting()">{{ isEdit ? 'Salvar alterações' : 'Cadastrar' }}</button>
+            @if (!isDialog) { <a mat-button routerLink="/carteiras">Cancelar</a> }
           </div>
           @if (submitting()) { <div class="progress" role="status" aria-live="polite"><mat-spinner diameter="28" /> Salvando carteira…</div> }
         </form>
       }
     </section>
   `,
-  styleUrl: '../../../shared/form/simple-form.scss',
+  styleUrl: '../carteira-form.scss',
   styles: [`.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}`],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
